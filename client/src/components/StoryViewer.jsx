@@ -1,0 +1,130 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { api, timeAgo } from '../api.js'
+import { useApp } from '../store.jsx'
+import Avatar from './Avatar.jsx'
+import { IcX, IcHeart, IcHeartFill, IcSend, IcChevronL, IcChevronR } from './Icons.jsx'
+
+const STORY_MS = 5000
+
+export default function StoryViewer() {
+  const app = useApp()
+  const view = app.storyView
+  const [gi, setGi] = useState(view?.index || 0)
+  const [si, setSi] = useState(0)
+  const [reply, setReply] = useState('')
+  const [paused, setPaused] = useState(false)
+  const timer = useRef(null)
+
+  const close = useCallback(() => app.closeStories(), [app])
+
+  useEffect(() => {
+    if (!view) return
+    setGi(view.index || 0)
+    setSi(0)
+  }, [view])
+
+  const groups = view?.groups || []
+  const group = groups[gi]
+
+  const nextStory = useCallback(() => {
+    if (!group) return
+    if (si < group.stories.length - 1) setSi(si + 1)
+    else if (gi < groups.length - 1) { setGi(gi + 1); setSi(0) }
+    else close()
+  }, [group, si, gi, groups.length, close])
+
+  const prevStory = useCallback(() => {
+    if (si > 0) setSi(si - 1)
+    else if (gi > 0) { setGi(gi - 1); setSi(0) }
+  }, [si, gi])
+
+  // mark seen
+  useEffect(() => {
+    if (!group) return
+    const s = group.stories[si]
+    if (!s) return
+    api(`/stories/${s.id}/seen`, { method: 'POST' }).catch(() => {})
+    // auto advance
+    clearTimeout(timer.current)
+    if (!paused) timer.current = setTimeout(nextStory, STORY_MS)
+    return () => clearTimeout(timer.current)
+  }, [group, si, paused, nextStory])
+
+  // keyboard
+  useEffect(() => {
+    if (!view) return
+    function onKey(e) {
+      if (e.key === 'Escape') close()
+      if (e.key === 'ArrowRight') nextStory()
+      if (e.key === 'ArrowLeft') prevStory()
+    }
+    window.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
+  }, [view, nextStory, prevStory, close])
+
+  if (!view || !group) return null
+  const story = group.stories[si]
+  if (!story) return null
+
+  async function sendReply(e) {
+    e.preventDefault()
+    const text = reply.trim()
+    if (!text) return
+    try {
+      await api('/messages', { method: 'POST', body: { to: group.user.username, text } })
+      setReply('')
+      app.toast('Reply sent to ' + group.user.username + ' ✉️')
+    } catch (err) { app.toast(err.message) }
+  }
+
+  return (
+    <div className="story-viewer" onMouseDown={() => setPaused(true)} onMouseUp={() => setPaused(false)}>
+      <div className="story-header">
+        <Avatar user={group.user} size={32} />
+        <span className="story-h-username">{group.user.username}</span>
+        <span className="story-h-time">{timeAgo(story.createdAt)}</span>
+        <button className="icon-btn light" onClick={close}><IcX size={26} /></button>
+      </div>
+
+      <div className="story-progress">
+        {group.stories.map((s, i) => (
+          <div className="sp-track" key={s.id}>
+            <div
+              className="sp-fill"
+              key={paused ? s.id + '-paused' : s.id}
+              style={{
+                animation: i < si ? 'none' : i === si ? `storyProgress ${STORY_MS}ms linear forwards ${paused ? 'paused' : 'running'}` : 'none',
+                width: i < si ? '100%' : 0,
+              }}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="story-stage" key={story.id}>
+        {story.mediaType === 'video' ? (
+          <video src={story.media} autoPlay muted playsInline onEnded={nextStory} />
+        ) : (
+          <img src={story.media} alt="story" draggable="false" />
+        )}
+      </div>
+
+      <button className="story-tap left" onClick={prevStory} aria-label="Previous" />
+      <button className="story-tap right" onClick={nextStory} aria-label="Next" />
+
+      <button className="story-arrow left" onClick={prevStory}><IcChevronL size={20} /></button>
+      <button className="story-arrow right" onClick={nextStory}><IcChevronR size={20} /></button>
+
+      <form className="story-reply" onSubmit={sendReply}>
+        <input
+          value={reply}
+          onChange={(e) => setReply(e.target.value)}
+          placeholder={`Reply to ${group.user.username}…`}
+          onMouseDown={(e) => e.stopPropagation()}
+        />
+        {reply.trim() && <button type="submit" className="icon-btn light"><IcSend size={22} /></button>}
+      </form>
+    </div>
+  )
+}
