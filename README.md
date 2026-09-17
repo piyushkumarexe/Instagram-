@@ -1,80 +1,53 @@
 # VibeGram 📸✨
 
-An Instagram-style full-stack social app — built from scratch with **React + Vite** on the front and **Express + Node** on the back, using a tiny JSON database (zero external DB setup needed).
+A full Instagram-style social app — **100% serverless, powered by Google Firebase**. Works as a web app, an **Android APK**, and an **iOS IPA** — all built automatically by GitHub Actions.
 
-> Demo login → **username:** `demo` · **password:** `demo123`
+> Download: **[Releases](../../releases)** → `app-debug.apk` (Android) · `VibeGram-iOS-unsigned.ipa` (iOS)
 
 ## ✨ Features
 
 | Area | What works |
 |---|---|
-| 🔐 Auth | Signup, login, JWT sessions, one-tap **demo login** |
-| 📰 Feed | Instagram-style feed, infinite scroll, follow-only visibility, "all caught up" state |
-| 📝 Posts | Photo/video upload with **10 filters** (Clarendon, Moon, Juno…), captions, delete |
-| ❤️ Engagement | Like (**double-tap heart animation**), comments (add/delete), save/bookmark, share via link |
-| 📖 Stories | 24-hour stories with gradient rings, seen state, full-screen viewer with progress bars, auto-advance, replies via DM |
-| 🧭 Explore | Grid explore page, live search (users + captions) |
-| 🎬 Reels | Vertical snap-scroll reels — real videos play; image reels get a ken-burns effect |
-| 💬 DMs | Direct messages with chats, bubbles, day separators, emoji picker, unread badges, polling |
-| 🔔 Notifications | Likes / comments / follows with unread badge and thumbnails |
-| 👤 Profile | Avatar, bio, edit profile, posts/reels/saved tabs, followers/following modals, follow/unfollow |
-| 📱 UI | Pixel-faithful Instagram layout — desktop sidebar + right rail, full mobile app experience with bottom nav |
-| 🎨 Branding | Custom **VibeGram** gradient logo, avatars & demo content generated for a lived-in feel |
+| 🔐 Auth | **Google Sign-In**, email/password signup+login, one-tap **demo login**, unique-username onboarding |
+| 📰 Feed | Realtime Firestore feed, infinite scroll, follow-only visibility, "all caught up" state |
+| 📝 Posts | Photo/video upload to **Firebase Storage**, 10 filters, captions, delete |
+| ❤️ Engagement | Likes (double-tap heart), comments, save/bookmark, share links, transactional like-counts |
+| 📖 Stories | 24-hour stories, gradient rings, full-screen viewer, auto-advance, replies via DM |
+| 🧭 Explore | Grid explore, live **username search** (Firestore index-free prefix queries) + caption search |
+| 🎬 Reels | Snap-scroll reels with ken-burns effect for image reels |
+| 💬 DMs | **Realtime chat** (Firestore snapshots), bubbles, day separators, emoji picker, unread badges |
+| 🔔 Notifications | **Realtime** likes/comments/follows with unread badge + thumbnails |
+| 👤 Profiles | Posts/reels/saved tabs, followers/following lists, edit profile, avatar upload, live counters |
+| 📱 Apps | Android APK (Capacitor) + iOS IPA (unsigned) + instant web preview |
 
-## 🚀 Run it
+## 🔥 Firebase architecture (v2.0)
+
+- **Auth** — Google provider + Email/Password
+- **Firestore** — `users`, `usernames` (uniqueness via transaction), `posts` (+`comments` subcollection), `stories`, `follows`, `dms/{pair}/messages`, `notifications`
+- **Storage** — `uploads/` and `stories/` and `avatars/`
+- Zero composite indexes needed (denormalized counters + client-side sorting) — works on any fresh Firebase project
+- Demo content **self-seeds** into an empty project on first login (5 demo creators, posts, reels, stories, chats) — media served from this repo's raw GitHub URLs
+
+### One-time Firebase settings that unlock everything
+| Feature | Console setting |
+|---|---|
+| Google sign-in on **web preview** | Authentication → Settings → **Authorized domains** → add the preview domain |
+| Demo / email login | Authentication → Sign-in method → enable **Email/Password** |
+| Keep data writable | Firestore/Storage rules in **test mode** work out of the box (expire ~30 days — extend the date to keep writing) |
+
+## 🚀 Run / build
 
 ```bash
 npm install
-npm run seed        # loads demo users, posts, stories, DMs
-npm run dev         # starts API (3001) + web app (5173)
+npm run dev         # web app (Firebase is the backend — nothing else to run)
+npm run android:build   # Android APK  → android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Open http://localhost:5173 — log in with the demo account or create your own.
+Push to GitHub → Actions build **APK + IPA** automatically; `v*` tags attach them to Releases.
 
-## 📱 Android APK (built by GitHub Actions)
+## 🍎 iOS note
 
-**Download both apps:** https://github.com/piyushkumarexe/Instagram-/releases — `app-debug.apk` (Android, ready to install) + `VibeGram-iOS-unsigned.ipa` (iOS, needs signing).
-
-The repo ships with a **Capacitor**-wrapped Android app. Every push triggers [`.github/workflows/android.yml`](.github/workflows/android.yml), which builds `app-debug.apk` and uploads it as a run artifact named **`VibeGram-APK`** (pushing a tag like `v1.1` also attaches it to a GitHub Release).
-
-**Get the APK:** Repo → **Releases** → latest → download `app-debug.apk` → install (allow "unknown apps").
-
-**v1.1+ connects automatically** to the bundled demo backend — install and log in with `demo` / `demo123`. No server URL needed (advanced: the login screen still has a Server URL field for pointing at your own backend: `npm install && npm run seed && npm run dev`, then `http://YOUR_PC_IP:3001`; Android emulator: `http://10.0.2.2:3001`).
-
-> ⚠️ v1.0 had a broken bundle (missing exports) — use v1.1 or later.
-
-**Roadmap:** migration to **Firebase** (Google sign-in + Firestore + Storage) is planned so the app is fully standalone — no companion server needed.
-
-## 🍎 iOS (IPA via GitHub Actions — macOS runner)
-
-[`.github/workflows/ios.yml`](.github/workflows/ios.yml) builds the native Xcode project (in `ios/`) into an **unsigned IPA** on every push — artifact `VibeGram-iOS-unsigned`, attached to Releases on `v*` tags.
-
-Apple requires code signing for installation on iPhones, so:
-- **To install on a real iPhone** you need an **Apple Developer account** (USD 99/yr). Then open `ios/App/App.xcodeproj` in Xcode on a Mac, add your team, and run/archive — or add signing certs to the workflow.
-- Unsigned IPA can also be sideloaded with tools like AltStore/Sideloadly using a free Apple ID (7-day validity).
-- App icon, splash and display name (VibeGram) are already configured in the Xcode project.
-
-Build locally instead: `npm run android:build` → `android/app/build/outputs/apk/debug/app-debug.apk`
-
-## 🗂 Structure
-
-```
-server/          Express API (auth, posts, stories, DMs, notifications…)
-  store.js       JSON-file DB
-  seed.js        Demo data seeder (node server/seed.js --force to reseed)
-  uploads/       Media storage (gitignored)
-client/          React app (Vite)
-  src/pages      Home, Explore, Reels, Messages, Notifications, Profile, Login
-  src/components PostCard, StoryBar/Viewer, CreateModal, PostModal, Sidebar…
-seeds/           Generated avatars & post images used by the seeder
-```
-
-## 🧪 Tech notes
-
-- Auth: JWT (30d) + bcrypt password hashing
-- Uploads: multer (images + video, 40 MB cap), served statically
-- Real-time-ish: lightweight polling for DMs & notification badges
-- Image filters are baked client-side via `<canvas>` before upload
+Apple requires signing ($99/yr dev account) to install on iPhones. The workflow produces an **unsigned IPA** — open `ios/` in Xcode with your team to sign, or sideload with AltStore/Sideloadly.
 
 ---
 *VibeGram is a demo project for educational purposes — not affiliated with Instagram/Meta.*
