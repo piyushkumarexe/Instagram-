@@ -75,42 +75,6 @@ export default function Login() {
     }
   }
 
-  async function demoLogin() {
-    setBusy(true)
-    setError('')
-    try {
-      try {
-        await authEmailPass('demo@vibegram.app', 'demo123')
-      } catch (e2) {
-        const code = e2?.code || ''
-        if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
-          try {
-            const cred = await registerEmailPass('demo@vibegram.app', 'demo123', 'Demo User')
-            await claimUsername(cred.user.uid, 'demo@vibegram.app', 'demo', 'Demo User')
-            await app.refreshUser()
-          } catch (e3) {
-            if (e3?.code === 'auth/email-already-in-use') {
-              throw new Error('Demo account exists but login failed. Fix: Firebase Console → Authentication → Users → delete demo@vibegram.app → tap demo button again.')
-            }
-            if (e3?.code === 'auth/operation-not-allowed') {
-              throw new Error('One-time setup: Firebase Console → Authentication → Sign-in method → enable "Email/Password", then tap again. (Google sign-in already works!)')
-            }
-            throw e3
-          }
-        } else if (code === 'auth/operation-not-allowed') {
-          throw new Error('One-time setup: Firebase Console → Authentication → Sign-in method → enable "Email/Password", then tap again. (Google sign-in already works!)')
-        } else {
-          throw e2
-        }
-      }
-      nav('/', { replace: true })
-    } catch (e2) {
-      setError(friendlyError(e2))
-    } finally {
-      setBusy(false)
-    }
-  }
-
   return (
     <div className="auth-page">
       <div className="auth-left">
@@ -162,12 +126,6 @@ export default function Login() {
               <>Don't have an account? <button type="button" className="blue-link" onClick={() => { setMode('signup'); setError('') }}>Sign up</button></>
             )}
           </p>
-
-          <div className="auth-or"><span>OR</span></div>
-          <button className="btn btn-demo w-full" onClick={demoLogin} disabled={busy}>
-            ⚡ Try the demo account
-          </button>
-          <p className="auth-demo-hint">demo / demo123 — comes pre-loaded with posts, stories & chats</p>
         </div>
         <p className="auth-footer">Powered by Firebase · Secure sign-in</p>
       </div>

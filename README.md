@@ -8,7 +8,7 @@ A full Instagram-style social app — **100% serverless, powered by Google Fireb
 
 | Area | What works |
 |---|---|
-| 🔐 Auth | **Google Sign-In**, email/password signup+login, one-tap **demo login**, unique-username onboarding |
+| 🔐 Auth | **Google Sign-In**, email/password signup+login, unique-username onboarding |
 | 📰 Feed | Realtime Firestore feed, infinite scroll, follow-only visibility, "all caught up" state |
 | 📝 Posts | Photo/video upload to **Firebase Storage**, 10 filters, captions, delete |
 | ❤️ Engagement | Likes (double-tap heart), comments, save/bookmark, share links, transactional like-counts |
@@ -26,13 +26,12 @@ A full Instagram-style social app — **100% serverless, powered by Google Fireb
 - **Firestore** — `users`, `usernames` (uniqueness via transaction), `posts` (+`comments` subcollection), `stories`, `follows`, `dms/{pair}/messages`, `notifications`
 - **Storage** — `uploads/` and `stories/` and `avatars/`
 - Zero composite indexes needed (denormalized counters + client-side sorting) — works on any fresh Firebase project
-- Demo content **self-seeds** into an empty project on first login (5 demo creators, posts, reels, stories, chats) — media served from this repo's raw GitHub URLs
+- Starter content **self-seeds** into an empty project on first login (5 creators, posts, reels, stories, chats) — media served from this repo's raw GitHub URLs
 
 ### One-time Firebase settings that unlock everything
 | Feature | Console setting |
 |---|---|
 | Google sign-in on **web preview** | Authentication → Settings → **Authorized domains** → add the preview domain |
-| Demo / email login | Authentication → Sign-in method → enable **Email/Password** |
 | Keep data writable | Firestore/Storage rules in **test mode** work out of the box (expire ~30 days — extend the date to keep writing) |
 
 ## 🚀 Run / build

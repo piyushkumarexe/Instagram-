@@ -175,7 +175,7 @@ function Chat({ username }) {
           </Link>
         )}
         <div style={{ flex: 1 }} />
-        <button className="icon-btn" onClick={() => app.toast('Chat info (demo)')}><IcDots size={20} /></button>
+        <button className="icon-btn" onClick={() => app.toast('Chat info coming soon')}><IcDots size={20} /></button>
       </header>
 
       <div className="chat-body">

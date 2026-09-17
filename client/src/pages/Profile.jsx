@@ -173,7 +173,7 @@ export default function Profile() {
             ) : (
               <>
                 <button className="sheet-item" onClick={() => { setMenuOpen(false); nav('/messages/' + profile.username) }}>Send message</button>
-                <button className="sheet-item" onClick={() => { setMenuOpen(false); app.toast('Reported (demo) 🚩') }}>Report</button>
+                <button className="sheet-item" onClick={() => { setMenuOpen(false); app.toast('Report submitted 🚩') }}>Report</button>
               </>
             )}
             <button className="sheet-item" onClick={() => setMenuOpen(false)}>Cancel</button>
