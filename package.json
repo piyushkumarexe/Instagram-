@@ -8,9 +8,13 @@
     "dev:server": "node server/index.js",
     "dev:client": "vite --host 0.0.0.0 --port 5173 --strictPort",
     "seed": "node server/seed.js",
-    "build": "vite build"
+    "build": "vite build",
+    "android:sync": "npm run build && npx cap sync android",
+    "android:build": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
     "bcryptjs": "^2.4.3",
     "concurrently": "^9.1.2",
     "cors": "^2.8.5",
@@ -19,6 +23,7 @@
     "multer": "^1.4.5-lts.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
     "@vitejs/plugin-react": "^4.3.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

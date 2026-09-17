@@ -18,7 +18,7 @@ export async function api(path, { method = 'GET', body, formData } = {}) {
     headers['Content-Type'] = 'application/json'
     payload = JSON.stringify(body)
   }
-  const res = await fetch('/api' + path, { method, headers, body: payload })
+  const res = await fetch(serverBase() + '/api' + path, { method, headers, body: payload })
   let data = null
   try {
     data = await res.json()
@@ -33,7 +33,7 @@ export async function api(path, { method = 'GET', body, formData } = {}) {
     }
     throw new Error(data.error || 'Something went wrong')
   }
-  return data
+  return prefixMedia(data)
 }
 
 export function timeAgo(ts) {

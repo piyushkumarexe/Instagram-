@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
-import { api } from '../api.js'
+import { api, isNative, serverBase, setServerBase } from '../api.js'
 import { useApp } from '../store.jsx'
 
 const SHOWCASE = ['/uploads/seed-posts-trek.jpg', '/uploads/seed-posts-chaat.jpg', '/uploads/seed-posts-palace.jpg']
