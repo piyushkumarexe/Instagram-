@@ -66,6 +66,21 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace
 
+      - name: Report signing SHA-1 (for Firebase console)
+        run: |
+          SHA1=$(openssl pkcs12 -in android/keystore/vibegram-debug.keystore -passin pass:vibegram123 -nokeys 2>/dev/null | openssl x509 -fingerprint -sha1 -noout | sed 's/.*=//')
+          {
+            echo "### 🔑 Add this SHA-1 in Firebase Console"
+            echo ""
+            echo "Firebase Console → Project settings → Your apps → Android app → Add fingerprint:"
+            echo ""
+            echo '```'
+            echo "$SHA1"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "SHA1=$SHA1" >> "$GITHUB_ENV"
+          echo "APK signing SHA-1: $SHA1"
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -80,10 +95,26 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
           APK=android/app/build/outputs/apk/debug/app-debug.apk
+          NOTES=/tmp/notes.md
+          {
+            echo "Automated build from commit ${GITHUB_SHA::7}."
+            echo ""
+            echo "## 🔑 Google Sign-In setup (one time, 2 minutes)"
+            echo "1. Open Firebase Console → project **vibegram-ff651**"
+            echo "2. ⚙️ Project settings → **Your apps** → Android app \`com.vibegram.app\`"
+            echo "3. **Add fingerprint** and paste:"
+            echo ""
+            echo '```'
+            echo "${SHA1}"
+            echo '```'
+            echo ""
+            echo "4. Save → reinstall this APK → “Continue with Google” opens the in-app account picker ✅"
+          } > "$NOTES"
           for i in 1 2 3 4 5 6; do
             if gh release view "$TAG" >/dev/null 2>&1; then
-              gh release upload "$TAG" "$APK" --clobber && exit 0
+              gh release upload "$TAG" "$APK" --clobber && gh release edit "$TAG" --notes-file "$NOTES" || true
+              exit 0
             fi
             sleep 15
           done
-          gh release create "$TAG" "$APK" -t "VibeGram $TAG" --notes "Automated build" || gh release upload "$TAG" "$APK" --clobber
+          gh release create "$TAG" "$APK" -t "VibeGram $TAG" --notes-file "$NOTES" || gh release upload "$TAG" "$APK" --clobber

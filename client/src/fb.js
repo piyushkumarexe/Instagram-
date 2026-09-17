@@ -2,10 +2,12 @@
 // Designed to avoid ALL composite indexes (client-side sorting/filtering,
 // denormalized counts) so it works on any Firebase project out of the box.
 import {
-  signInWithPopup, signInWithRedirect, getRedirectResult,
+  signInWithPopup, getRedirectResult,
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  signInWithCredential,
   signOut as fbSignOut, onAuthStateChanged, updateProfile,
 } from 'firebase/auth'
+import { GoogleAuthProvider } from 'firebase/auth'
 import {
   doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc,
   collection, query, where, orderBy, limit, startAfter,
@@ -74,7 +76,27 @@ export async function finishRedirect() {
   try { await getRedirectResult(auth) } catch (e) { console.warn(e) }
 }
 export async function authGoogle() {
-  if (isNative()) return signInWithRedirect(auth, googleProvider)
+  // Native (APK/IPA): use the device's native Google account picker — no browser.
+  if (isNative()) {
+    try {
+      const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication')
+      const result = await FirebaseAuthentication.signInWithGoogle()
+      const idToken = result?.credential?.idToken
+      if (!idToken) throw new Error('No Google idToken returned')
+      const credential = GoogleAuthProvider.credential(idToken)
+      await signInWithCredential(auth, credential)
+      return
+    } catch (e) {
+      const msg = String(e?.message || e)
+      if (/DEVELOPER_ERROR|10:|ApiException/i.test(msg)) {
+        throw new Error(
+          'SHA-1 fingerprint not registered yet. Fix (2 min): Firebase Console → Project settings → Your apps → Android app (com.vibegram.app) → Add fingerprint → paste the SHA-1 from the release notes / chat. Then reinstall this APK.'
+        )
+      }
+      throw e
+    }
+  }
+  // Web: secure popup
   return signInWithPopup(auth, googleProvider)
 }
 export async function authEmailPass(email, password) {
