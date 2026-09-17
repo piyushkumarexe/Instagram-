@@ -43,6 +43,15 @@ The repo ships with a **Capacitor**-wrapped Android app. Every push triggers [`.
 
 **Roadmap:** migration to **Firebase** (Google sign-in + Firestore + Storage) is planned so the app is fully standalone — no companion server needed.
 
+## 🍎 iOS (IPA via GitHub Actions — macOS runner)
+
+[`.github/workflows/ios.yml`](.github/workflows/ios.yml) builds the native Xcode project (in `ios/`) into an **unsigned IPA** on every push — artifact `VibeGram-iOS-unsigned`, attached to Releases on `v*` tags.
+
+Apple requires code signing for installation on iPhones, so:
+- **To install on a real iPhone** you need an **Apple Developer account** (USD 99/yr). Then open `ios/App/App.xcodeproj` in Xcode on a Mac, add your team, and run/archive — or add signing certs to the workflow.
+- Unsigned IPA can also be sideloaded with tools like AltStore/Sideloadly using a free Apple ID (7-day validity).
+- App icon, splash and display name (VibeGram) are already configured in the Xcode project.
+
 Build locally instead: `npm run android:build` → `android/app/build/outputs/apk/debug/app-debug.apk`
 
 ## 🗂 Structure
