@@ -8,5 +8,13 @@
 	},
 	"android": {
 		"allowMixedContent": true
+	},
+	"plugins": {
+		"FirebaseAuthentication": {
+			"providers": [
+				"google.com"
+			],
+			"skipNativeAuth": false
+		}
 	}
 }
