@@ -1,0 +1,12 @@
+{
+	"appId": "com.vibegram.app",
+	"appName": "VibeGram",
+	"webDir": "client/dist",
+	"server": {
+		"androidScheme": "https",
+		"cleartext": true
+	},
+	"android": {
+		"allowMixedContent": true
+	}
+}

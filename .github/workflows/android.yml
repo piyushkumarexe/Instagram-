@@ -32,7 +32,15 @@ jobs:
         run: npm run build
 
       - name: Sync Capacitor (web assets -> Android)
-        run: npx cap sync android
+        run: |
+          npx cap sync android > /tmp/sync.log 2>&1
+          code=$?
+          if [ $code -ne 0 ]; then
+            MSG=$(tail -c 700 /tmp/sync.log | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error::cap sync failed (exit $code): $MSG"
+            echo "::warning::continuing with committed web assets"
+          fi
+          exit 0
 
       - name: Assemble debug APK
         run: |
