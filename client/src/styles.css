@@ -621,3 +621,12 @@ h1, h2, h3 { margin: 0; }
 
 /* full-bleed pages */
 .main.full { margin-left: var(--sidebar-w); }
+
+/* --- responsive fixes --- */
+@media (max-width: 767px) {
+  .main { margin-left: 0; }
+}
+.main.full { padding-bottom: 0; }
+@media (max-width: 760px) {
+  .dm-list { width: 100%; min-width: 0; }
+}

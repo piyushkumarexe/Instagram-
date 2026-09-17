@@ -17,6 +17,8 @@ export default function Login() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [slide, setSlide] = useState(0)
+  const native = isNative()
+  const [server, setServer] = useState(serverBase())
 
   useEffect(() => {
     if (app.user) nav('/', { replace: true })
@@ -106,6 +108,20 @@ export default function Login() {
           <button className="btn btn-demo w-full" onClick={demoLogin} disabled={busy}>
             ⚡ Try the demo account
           </button>
+          {native && (
+            <div className="auth-server">
+              <label htmlFor="vg-server">VibeGram server URL</label>
+              <input
+                id="vg-server"
+                value={server}
+                onChange={(e) => { setServer(e.target.value); setServerBase(e.target.value) }}
+                placeholder="http://192.168.1.5:3001"
+                autoCapitalize="none"
+                spellCheck={false}
+              />
+              <p>App connects to the built-in demo server automatically. Run your own? <code>npm run dev</code> on a PC and enter its address, e.g. <code>http://192.168.1.5:3001</code> (Android emulator: <code>http://10.0.2.2:3001</code>).</p>
+            </div>
+          )}
           <p className="auth-demo-hint">demo / demo123 — comes pre-loaded with posts, stories & chats</p>
         </div>
         <div className="auth-card small">

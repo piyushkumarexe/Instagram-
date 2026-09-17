@@ -8,6 +8,46 @@ export function setToken(t) {
   else localStorage.removeItem(TOKEN_KEY)
 }
 
+// ---- native (APK) support -------------------------------------------------
+// Inside the Android app the SPA is bundled, so it needs the address of the
+// machine running the VibeGram server. A default can be baked at build time
+// via VITE_DEFAULT_SERVER, and the user can override it on the login screen.
+export function isNative() {
+  return typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
+}
+
+export const DEFAULT_SERVER = String(import.meta.env?.VITE_DEFAULT_SERVER || '').trim()
+
+export function serverBase() {
+  if (!isNative()) return ''
+  const stored = String(localStorage.getItem('vg_server') || '').trim()
+  return (stored || DEFAULT_SERVER).replace(/\/+$/, '')
+}
+
+export function setServerBase(url) {
+  const v = String(url || '').trim()
+  if (v) localStorage.setItem('vg_server', v)
+  else localStorage.removeItem('vg_server')
+}
+
+// Prefix relative /uploads media URLs with the configured server
+function prefixMedia(data) {
+  const base = serverBase()
+  if (!base) return data
+  const walk = (v) => {
+    if (typeof v === 'string') return v.startsWith('/uploads') ? base + v : v
+    if (Array.isArray(v)) return v.map(walk)
+    if (v && typeof v === 'object') {
+      const o = {}
+      for (const k of Object.keys(v)) o[k] = walk(v[k])
+      return o
+    }
+    return v
+  }
+  return walk(data)
+}
+
+
 export async function api(path, { method = 'GET', body, formData } = {}) {
   const headers = {}
   const token = getToken()

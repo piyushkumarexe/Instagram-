@@ -33,17 +33,15 @@ Open http://localhost:5173 — log in with the demo account or create your own.
 
 ## 📱 Android APK (built by GitHub Actions)
 
-The repo ships with a **Capacitor**-wrapped Android app. Every push triggers [`.github/workflows/android.yml`](.github/workflows/android.yml), which builds `app-debug.apk` and uploads it as a run artifact named **`VibeGram-APK`** (pushing a tag like `v1.0` also attaches it to a GitHub Release).
+The repo ships with a **Capacitor**-wrapped Android app. Every push triggers [`.github/workflows/android.yml`](.github/workflows/android.yml), which builds `app-debug.apk` and uploads it as a run artifact named **`VibeGram-APK`** (pushing a tag like `v1.1` also attaches it to a GitHub Release).
 
-**Get the APK:** Repo → **Actions** → latest *Android APK* run → download **VibeGram-APK** → install (allow "unknown apps").
+**Get the APK:** Repo → **Releases** → latest → download `app-debug.apk` → install (allow "unknown apps").
 
-The APK bundles the web app itself; it connects to a VibeGram **server you run**:
-1. Start the backend anywhere on the same network: `npm install && npm run seed && npm run dev`
-2. Find your PC's IP (`ipconfig` / `ifconfig`), e.g. `192.168.1.5`
-3. In the app's login screen enter the **Server URL** → `http://192.168.1.5:3001` (Android emulator: `http://10.0.2.2:3001`)
-4. Log in (e.g. `demo` / `demo123`) — feed, stories, reels, DMs all work
+**v1.1+ connects automatically** to the bundled demo backend — install and log in with `demo` / `demo123`. No server URL needed (advanced: the login screen still has a Server URL field for pointing at your own backend: `npm install && npm run seed && npm run dev`, then `http://YOUR_PC_IP:3001`; Android emulator: `http://10.0.2.2:3001`).
 
-> HTTPS note: for a publicly deployed backend (Render/Railway/etc.) just paste its `https://…` URL.
+> ⚠️ v1.0 had a broken bundle (missing exports) — use v1.1 or later.
+
+**Roadmap:** migration to **Firebase** (Google sign-in + Firestore + Storage) is planned so the app is fully standalone — no companion server needed.
 
 Build locally instead: `npm run android:build` → `android/app/build/outputs/apk/debug/app-debug.apk`
 
