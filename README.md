@@ -33,6 +33,8 @@ Open http://localhost:5173 — log in with the demo account or create your own.
 
 ## 📱 Android APK (built by GitHub Actions)
 
+**Download both apps:** https://github.com/piyushkumarexe/Instagram-/releases — `app-debug.apk` (Android, ready to install) + `VibeGram-iOS-unsigned.ipa` (iOS, needs signing).
+
 The repo ships with a **Capacitor**-wrapped Android app. Every push triggers [`.github/workflows/android.yml`](.github/workflows/android.yml), which builds `app-debug.apk` and uploads it as a run artifact named **`VibeGram-APK`** (pushing a tag like `v1.1` also attaches it to a GitHub Release).
 
 **Get the APK:** Repo → **Releases** → latest → download `app-debug.apk` → install (allow "unknown apps").
