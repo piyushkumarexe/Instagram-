@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { api } from '../api.js'
 import { useApp } from '../store.jsx'
+import { getStoryGroups } from '../fb.js'
 import Avatar from './Avatar.jsx'
-import { IcPlusSquare } from './Icons.jsx'
 
 export default function StoryBar() {
   const app = useApp()
@@ -10,8 +9,8 @@ export default function StoryBar() {
 
   const load = useCallback(async () => {
     try {
-      const r = await api('/stories')
-      setGroups(r.groups)
+      const r = await getStoryGroups(app.user.id)
+      setGroups(r)
     } catch (e) {}
   }, [])
 

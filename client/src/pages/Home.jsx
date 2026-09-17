@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../api.js'
 import { useApp } from '../store.jsx'
+import { getFeed, seedDemoContentIfEmpty } from '../fb.js'
 import PostCard from '../components/PostCard.jsx'
 import StoryBar from '../components/StoryBar.jsx'
 import Suggestions from '../components/Suggestions.jsx'
@@ -11,17 +11,16 @@ export default function Home() {
   const app = useApp()
   const nav = useNavigate()
   const [posts, setPosts] = useState([])
-  const [nextBefore, setNextBefore] = useState(undefined) // undefined = not loaded, null = end
+  const [cursor, setCursor] = useState(undefined) // undefined = not loaded, null = end
   const [loading, setLoading] = useState(true)
   const sentinel = useRef(null)
   const loadingMore = useRef(false)
 
-  const load = useCallback(async (before) => {
+  const load = useCallback(async (cur) => {
     try {
-      const qs = before ? `?before=${before}` : ''
-      const r = await api('/feed' + qs)
-      setPosts((p) => (before ? [...p, ...r.posts] : r.posts))
-      setNextBefore(r.nextBefore)
+      const r = await getFeed({ cursor: cur })
+      setPosts((p) => (cur ? [...p, ...r.posts] : r.posts))
+      setCursor(r.cursor)
     } catch (e) {
       app.toast(e.message)
     } finally {
@@ -41,14 +40,14 @@ export default function Home() {
   useEffect(() => {
     if (!sentinel.current) return
     const obs = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && nextBefore && !loadingMore.current) {
+      if (entries[0].isIntersecting && cursor && !loadingMore.current) {
         loadingMore.current = true
-        load(nextBefore)
+        load(cursor)
       }
     }, { rootMargin: '600px' })
     obs.observe(sentinel.current)
     return () => obs.disconnect()
-  }, [nextBefore, load])
+  }, [cursor, load])
 
   function patch(id, p) {
     setPosts((list) => list.map((x) => (x.id === id ? p : x)))
@@ -72,11 +71,11 @@ export default function Home() {
               <button className="btn btn-blue" onClick={() => nav('/explore')}>Find people</button>
             </div>
           )}
-          {nextBefore === null && posts.length > 0 && (
+          {cursor === null && posts.length > 0 && (
             <div className="feed-end">
               <span className="big-emoji">✅</span>
               <h3>You're all caught up</h3>
-              <p className="muted">You've seen all new posts from the past days.</p>
+              <p className="muted">You've seen all new posts.</p>
             </div>
           )}
           <div ref={sentinel} />

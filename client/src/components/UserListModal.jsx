@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { api } from '../api.js'
 import { useApp } from '../store.jsx'
+import { listUserConnections } from '../fb.js'
 import Avatar from './Avatar.jsx'
 import FollowButton from './FollowButton.jsx'
 import { IcX } from './Icons.jsx'
@@ -15,7 +15,9 @@ export default function UserListModal({ userState, onClose }) {
   useEffect(() => {
     if (!userState) return
     setUsers(null)
-    api(`/users/${userState.username}/${userState.kind}`).then((r) => setUsers(r.users)).catch((e) => { app.toast(e.message); onClose() })
+    listUserConnections(userState.username, userState.kind)
+      .then(setUsers)
+      .catch((e) => { app.toast(e.message); onClose() })
   }, [userState])
 
   useEffect(() => {

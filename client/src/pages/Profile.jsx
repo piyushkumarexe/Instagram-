@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
-import { api, formatCount } from '../api.js'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useApp } from '../store.jsx'
+import { getUserByUsername, getUserPosts, getSaved, myFollowing } from '../fb.js'
 import Avatar from '../components/Avatar.jsx'
 import FollowButton from '../components/FollowButton.jsx'
 import UserListModal from '../components/UserListModal.jsx'
-import { IcDots, IcGrid, IcReels, IcBookmark, IcPlay, IcCamera, IcSettings, IcLogout, IcPlusSquare, IcMenu } from '../components/Icons.jsx'
+import { IcDots, IcGrid, IcReels, IcBookmark, IcPlay, IcCamera, IcSettings, IcLogout } from '../components/Icons.jsx'
 
 export default function Profile() {
   const { username } = useParams()
@@ -23,37 +23,38 @@ export default function Profile() {
 
   const load = useCallback(async () => {
     try {
-      const [pr, ps, rl] = await Promise.all([
-        api('/users/' + username),
-        api(`/users/${username}/posts?type=post`),
-        api(`/users/${username}/posts?type=reel`),
+      const u = await getUserByUsername(username)
+      if (!u) { setError('User not found'); return }
+      const isMe = u.id === app.user.id
+      u.isFollowing = myFollowing.has(u.id)
+      u.isMe = isMe
+      setProfile(u)
+      const [ps, rl] = await Promise.all([
+        getUserPosts(username, 'post'),
+        getUserPosts(username, 'reel'),
       ])
-      setProfile(pr.user)
-      setPosts(ps.posts)
-      setReels(rl.posts)
-      if (pr.user.isMe) {
-        const sv = await api('/me/saved')
-        setSaved(sv.posts)
+      setPosts(ps)
+      setReels(rl)
+      setProfile((p) => ({ ...p, postsCount: ps.length }))
+      if (isMe) {
+        const sv = await getSaved(app.user.id)
+        setSaved(sv)
+        // check my story
+        import('../fb.js').then(({ getStoryGroups }) => {
+          getStoryGroups(app.user.id).then((gs) => setHasStory(gs.some((g) => g.user.id === app.user.id))).catch(() => {})
+        })
       }
-      try {
-        const st = await api('/stories')
-        setHasStory(st.groups.some((g) => g.user.username === username))
-      } catch {}
+      if (!isMe) {
+        import('../fb.js').then(({ getStoryGroups }) => {
+          getStoryGroups(app.user.id).then((gs) => setHasStory(gs.some((g) => g.user.id === u.id))).catch(() => {})
+        })
+      }
     } catch (e) {
       setError(e.message)
     }
   }, [username])
 
-  useEffect(() => {
-    load()
-  }, [load])
-
-  useEffect(() => {
-    const h = () => load()
-    window.addEventListener('vg:refresh-profile', h)
-    return () => window.removeEventListener('vg:refresh-profile', h)
-  }, [load])
-
+  useEffect(() => { load() }, [load])
   useEffect(() => { setTab('posts') }, [username])
 
   if (error) {
@@ -69,14 +70,14 @@ export default function Profile() {
   const shown = tab === 'posts' ? posts : tab === 'reels' ? reels : saved
 
   async function logout() {
-    app.logout()
+    await app.logout()
     nav('/accounts/login')
   }
 
   return (
     <div className="profile-page">
       <header className="profile-head">
-        <div className="profile-avatar" onClick={() => hasStory && app.toast('View ' + username + "'s story from the home feed ✨")}>
+        <div className="profile-avatar">
           <Avatar user={profile} size={150} ring={hasStory} />
         </div>
         <div className="profile-info">
@@ -85,7 +86,7 @@ export default function Profile() {
             {me ? (
               <>
                 <button className="btn btn-grey" onClick={() => nav('/accounts/edit')}>Edit profile</button>
-                <button className="btn btn-grey" onClick={() => app.toast('Archive is a demo feature 🗄️')}>View archive</button>
+                <button className="btn btn-grey" onClick={() => setTab('saved')}>View saved</button>
                 <button className="icon-btn" onClick={() => setMenuOpen(true)}><IcSettings size={24} /></button>
               </>
             ) : (
@@ -97,12 +98,12 @@ export default function Profile() {
             )}
           </div>
           <div className="profile-counts">
-            <span><strong>{formatCount(profile.postsCount)}</strong> posts</span>
+            <span><strong>{posts.length}</strong> posts</span>
             <button onClick={() => setListState({ title: 'Followers', username: profile.username, kind: 'followers' })}>
-              <strong>{formatCount(profile.followersCount)}</strong> followers
+              <strong>{profile.followersCount}</strong> followers
             </button>
             <button onClick={() => setListState({ title: 'Following', username: profile.username, kind: 'following' })}>
-              <strong>{formatCount(profile.followingCount)}</strong> following
+              <strong>{profile.followingCount}</strong> following
             </button>
           </div>
           <div className="profile-bio">
@@ -149,11 +150,10 @@ export default function Profile() {
           {shown.map((p) => (
             <button className="grid-cell" key={p.id} onClick={() => app.openPost(p.id)}>
               {p.mediaType === 'video' || p.type === 'reel' ? <span className="grid-play"><IcPlay size={22} /></span> : null}
-              {p.savedByMe && tab === 'saved' && <span className="grid-saved"><IcBookmark size={16} /></span>}
               {p.mediaType === 'video' ? <video src={p.media} muted /> : <img src={p.media} alt={p.caption || 'post'} loading="lazy" />}
               <span className="grid-hover">
-                <span>❤️ {formatCount(p.likes)}</span>
-                <span>💬 {formatCount(p.commentsCount)}</span>
+                <span>❤️ {p.likes}</span>
+                <span>💬 {p.commentsCount}</span>
               </span>
             </button>
           ))}
@@ -172,7 +172,7 @@ export default function Profile() {
               </>
             ) : (
               <>
-                <button className="sheet-item danger" onClick={() => setMenuOpen(false)}>Block</button>
+                <button className="sheet-item" onClick={() => { setMenuOpen(false); nav('/messages/' + profile.username) }}>Send message</button>
                 <button className="sheet-item" onClick={() => { setMenuOpen(false); app.toast('Reported (demo) 🚩') }}>Report</button>
               </>
             )}

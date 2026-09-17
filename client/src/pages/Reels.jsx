@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { api, formatCount } from '../api.js'
 import { useApp } from '../store.jsx'
+import { getReels, formatCount, toggleLike } from '../fb.js'
 import Avatar from '../components/Avatar.jsx'
 import FollowButton from '../components/FollowButton.jsx'
 import { IcHeart, IcHeartFill, IcComment, IcSend, IcMute, IcSound, IcPlay } from '../components/Icons.jsx'
@@ -12,17 +12,8 @@ export default function Reels() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api('/explore')
-      .then(async (r) => {
-        let list = r.posts.filter((p) => p.type === 'reel')
-        if (list.length < 3) {
-          // fall back to popular posts so the page never feels empty
-          const feed = await api('/feed')
-          list = [...list, ...feed.posts.filter((p) => p.type !== 'reel')].slice(0, 6)
-        }
-        setReels(list)
-        setLoading(false)
-      })
+    getReels(app.user.id)
+      .then((list) => { setReels(list); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
 
@@ -82,9 +73,9 @@ function ReelItem({ reel, onChange }) {
     if (v.paused) { v.play().catch(() => {}); setPlaying(true) } else { v.pause(); setPlaying(false) }
   }
 
-  async function toggleLike() {
-    const r = await api(`/posts/${reel.id}/like`, { method: 'POST' })
-    onChange({ ...reel, likedByMe: r.liked, likes: r.likes })
+  async function like() {
+    const liked = await toggleLike(reel, app.user.id)
+    onChange({ ...reel, likedByMe: liked, likes: reel.likes + (liked ? 1 : -1) })
   }
 
   async function share() {
@@ -116,13 +107,13 @@ function ReelItem({ reel, onChange }) {
           <div className="reel-user-row">
             <Link to={'/' + reel.user.username}><Avatar user={reel.user} size={32} /></Link>
             <Link to={'/' + reel.user.username} className="reel-username">{reel.user.username}</Link>
-            <FollowButton user={reel.user} size="sm" onChange={(u) => onChange({ ...reel, user: { ...reel.user, ...u } })} />
+            <FollowButton user={{ ...reel.user, isFollowing: false }} size="sm" onChange={(u) => onChange({ ...reel, user: { ...reel.user, ...u } })} />
           </div>
           <div className="reel-caption">{reel.caption}</div>
           <div className="reel-music">♫ original audio — {reel.user.username}</div>
         </div>
         <div className="reel-rail">
-          <button className="reel-rail-btn" onClick={toggleLike}>
+          <button className="reel-rail-btn" onClick={like}>
             {reel.likedByMe ? <IcHeartFill size={28} className="liked" /> : <IcHeart size={28} />}
             <span>{formatCount(reel.likes)}</span>
           </button>

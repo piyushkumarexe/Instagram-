@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { api } from '../api.js'
 import { useApp } from '../store.jsx'
+import { suggestions } from '../fb.js'
 import Avatar from './Avatar.jsx'
 import FollowButton from './FollowButton.jsx'
 
@@ -11,12 +11,12 @@ export default function Suggestions() {
 
   useEffect(() => {
     let alive = true
-    api('/users/suggestions').then((r) => alive && setUsers(r.users)).catch(() => {})
+    suggestions(app.user.id).then((r) => alive && setUsers(r)).catch(() => {})
     return () => { alive = false }
   }, [])
 
   function onFollow(u) {
-    setUsers((list) => list.map((x) => (x.id === u.id ? u : x)))
+    setUsers((list) => list.filter((x) => x.id !== u.id))
   }
 
   return (
@@ -50,7 +50,7 @@ export default function Suggestions() {
       <div className="rail-footer">
         <p>About · Help · Press · API · Jobs · Privacy · Terms</p>
         <p>Locations · Language</p>
-        <p className="muted">© 2026 VibeGram — a demo app</p>
+        <p className="muted">© 2026 VibeGram — powered by Firebase</p>
       </div>
     </aside>
   )

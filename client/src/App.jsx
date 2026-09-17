@@ -13,7 +13,8 @@ import Messages from './pages/Messages.jsx'
 import Notifications from './pages/Notifications.jsx'
 import Profile from './pages/Profile.jsx'
 import EditProfile from './pages/EditProfile.jsx'
-import Login from './pages/Login.jsx'
+import Login, { UsernameSetup } from './pages/Login.jsx'
+import { getPost } from './fb.js'
 
 function Shell({ children }) {
   const app = useApp()
@@ -33,6 +34,7 @@ function Shell({ children }) {
 
 function Protected({ children }) {
   const app = useApp()
+  if (!app.authReady) return <div className="boot-screen"><img src="/logo.png" width="72" style={{ borderRadius: 16 }} alt="" /><p>Loading VibeGram…</p></div>
   if (!app.user) return <Navigate to="/accounts/login" replace />
   return <Shell>{children}</Shell>
 }
@@ -41,7 +43,7 @@ function PostPage() {
   const app = useApp()
   const { id } = useParams()
   useEffect(() => {
-    if (id) app.openPost(id)
+    if (id) getPost(id).then((p) => p && app.openPost(id)).catch(() => {})
   }, [id])
   return <Protected><Home /></Protected>
 }
@@ -58,12 +60,12 @@ function Toasts() {
 }
 
 function Modals() {
-  const app = useApp()
   return (
     <>
       <CreateModal />
       <StoryViewer />
       <PostModal />
+      <UsernameSetup />
       <Toasts />
     </>
   )

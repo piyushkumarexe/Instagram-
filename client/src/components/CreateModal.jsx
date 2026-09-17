@@ -1,12 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { api, FILTERS, bakeFilter } from '../api.js'
 import { useApp } from '../store.jsx'
+import { FILTERS, bakeFilter } from '../api.js'
+import { createPost, addStory } from '../fb.js'
 import { IcX, IcImage } from './Icons.jsx'
 
 export default function CreateModal() {
   const app = useApp()
-  const nav = useNavigate()
   const mode = app.createMode // 'post' | 'reel' | 'story' | null
   const [file, setFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
@@ -45,19 +44,13 @@ export default function CreateModal() {
     setBusy(true)
     try {
       let out = file
-      if (!isVideo && filter.css !== 'none') {
-        out = await bakeFilter(file, filter.css)
-      }
-      const fd = new FormData()
-      fd.append('media', out)
+      if (!isVideo && filter.css !== 'none') out = await bakeFilter(file, filter.css)
       if (mode === 'story') {
-        await api('/stories', { method: 'POST', formData: fd })
+        await addStory(app.user, out)
         window.dispatchEvent(new Event('vg:refresh-stories'))
         app.toast('Added to your story ✨')
       } else {
-        fd.append('caption', caption)
-        fd.append('type', mode === 'reel' ? 'reel' : 'post')
-        await api('/posts', { method: 'POST', formData: fd })
+        await createPost(app.user, out, caption, mode === 'reel' ? 'reel' : 'post')
         window.dispatchEvent(new Event('vg:refresh-feed'))
         app.toast(mode === 'reel' ? 'Reel shared 🎬' : 'Post shared 🎉')
       }
@@ -80,8 +73,8 @@ export default function CreateModal() {
             <button className="create-back" onClick={() => setStep(1)}>Back</button>
           )}
           <strong>{title}</strong>
-          {step === 1 && <button className="create-next blue" onClick={() => inputRef.current?.click()}>Select from computer</button>}
-          {step === 2 && <button className="create-next blue" onClick={share} disabled={busy}>{busy ? 'Sharing…' : mode === 'story' ? 'Share' : 'Share'}</button>}
+          {step === 1 && <button className="create-next blue" onClick={() => inputRef.current?.click()}>Select from device</button>}
+          {step === 2 && <button className="create-next blue" onClick={share} disabled={busy}>{busy ? 'Sharing…' : 'Share'}</button>}
         </header>
 
         {step === 1 && (
@@ -94,7 +87,7 @@ export default function CreateModal() {
           >
             <IcImage size={78} sw={1} />
             <p>Drag photos and videos here</p>
-            <button className="btn btn-blue" type="button">Select from computer</button>
+            <button className="btn btn-blue" type="button">Select from device</button>
             <input
               ref={inputRef}
               type="file"
@@ -141,7 +134,7 @@ export default function CreateModal() {
             {mode === 'story' && (
               <div className="create-side story-side">
                 <p className="muted">Your story will disappear after 24 hours.</p>
-                <p className="muted">Tip: photos only — videos coming to stories soon 😉</p>
+                <p className="muted">Tip: photos work best for stories 😉</p>
               </div>
             )}
           </div>

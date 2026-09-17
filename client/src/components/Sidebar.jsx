@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { NavLink, Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../store.jsx'
-import { api } from '../api.js'
+import { searchUsers } from '../fb.js'
 import Avatar from './Avatar.jsx'
 import {
   IcHome, IcHomeFill, IcSearch, IcCompass, IcCompassFill, IcReels, IcReelsFill,
@@ -70,7 +70,7 @@ export default function Sidebar() {
         <div className="more-menu-backdrop" onClick={() => setMoreOpen(false)}>
           <div className="more-menu" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => { setMoreOpen(false); nav('/accounts/edit') }}><IcSettings size={18} /> Settings</button>
-            <button onClick={() => { setMoreOpen(false); app.toast('Saved posts live in your profile ✨'); }}><IcMenu size={18} /> Saved</button>
+            <button onClick={() => { setMoreOpen(false); nav('/' + me.username) }}><IcMenu size={18} /> Saved posts</button>
             <div className="more-menu-sep" />
             <button className="danger" onClick={() => { setMoreOpen(false); app.logout(); nav('/accounts/login') }}><IcLogout size={18} /> Log out</button>
           </div>
@@ -90,8 +90,7 @@ export function SearchPanel() {
     if (!q.trim()) { setUsers([]); return }
     const t = setTimeout(async () => {
       try {
-        const r = await api('/users/search?q=' + encodeURIComponent(q.trim()))
-        setUsers(r.users)
+        setUsers(await searchUsers(q.trim()))
       } catch (e) {}
     }, 250)
     return () => clearTimeout(t)

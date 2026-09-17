@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { api, timeAgo } from '../api.js'
 import { useApp } from '../store.jsx'
+import { timeAgo, markStorySeen, sendMessage } from '../fb.js'
 import Avatar from './Avatar.jsx'
-import { IcX, IcHeart, IcHeartFill, IcSend, IcChevronL, IcChevronR } from './Icons.jsx'
+import { IcX, IcSend, IcChevronL, IcChevronR } from './Icons.jsx'
 
 const STORY_MS = 5000
 
@@ -38,19 +38,16 @@ export default function StoryViewer() {
     else if (gi > 0) { setGi(gi - 1); setSi(0) }
   }, [si, gi])
 
-  // mark seen
   useEffect(() => {
     if (!group) return
     const s = group.stories[si]
     if (!s) return
-    api(`/stories/${s.id}/seen`, { method: 'POST' }).catch(() => {})
-    // auto advance
+    markStorySeen(app.user.id, s.id).catch(() => {})
     clearTimeout(timer.current)
     if (!paused) timer.current = setTimeout(nextStory, STORY_MS)
     return () => clearTimeout(timer.current)
   }, [group, si, paused, nextStory])
 
-  // keyboard
   useEffect(() => {
     if (!view) return
     function onKey(e) {
@@ -72,7 +69,7 @@ export default function StoryViewer() {
     const text = reply.trim()
     if (!text) return
     try {
-      await api('/messages', { method: 'POST', body: { to: group.user.username, text } })
+      await sendMessage(app.user.id, group.user.id, text)
       setReply('')
       app.toast('Reply sent to ' + group.user.username + ' ✉️')
     } catch (err) { app.toast(err.message) }

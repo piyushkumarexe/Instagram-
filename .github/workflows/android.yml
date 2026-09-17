@@ -41,13 +41,10 @@ jobs:
             exit 1
           fi
           # smoke-check critical strings actually made it into the bundle
-          for s in "isNativePlatform" "Try the demo account" "VibeGram server URL"; do
+          for s in "vibegram-ff651" "Continue with Google" "Try the demo account"; do
             grep -rq "$s" client/dist/assets/ || { echo "::error::bundle missing: $s"; exit 1; }
           done
           echo "bundle smoke checks passed"
-        env:
-          # Default backend for the APK (auto-connect, no manual setup).
-          VITE_DEFAULT_SERVER: ${{ vars.VITE_DEFAULT_SERVER || 'https://3001-i3qpv1k7t5a8gqf1z83i3.e2b.app' }}
 
       - name: Sync Capacitor (web assets -> Android)
         continue-on-error: true

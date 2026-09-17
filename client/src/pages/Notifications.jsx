@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { api, timeAgo } from '../api.js'
 import { useApp } from '../store.jsx'
+import { subscribeNotifications, markNotificationsRead, timeAgo } from '../fb.js'
 import Avatar from '../components/Avatar.jsx'
 import FollowButton from '../components/FollowButton.jsx'
 import { MobileTopBar } from '../components/MobileNav.jsx'
-import { IcHeartFill, IcPlay } from '../components/Icons.jsx'
 
 export default function Notifications() {
   const app = useApp()
@@ -13,14 +12,21 @@ export default function Notifications() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api('/notifications')
-      .then((r) => {
-        setItems(r.notifications)
-        setLoading(false)
-        api('/notifications/read', { method: 'POST' }).then(() => app && null).catch(() => {})
-      })
-      .catch(() => setLoading(false))
+    const unsub = subscribeNotifications(app.user.id, (list) => {
+      setItems(list)
+      setLoading(false)
+    })
+    return unsub
   }, [])
+
+  async function markRead() {
+    if (items.some((n) => !n.read)) {
+      setItems((l) => l.map((n) => ({ ...n, read: true })))
+      markNotificationsRead(app.user.id).catch(() => {})
+    }
+  }
+
+  useEffect(() => { markRead() }, [items.length > 0])
 
   const groups = [
     { label: 'Today', filter: (n) => Date.now() - n.createdAt < 86400000 },
@@ -55,10 +61,10 @@ export default function Notifications() {
                   <span className="muted">{timeAgo(n.createdAt)}</span>
                 </p>
                 {n.type === 'follow' ? (
-                  <FollowButton user={n.actor} size="sm" onChange={(u) => setItems((l) => l.map((x) => (x.id === n.id ? { ...x, actor: { ...x.actor, ...u } } : x)))} />
+                  <FollowButton user={{ ...n.actor, isFollowing: false }} size="sm" onChange={() => {}} />
                 ) : n.postThumb ? (
                   <button className="notif-thumb" onClick={() => app.openPost(n.postId)}>
-                    {n.postThumb.includes('.mp4') ? <IcPlay size={20} /> : <img src={n.postThumb} alt="" />}
+                    {n.postThumb.includes('.mp4') ? '▶' : <img src={n.postThumb} alt="" />}
                   </button>
                 ) : null}
               </div>

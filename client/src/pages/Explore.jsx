@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { api, formatCount } from '../api.js'
 import { useApp } from '../store.jsx'
+import { explore, searchUsers, searchPosts, formatCount } from '../fb.js'
 import Avatar from '../components/Avatar.jsx'
 import { MobileTopBar } from '../components/MobileNav.jsx'
-import { IcHeart, IcComment, IcPlay } from '../components/Icons.jsx'
+import { IcComment } from '../components/Icons.jsx'
 
 export default function Explore() {
   const app = useApp()
@@ -14,15 +14,15 @@ export default function Explore() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api('/explore').then((r) => { setPosts(r.posts); setLoading(false) }).catch(() => setLoading(false))
+    explore(app.user.id).then((r) => { setPosts(r); setLoading(false) }).catch(() => setLoading(false))
   }, [])
 
   useEffect(() => {
     if (!q.trim()) { setResults(null); return }
     const t = setTimeout(async () => {
       try {
-        const r = await api('/search?q=' + encodeURIComponent(q.trim()))
-        setResults(r)
+        const [users, searchResultsPosts] = await Promise.all([searchUsers(q.trim()), searchPosts(q.trim())])
+        setResults({ users, posts: searchResultsPosts })
       } catch (e) {}
     }, 300)
     return () => clearTimeout(t)
@@ -74,20 +74,17 @@ function GridCell({ post }) {
   return (
     <button className="grid-cell" onClick={() => app.openPost(post.id)}>
       {post.mediaType === 'video' || post.type === 'reel' ? (
-        <span className="grid-play"><IcPlay size={22} /></span>
+        <span className="grid-play"><IcPlay /></span>
       ) : null}
       {post.mediaType === 'video' ? <video src={post.media} muted /> : <img src={post.media} alt={post.caption || 'post'} loading="lazy" />}
       <span className="grid-hover">
-        <span><IcHeartFill inline /> {formatCount(post.likes)}</span>
-        <span><IcComment inline /> {formatCount(post.commentsCount)}</span>
+        <span>❤️ {formatCount(post.likes)}</span>
+        <span>💬 {formatCount(post.commentsCount)}</span>
       </span>
     </button>
   )
 }
 
-function IcHeartFill(props) {
-  return <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" {...props}><path d="M12 20.7C7.8 17.8 2.6 13.9 2.6 9.3c0-2.8 2-5 4.7-5 1.9 0 3.6 1 4.7 2.7 1.1-1.7 2.8-2.7 4.7-2.7 2.7 0 4.7 2.2 4.7 5 0 4.6-5.2 8.5-9.4 11.4z" /></svg>
-}
-function IcCommentFill(props) {
-  return <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" {...props}><path d="M20.7 11.6a8.7 8.7 0 0 1-12.5 7.9L3.4 20.6l1.1-4.7a8.7 8.7 0 1 1 16.2-4.3z" /></svg>
+function IcPlay() {
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><path d="M7 4.5 19.5 12 7 19.5z" /></svg>
 }
