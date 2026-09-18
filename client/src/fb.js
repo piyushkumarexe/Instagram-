@@ -644,13 +644,17 @@ export async function addStory(me, file) {
 
 export async function getStoryGroups(meId) {
   const snap = await getDocs(query(collection(db, 'stories'), orderBy('createdAt', 'desc'), limit(60)))
+  const meDoc = auth.currentUser ? await getUser(auth.currentUser.uid).catch(() => null) : null
   const now = Date.now()
   const byUser = new Map()
   snap.forEach((d) => {
     const s = d.data()
     const created = tsToMs(s.createdAt)
     if (now - created > STORY_TTL) return
-    if (!byUser.has(s.userId)) byUser.set(s.userId, { user: { id: s.userId, username: s.username, avatar: s.avatar, verified: VERIFIED_IDS.has(s.userId) }, stories: [] })
+    if (!byUser.has(s.userId)) {
+      const live = meDoc && s.userId === meDoc.id ? { avatar: meDoc.avatar, username: meDoc.username } : {}
+      byUser.set(s.userId, { user: { id: s.userId, username: s.username, avatar: s.avatar, ...live, verified: VERIFIED_IDS.has(s.userId) }, stories: [] })
+    }
     byUser.get(s.userId).stories.push({ id: d.id, media: s.media, mediaType: s.mediaType || 'image', createdAt: created })
   })
   const meSnap = await getDoc(doc(db, 'users', meId))

@@ -15,7 +15,14 @@ function cacheProfile(u) {
 }
 
 export function AppProvider({ children }) {
-  const [user, setUser] = useState(null)
+  const [user, _setUser] = useState(null)
+  const setUser = useCallback((v) => {
+    _setUser((prev) => {
+      const next = typeof v === 'function' ? v(prev) : v
+      if (next && next.id) cacheProfile(next) // har change cache — purani photo kabhi wapas nahi
+      return next
+    })
+  }, [])
   const [authReady, setAuthReady] = useState(false)
   const [toasts, setToasts] = useState([])
   const [unreadNotifs, setUnreadNotifs] = useState(0)

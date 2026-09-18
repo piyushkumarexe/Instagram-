@@ -108,7 +108,7 @@ export default function PostModal() {
             </div>
             <div className="pm-side">
               <header className="pm-head">
-                <Avatar user={post.user} size={32} onClick={() => { app.closePost(); nav('/' + post.user.username) }} />
+                <Avatar user={post.user.id === app.user.id ? { ...post.user, avatar: app.user.avatar, username: app.user.username } : post.user} size={32} onClick={() => { app.closePost(); nav('/' + post.user.username) }} />
                 <Link to={'/' + post.user.username} className="post-username" onClick={app.closePost}>{post.user.username}{post.user.verified && <IcVerified size={13} style={{ marginLeft: 4, verticalAlign: -2 }} />}</Link>
                 <div style={{ flex: 1 }} />
                 <button className="icon-btn" onClick={() => setMenuOpen(true)}><IcDots size={20} /></button>

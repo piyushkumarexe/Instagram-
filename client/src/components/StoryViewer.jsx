@@ -106,7 +106,7 @@ export default function StoryViewer() {
   return (
     <div className="story-viewer" onMouseDown={() => setPaused(true)} onMouseUp={() => setPaused(false)}>
       <div className="story-header">
-        <Avatar user={group.user} size={32} />
+        <Avatar user={group.user.id === app.user.id ? { ...group.user, avatar: app.user.avatar, username: app.user.username } : group.user} size={32} />
         <span className="story-h-username">{group.user.username}{group.user.verified && <IcVerified size={12} style={{ marginLeft: 4, verticalAlign: -2 }} />}</span>
         <span className="story-h-time">{timeAgo(story.createdAt)}</span>
         <div className="story-h-actions">

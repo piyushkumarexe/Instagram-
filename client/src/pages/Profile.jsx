@@ -6,7 +6,7 @@ import Avatar from '../components/Avatar.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import RichText from '../components/RichText.jsx'
 import FollowButton from '../components/FollowButton.jsx'
-import { IcDots, IcGrid, IcReels, IcBookmark, IcPlay, IcCamera, IcSettings, IcLogout, IcHeart, IcVerified, IcLock } from '../components/Icons.jsx'
+import { IcDots, IcGrid, IcReels, IcBookmark, IcPlay, IcCamera, IcSettings, IcLogout, IcHeart, IcVerified, IcLock, IcPencil, IcLinkIcon, IcSend } from '../components/Icons.jsx'
 
 export default function Profile() {
   const { username } = useParams()
@@ -257,21 +257,25 @@ export default function Profile() {
       {menuOpen && (
         <div className="sheet-backdrop" onClick={() => setMenuOpen(false)}>
           <div className="sheet" onClick={(e) => e.stopPropagation()}>
-            {me ? (
-              <>
-                <button className="sheet-item" onClick={() => { setMenuOpen(false); nav('/accounts/edit') }}>✏️ Edit profile</button>
-                <button className="sheet-item" onClick={shareProfile}>🔗 Share profile</button>
-                <button className="sheet-item" onClick={() => { setMenuOpen(false); nav('/settings') }}><IcSettings size={18} /> Settings and privacy</button>
-                <button className="sheet-item danger" onClick={logout}><IcLogout size={18} /> Log out</button>
-              </>
-            ) : (
-              <>
-                <button className="sheet-item" onClick={() => { setMenuOpen(false); nav('/messages/' + profile.username) }}>Send message</button>
-                <button className="sheet-item" onClick={shareProfile}>🔗 Share profile</button>
-                <button className="sheet-item" onClick={() => { setMenuOpen(false); app.toast('Report submitted 🚩') }}>Report</button>
-              </>
-            )}
-            <button className="sheet-item" onClick={() => setMenuOpen(false)}>Cancel</button>
+            <div className="sheet-group">
+              {me ? (
+                <>
+                  <button className="sheet-item left" onClick={() => { setMenuOpen(false); nav('/accounts/edit') }}><IcPencil size={20} /> Edit profile</button>
+                  <button className="sheet-item left" onClick={shareProfile}><IcLinkIcon size={20} /> Share profile</button>
+                  <button className="sheet-item left" onClick={() => { setMenuOpen(false); nav('/settings') }}><IcSettings size={20} /> Settings and privacy</button>
+                  <button className="sheet-item left danger" onClick={logout}><IcLogout size={20} /> Log out</button>
+                </>
+              ) : (
+                <>
+                  <button className="sheet-item left" onClick={() => { setMenuOpen(false); nav('/messages/' + profile.username) }}><IcSend size={20} /> Send message</button>
+                  <button className="sheet-item left" onClick={shareProfile}><IcLinkIcon size={20} /> Share profile</button>
+                  <button className="sheet-item left" onClick={() => { setMenuOpen(false); app.toast('Report submitted') }}><IcDots size={20} /> Report</button>
+                </>
+              )}
+            </div>
+            <div className="sheet-group">
+              <button className="sheet-item cancel" onClick={() => setMenuOpen(false)}>Cancel</button>
+            </div>
           </div>
         </div>
       )}
