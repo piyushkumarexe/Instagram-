@@ -197,7 +197,8 @@ fun PostCard(
     onChat: (VUser) -> Unit
 ) {
     var showHeart by remember { mutableStateOf(false) }
-    val liked = post.likes.contains(Fb.uid)
+    val myId = Fb.uid
+    val liked = myId != null && post.likes.contains(myId)
 
     Column(Modifier.fillMaxWidth().padding(bottom = 10.dp)) {
         // header

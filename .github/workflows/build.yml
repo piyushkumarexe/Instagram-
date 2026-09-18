@@ -27,7 +27,19 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          set -o pipefail
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee /tmp/gradle.log
+
+      - name: Surface compile errors
+        if: failure()
+        run: |
+          if [ -f /tmp/gradle.log ]; then
+            grep -E "^e: |error:|FAILURE:" /tmp/gradle.log | head -40 | while IFS= read -r line; do
+              echo "::error::${line:0:400}"
+            done
+            echo "---- last 40 lines ----"
+            tail -40 /tmp/gradle.log
+          fi
 
       - name: Report signing SHA-1 (for Firebase console)
         run: |

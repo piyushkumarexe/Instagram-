@@ -109,7 +109,7 @@ object Fb {
             ref.update("likes", FieldValue.arrayRemove(idv), "likesCount", FieldValue.increment(-1)).await()
         } else {
             ref.update("likes", FieldValue.arrayUnion(idv), "likesCount", FieldValue.increment(1)).await()
-            notify(p.userId, "like", p.id, p.media)
+            pushNotify(p.userId, "like", p.id, p.media)
         }
     }
 
@@ -131,7 +131,7 @@ object Fb {
         )
         db.collection("posts").document(p.id).collection("comments").add(c).await()
         db.collection("posts").document(p.id).update("commentsCount", FieldValue.increment(1)).await()
-        notify(p.userId, "comment", p.id, p.media)
+        pushNotify(p.userId, "comment", p.id, p.media)
     }
 
     suspend fun createPost(bmp: Bitmap, caption: String) {
@@ -172,7 +172,7 @@ object Fb {
                 db.collection("requests").document("${idv}__${target.id}")
                     .set(hashMapOf("fromId" to idv, "toId" to target.id, "createdAt" to FieldValue.serverTimestamp()))
                     .await()
-                notify(target.id, "follow_request", null, null)
+                pushNotify(target.id, "follow_request", null, null)
                 return false
             }
             db.collection("follows").document(key)
@@ -180,7 +180,7 @@ object Fb {
                 .await()
             db.collection("users").document(idv).update("followingCount", FieldValue.increment(1)).await()
             db.collection("users").document(target.id).update("followersCount", FieldValue.increment(1)).await()
-            notify(target.id, "follow", null, null)
+            pushNotify(target.id, "follow", null, null)
             return true
         } else {
             db.collection("follows").document(key).delete().await()
@@ -190,7 +190,7 @@ object Fb {
         }
     }
 
-    private suspend fun notify(toId: String, type: String, postId: String?, thumb: String?) {
+    private suspend fun pushNotify(toId: String, type: String, postId: String?, thumb: String?) {
         val idv = uid ?: return
         if (toId == idv) return
         db.collection("notifications").document().set(
