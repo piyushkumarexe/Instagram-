@@ -1141,3 +1141,9 @@ html, body { max-width: 100vw; overflow-x: hidden; }
   .modal-backdrop.story-takeover .sticker-toolbar button { font-size: 26px; }
 }
 .boot-screen .made-by { margin-top: -4px; }
+
+
+/* ============ v3.7: render optimizations ============ */
+.post-card { content-visibility: auto; contain-intrinsic-size: auto 620px; }
+.profile-grid .grid-cell { content-visibility: auto; contain-intrinsic-size: auto 124px; }
+.dm-thread { content-visibility: auto; contain-intrinsic-size: auto 68px; }

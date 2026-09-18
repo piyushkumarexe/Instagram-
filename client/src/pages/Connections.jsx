@@ -4,7 +4,7 @@ import { useApp } from '../store.jsx'
 import { listUserConnections } from '../fb.js'
 import Avatar from '../components/Avatar.jsx'
 import FollowButton from '../components/FollowButton.jsx'
-import { IcBack } from '../components/Icons.jsx'
+import { IcBack, IcVerified } from '../components/Icons.jsx'
 
 // Full IG-style page: /:username/followers | /:username/following
 export default function Connections() {
@@ -54,7 +54,7 @@ export default function Connections() {
           <div className="conn-row" key={u.id}>
             <Link to={'/' + u.username}><Avatar user={u} size={48} /></Link>
             <div className="conn-row-meta">
-              <Link to={'/' + u.username} className="username">{u.username}</Link>
+              <Link to={'/' + u.username} className="username">{u.username}{u.verified && <IcVerified size={12} style={{ marginLeft: 4 }} />}</Link>
               <span className="muted">{u.name}</span>
             </div>
             {u.id !== app.user.id && (

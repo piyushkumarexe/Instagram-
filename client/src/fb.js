@@ -115,8 +115,20 @@ export async function signOutNow() {
 }
 
 // ---------------------------------------------------------------- users / profiles
+// verified creator accounts (seed bots) — badge inko IG jaisa blue tick
+export const VERIFIED_IDS = new Set(['bot-aarav', 'bot-priya', 'bot-rohan', 'bot-ishani', 'bot-karan'])
+
 export function profileOut(id, d) {
-  return { id, username: d.username, name: d.name || d.username, email: d.email || '', bio: d.bio || '', avatar: d.avatar || null, followersCount: d.followersCount || 0, followingCount: d.followingCount || 0, postsCount: d.postsCount || 0, createdAt: tsToMs(d.createdAt), lastActive: tsToMs(d.lastActive), isPrivate: !!d.isPrivate, pronouns: d.pronouns || '', links: d.links || '', gender: d.gender || '' }
+  return { id, username: d.username, name: d.name || d.username, email: d.email || '', bio: d.bio || '', avatar: d.avatar || null, followersCount: d.followersCount || 0, followingCount: d.followingCount || 0, postsCount: d.postsCount || 0, createdAt: tsToMs(d.createdAt), lastActive: tsToMs(d.lastActive), isPrivate: !!d.isPrivate, verified: !!d.verified || VERIFIED_IDS.has(id), pronouns: d.pronouns || '', links: d.links || '', gender: d.gender || '' }
+}
+
+// one-time: bots ko verified mark karo (profile/search/connections badges)
+export async function ensureBotsVerified() {
+  try {
+    if (localStorage.getItem('vg_verified_patch')) return
+    await Promise.all([...VERIFIED_IDS].map((id) => setDoc(doc(db, 'users', id), { verified: true }, { merge: true })))
+    localStorage.setItem('vg_verified_patch', '1')
+  } catch {}
 }
 
 export async function getUser(uid) {
@@ -397,7 +409,7 @@ function postOut(d) {
     mediaType: data.mediaType || 'image',
     type: data.type || 'post',
     createdAt: tsToMs(data.createdAt),
-    user: { id: data.userId, username: data.username, name: data.name, avatar: data.avatar },
+    user: { id: data.userId, username: data.username, name: data.name, avatar: data.avatar, verified: !!data.userVerified || VERIFIED_IDS.has(data.userId) },
     likes: data.likesCount || 0,
     likedByMe: (data.likes || []).includes(auth.currentUser?.uid),
     savedByMe: (data.savedBy || []).includes(auth.currentUser?.uid),
@@ -519,7 +531,7 @@ export async function toggleSave(meId, post) {
 
 function commentOut(d) {
   const data = d.data()
-  return { id: d.id, text: data.text, createdAt: tsToMs(data.createdAt), user: { id: data.userId, username: data.username, avatar: data.avatar || null }, likesCount: data.likesCount || 0, likes: data.likes || [], parentId: data.parentId || null, parentUsername: data.parentUsername || null }
+  return { id: d.id, text: data.text, createdAt: tsToMs(data.createdAt), user: { id: data.userId, username: data.username, avatar: data.avatar || null, verified: VERIFIED_IDS.has(data.userId) }, likesCount: data.likesCount || 0, likes: data.likes || [], parentId: data.parentId || null, parentUsername: data.parentUsername || null }
 }
 
 export async function getComments(postId) {
@@ -607,7 +619,7 @@ export async function getStoryGroups(meId) {
     const s = d.data()
     const created = tsToMs(s.createdAt)
     if (now - created > STORY_TTL) return
-    if (!byUser.has(s.userId)) byUser.set(s.userId, { user: { id: s.userId, username: s.username, avatar: s.avatar }, stories: [] })
+    if (!byUser.has(s.userId)) byUser.set(s.userId, { user: { id: s.userId, username: s.username, avatar: s.avatar, verified: VERIFIED_IDS.has(s.userId) }, stories: [] })
     byUser.get(s.userId).stories.push({ id: d.id, media: s.media, mediaType: s.mediaType || 'image', createdAt: created })
   })
   const meSnap = await getDoc(doc(db, 'users', meId))

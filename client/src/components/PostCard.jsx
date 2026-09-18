@@ -4,7 +4,7 @@ import { useApp } from '../store.jsx'
 import { timeAgo, formatCount, toggleLike, toggleSave, addComment, deletePost as fbDeletePost, withTimeout, sendMessage, listUserConnections, buzz } from '../fb.js'
 import Avatar from './Avatar.jsx'
 import RichText from './RichText.jsx'
-import { IcHeart, IcHeartFill, IcComment, IcSend, IcBookmark, IcBookmarkFill, IcDots, IcTrash } from './Icons.jsx'
+import { IcHeart, IcHeartFill, IcComment, IcSend, IcBookmark, IcBookmarkFill, IcDots, IcTrash, IcVerified } from './Icons.jsx'
 
 export default function PostCard({ post, onChange, onDeleted }) {
   const app = useApp()
@@ -95,7 +95,7 @@ export default function PostCard({ post, onChange, onDeleted }) {
           <Avatar user={post.user} size={34} onClick={() => nav('/' + post.user.username)} />
           <div className="post-head-user">
             <Link to={'/' + post.user.username} className="post-username">
-              {post.user.username}{post.user.username === 'aarav_sharma' && <IcVerified size={13} style={{ marginLeft: 4, verticalAlign: -2 }} />}
+              {post.user.username}{post.user.verified && <IcVerified size={13} style={{ marginLeft: 4, verticalAlign: -2 }} />}
             </Link>
             <span className="post-time">• {timeAgo(post.createdAt)}</span>
           </div>
@@ -107,7 +107,7 @@ export default function PostCard({ post, onChange, onDeleted }) {
         {post.mediaType === 'video' ? (
           <video src={post.media} controls playsInline loop />
         ) : (
-          <img src={post.media} alt={post.caption || 'post'} loading="lazy" draggable="false" />
+          <img src={post.media} alt={post.caption || 'post'} loading="lazy" decoding="async" draggable="false" />
         )}
         {post.type === 'reel' && <span className="reel-tag"><span className="reel-tag-icon">▶</span> Reel</span>}
         {showHeart && <div className="big-heart"><IcHeartFill size={96} /></div>}
@@ -181,14 +181,6 @@ export default function PostCard({ post, onChange, onDeleted }) {
   )
 }
 
-function IcVerified({ size, style }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" style={style}>
-      <path fill="#0095f6" d="M12 1.5 14.8 4l3.7-.4 1 3.6 3.2 2-1.6 3.3 1.6 3.3-3.2 2-1 3.6-3.7-.4L12 23l-2.8-2.5-3.7.4-1-3.6-3.2-2L2.9 12 1.3 8.7l3.2-2 1-3.6L9.2 4z" />
-      <path d="m8.3 12.3 2.4 2.4 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
 
 
 // IG-style Share sheet: post ko DM se bhejo
@@ -238,7 +230,7 @@ function ShareSheet({ post, onClose }) {
             <div className="rail-row" key={u.id}>
               <Avatar user={u} size={44} />
               <div className="rail-row-meta">
-                <span className="username">{u.username}</span>
+                <span className="username">{u.username}{u.verified && <IcVerified size={12} style={{ marginLeft: 4 }} />}</span>
                 <span className="muted">{u.name}</span>
               </div>
               <button className={'btn ' + (sentTo.includes(u.id) ? 'btn-grey' : 'btn-blue') + ' btn-sm'} onClick={() => send(u)}>

@@ -4,7 +4,7 @@ import { useApp } from '../store.jsx'
 import { getReels, formatCount, toggleLike, withTimeout, buzz } from '../fb.js'
 import Avatar from '../components/Avatar.jsx'
 import FollowButton from '../components/FollowButton.jsx'
-import { IcHeart, IcHeartFill, IcComment, IcSend, IcMute, IcSound, IcPlay } from '../components/Icons.jsx'
+import { IcHeart, IcHeartFill, IcComment, IcSend, IcMute, IcSound, IcPlay, IcVerified } from '../components/Icons.jsx'
 
 // ============ FULL-SCREEN REELS — inline styles (cascade-proof) ============
 export default function Reels() {
@@ -159,7 +159,7 @@ function ReelItem({ reel, onChange, index = 0 }) {
         <div style={{ maxWidth: '75%', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Link to={'/' + reel.user.username}><Avatar user={reel.user} size={32} /></Link>
-            <Link to={'/' + reel.user.username} style={{ fontWeight: 700, color: '#fff', textDecoration: 'none' }}>{reel.user.username}</Link>
+            <Link to={'/' + reel.user.username} style={{ fontWeight: 700, color: '#fff', textDecoration: 'none' }}>{reel.user.username}{reel.user.verified && <IcVerified size={13} style={{ marginLeft: 4, verticalAlign: -2 }} />}</Link>
             <FollowButton user={{ ...reel.user, isFollowing: false }} size="sm" onChange={(u) => onChange({ ...reel, user: { ...reel.user, ...u } })} />
           </div>
           <div style={{ fontSize: 14, textShadow: '0 1px 3px rgba(0,0,0,.4)', wordBreak: 'break-word' }}>{reel.caption}</div>

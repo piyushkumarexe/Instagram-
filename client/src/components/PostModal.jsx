@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../store.jsx'
 import { timeAgo, formatCount, getPost, getComments, toggleLike, toggleSave, addComment, deleteComment, likeComment, updateCaption, deletePost as fbDeletePost, withTimeout } from '../fb.js'
 import Avatar from './Avatar.jsx'
-import { IcX, IcHeart, IcHeartFill, IcComment, IcDots, IcTrash, IcSend, IcBookmark, IcBookmarkFill } from './Icons.jsx'
+import { IcX, IcHeart, IcHeartFill, IcComment, IcDots, IcTrash, IcSend, IcBookmark, IcBookmarkFill, IcVerified } from './Icons.jsx'
 import RichText from './RichText.jsx'
 
 export default function PostModal() {
@@ -109,7 +109,7 @@ export default function PostModal() {
             <div className="pm-side">
               <header className="pm-head">
                 <Avatar user={post.user} size={32} onClick={() => { app.closePost(); nav('/' + post.user.username) }} />
-                <Link to={'/' + post.user.username} className="post-username" onClick={app.closePost}>{post.user.username}</Link>
+                <Link to={'/' + post.user.username} className="post-username" onClick={app.closePost}>{post.user.username}{post.user.verified && <IcVerified size={13} style={{ marginLeft: 4, verticalAlign: -2 }} />}</Link>
                 <div style={{ flex: 1 }} />
                 <button className="icon-btn" onClick={() => setMenuOpen(true)}><IcDots size={20} /></button>
               </header>
@@ -118,7 +118,7 @@ export default function PostModal() {
                   <div className="pm-comment">
                     <Avatar user={post.user} size={32} />
                     <div className="pm-comment-body">
-                      <Link to={'/' + post.user.username} className="post-username" onClick={app.closePost}>{post.user.username}</Link>
+                      <Link to={'/' + post.user.username} className="post-username" onClick={app.closePost}>{post.user.username}{post.user.verified && <IcVerified size={12} style={{ marginLeft: 4, verticalAlign: -2 }} />}</Link>
                       <span className="pm-comment-text"> <RichText text={post.caption} onNav={app.closePost} /></span>
                       <span className="pm-comment-time">{timeAgo(post.createdAt)}</span>
                     </div>
@@ -132,7 +132,7 @@ export default function PostModal() {
                       <div className="pm-comment">
                         <Avatar user={c.user} size={32} onClick={() => { app.closePost(); nav('/' + c.user.username) }} />
                         <div className="pm-comment-body">
-                          <Link to={'/' + c.user.username} className="post-username" onClick={app.closePost}>{c.user.username}</Link>
+                          <Link to={'/' + c.user.username} className="post-username" onClick={app.closePost}>{c.user.username}{c.user.verified && <IcVerified size={12} style={{ marginLeft: 4, verticalAlign: -2 }} />}</Link>
                           <span className="pm-comment-text"> <RichText text={c.text} onNav={app.closePost} /></span>
                           <div className="pm-comment-meta">
                             <span className="pm-comment-time">{timeAgo(c.createdAt)}</span>
@@ -152,7 +152,7 @@ export default function PostModal() {
                               <div className="pm-comment reply" key={r.id}>
                                 <Avatar user={r.user} size={24} onClick={() => { app.closePost(); nav('/' + r.user.username) }} />
                                 <div className="pm-comment-body">
-                                  <Link to={'/' + r.user.username} className="post-username" onClick={app.closePost}>{r.user.username}</Link>
+                                  <Link to={'/' + r.user.username} className="post-username" onClick={app.closePost}>{r.user.username}{r.user.verified && <IcVerified size={11} style={{ marginLeft: 4, verticalAlign: -2 }} />}</Link>
                                   <span className="pm-comment-text"> <RichText text={r.text} onNav={app.closePost} /></span>
                                   <div className="pm-comment-meta">
                                     <span className="pm-comment-time">{timeAgo(r.createdAt)}</span>

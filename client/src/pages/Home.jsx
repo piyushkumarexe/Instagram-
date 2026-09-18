@@ -9,6 +9,7 @@ import { MobileTopBar } from '../components/MobileNav.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import Avatar from '../components/Avatar.jsx'
 import FollowButton from '../components/FollowButton.jsx'
+import { IcVerified } from '../components/Icons.jsx'
 import { suggestions } from '../fb.js'
 
 const FEED_CACHE = 'vg_feed_cache'
@@ -115,7 +116,7 @@ export default function Home() {
                     {sugg.map((u) => (
                       <div className="fs-card" key={u.id}>
                         <Avatar user={u} size={56} />
-                        <span className="fs-username">{u.username}</span>
+                        <span className="fs-username">{u.username}{u.verified && <IcVerified size={11} style={{ marginLeft: 3 }} />}</span>
                         <span className="fs-name muted">{u.name}</span>
                         <FollowButton user={u} size="sm" onChange={(nu) => setSugg((l) => l.filter((x) => x.id !== nu.id))} />
                       </div>

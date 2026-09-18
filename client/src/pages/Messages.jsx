@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useApp } from '../store.jsx'
 import { subscribeThreads, subscribeThread, sendMessage, markThreadRead, pairId, searchUsers, timeAgo, subscribeNotes, setNote, searchGifs, subscribeDmState, setTyping, reactToMessage, unsendMessage, buzz, clearChat, withTimeout } from '../fb.js'
 import RichText from '../components/RichText.jsx'
+import { IcVerified } from '../components/Icons.jsx'
 import Avatar from '../components/Avatar.jsx'
 import { IcDots, IcBack, IcNewMsg, IcSmile, IcX } from '../components/Icons.jsx'
 
@@ -67,7 +68,7 @@ export default function Messages() {
                 {t.user.lastActive && Date.now() - t.user.lastActive < 70000 ? <span className="online-dot on" /> : null}
               </span>
               <div className="dm-thread-meta">
-                <span className="username">{t.user.username}</span>
+                <span className="username">{t.user.username}{t.user.verified && <IcVerified size={12} style={{ marginLeft: 4 }} />}</span>
                 <span className={'dm-preview muted' + (t.unread ? ' strong' : '')}>
                   {t.last ? `${t.last.fromMe ? 'You: ' : ''}${(t.last.text || '').slice(0, 40)}` : 'Say hi 👋'}
                   {t.last?.createdAt ? ` · ${timeAgo(t.last.createdAt)}` : ''}
@@ -314,7 +315,7 @@ function Chat({ username }) {
               <Avatar user={user} size={32} />
               {user.lastActive && Date.now() - user.lastActive < 70000 ? <span className="online-dot on" /> : null}
             </span>
-            <strong>{user.username}</strong>
+            <strong>{user.username}{user.verified && <IcVerified size={13} style={{ marginLeft: 4, verticalAlign: -2 }} />}</strong>
             {dmState.typing ? <span className="typing-sub">typing…</span> : null}
           </Link>
         )}

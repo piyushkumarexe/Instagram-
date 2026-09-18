@@ -1,7 +1,7 @@
 // Firebase bootstrap — VibeGram talks directly to Firebase (no backend server).
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
-import { initializeFirestore } from 'firebase/firestore'
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 
 const firebaseConfig = {
@@ -19,6 +19,7 @@ export const auth = getAuth(app)
 // WebView-safe Firestore: auto long-polling (Capacitor WebViews often break
 // the default channel) + tolerate undefined fields in writes.
 export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
   experimentalAutoDetectLongPolling: true,
   ignoreUndefinedProperties: true,
 })

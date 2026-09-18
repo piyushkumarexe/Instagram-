@@ -4,7 +4,7 @@ import { useApp } from '../store.jsx'
 import { explore, searchUsers, searchPosts, formatCount } from '../fb.js'
 import Avatar from '../components/Avatar.jsx'
 import { MobileTopBar } from '../components/MobileNav.jsx'
-import { IcComment } from '../components/Icons.jsx'
+import { IcComment, IcVerified } from '../components/Icons.jsx'
 
 export default function Explore() {
   const app = useApp()

@@ -6,7 +6,7 @@ import Avatar from '../components/Avatar.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import RichText from '../components/RichText.jsx'
 import FollowButton from '../components/FollowButton.jsx'
-import { IcDots, IcGrid, IcReels, IcBookmark, IcPlay, IcCamera, IcSettings, IcLogout, IcHeart } from '../components/Icons.jsx'
+import { IcDots, IcGrid, IcReels, IcBookmark, IcPlay, IcCamera, IcSettings, IcLogout, IcHeart, IcVerified } from '../components/Icons.jsx'
 
 export default function Profile() {
   const { username } = useParams()
@@ -125,7 +125,7 @@ export default function Profile() {
 
         <div className="igp-bio">
           <strong className="profile-name">
-            {profile.name}
+            {profile.name}{profile.verified && <IcVerified size={14} style={{ marginLeft: 5, verticalAlign: -2 }} />}
             {profile.pronouns && <span className="igp-pronouns">{profile.pronouns}</span>}
           </strong>
           {profile.bio && <RichText text={profile.bio} />}
@@ -210,7 +210,7 @@ export default function Profile() {
             {shown.map((p) => (
               <button className="grid-cell" key={p.id} onClick={() => app.openPost(p.id)}>
                 {p.mediaType === 'video' || p.type === 'reel' ? <span className="grid-play"><IcPlay size={22} /></span> : null}
-                {p.mediaType === 'video' ? <video src={p.media} muted /> : <img src={p.media} alt={p.caption || 'post'} loading="lazy" />}
+                {p.mediaType === 'video' ? <video src={p.media} muted /> : <img src={p.media} alt={p.caption || 'post'} loading="lazy" decoding="async" />}
                 <span className="grid-hover">
                   <span>❤️ {p.likes}</span>
                   <span>💬 {p.commentsCount}</span>

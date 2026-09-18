@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useApp } from '../store.jsx'
 import { timeAgo, markStorySeen, sendMessage, addStoryToHighlight } from '../fb.js'
 import Avatar from './Avatar.jsx'
+import { IcVerified } from './Icons.jsx'
 import { IcX, IcSend, IcChevronL, IcChevronR, IcBookmark } from './Icons.jsx'
 
 const STORY_MS = 5000
@@ -106,7 +107,7 @@ export default function StoryViewer() {
     <div className="story-viewer" onMouseDown={() => setPaused(true)} onMouseUp={() => setPaused(false)}>
       <div className="story-header">
         <Avatar user={group.user} size={32} />
-        <span className="story-h-username">{group.user.username}</span>
+        <span className="story-h-username">{group.user.username}{group.user.verified && <IcVerified size={12} style={{ marginLeft: 4, verticalAlign: -2 }} />}</span>
         <span className="story-h-time">{timeAgo(story.createdAt)}</span>
         <div className="story-h-actions">
           {group.user.id === app.user.id && (

@@ -2,8 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { auth } from './firebase.js'
 import {
   watchAuth, finishRedirect, signOutNow, getUser, loadFollowing,
-  subscribeNotifications, subscribeThreads, seedDemoContentIfEmpty,
-} from './fb.js'
+  subscribeNotifications, subscribeThreads, seedDemoContentIfEmpty, ensureBotsVerified } from './fb.js'
 
 const AppCtx = createContext(null)
 export const useApp = () => useContext(AppCtx)
@@ -44,7 +43,8 @@ export function AppProvider({ children }) {
         setUser(null)
         setUnreadDMs(0)
         setUnreadNotifs(0)
-        setAuthReady(true)
+        ensureBotsVerified()
+      setAuthReady(true)
         return
       }
 
