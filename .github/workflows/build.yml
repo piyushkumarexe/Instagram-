@@ -1,11 +1,11 @@
-name: Android APK
+name: Build Apps
 
 on:
   push:
   workflow_dispatch:
 
 concurrency:
-  group: android-${{ github.ref }}
+  group: build-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   apk:
-    name: Build debug APK
+    name: 🤖 Android APK
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,16 +38,13 @@ jobs:
         run: |
           set -o pipefail
           npm run build 2>&1 | tee /tmp/build.log
-          # fail on missing-export warnings (silent runtime killers)
           if grep -i "is not exported by" /tmp/build.log; then
             echo "::error::Missing module exports detected — app would crash at runtime"
             exit 1
           fi
-          # smoke-check critical strings actually made it into the bundle
           for s in "vibegram-ff651" "Continue with Google"; do
             grep -rq "$s" client/dist/assets/ || { echo "::error::bundle missing: $s"; exit 1; }
           done
-          # no leftover placeholder wording should ship
           if grep -rqi "try the demo" client/dist/assets/; then
             echo "::error::bundle contains placeholder wording"
             exit 1
@@ -102,6 +99,10 @@ jobs:
           {
             echo "Automated build from commit ${GITHUB_SHA::7}."
             echo ""
+            echo "## 📥 Downloads"
+            echo "- 🤖 **Android APK:** app-debug.apk (below)"
+            echo "- 🍎 **iOS IPA:** VibeGram-iOS-unsigned.ipa (below — needs Apple ID via AltStore/Sideloadly)"
+            echo ""
             echo "## 🔑 Google Sign-In setup (one time, 2 minutes)"
             echo "1. Open Firebase Console → project **vibegram-ff651**"
             echo "2. ⚙️ Project settings → **Your apps** → Android app \`com.vibegram.app\`"
@@ -121,3 +122,63 @@ jobs:
             sleep 15
           done
           gh release create "$TAG" "$APK" -t "VibeGram $TAG" --notes-file "$NOTES" || gh release upload "$TAG" "$APK" --clobber
+
+  ipa:
+    name: 🍎 iOS IPA (unsigned)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit imports (prevent runtime crashes)
+        run: node scripts/audit-imports.mjs
+
+      - name: Build web app
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee /tmp/build.log
+          if grep -i "is not exported by" /tmp/build.log; then
+            echo "::error::Missing module exports detected — app would crash at runtime"
+            exit 1
+          fi
+          echo "web build ok"
+
+      - name: Sync Capacitor (web assets -> iOS)
+        run: npx cap sync ios
+
+      - name: Build unsigned IPA
+        run: |
+          cd ios
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+          mkdir -p Payload
+          cp -r build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -r ../VibeGram-iOS-unsigned.ipa Payload
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VibeGram-iOS-unsigned
+          path: VibeGram-iOS-unsigned.ipa
+          if-no-files-found: error
+
+      - name: Attach IPA to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          for i in 1 2 3 4 5 6 7 8; do
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              gh release upload "$TAG" VibeGram-iOS-unsigned.ipa --clobber || true
+              exit 0
+            fi
+            sleep 15
+          done
+          gh release create "$TAG" VibeGram-iOS-unsigned.ipa -t "VibeGram $TAG" --generate-notes || gh release upload "$TAG" VibeGram-iOS-unsigned.ipa --clobber
