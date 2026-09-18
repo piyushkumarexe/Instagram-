@@ -4,6 +4,7 @@ import { useApp } from '../store.jsx'
 import { explore, searchUsers, searchPosts, formatCount } from '../fb.js'
 import Avatar from '../components/Avatar.jsx'
 import { MobileTopBar } from '../components/MobileNav.jsx'
+import PullToRefresh from '../components/PullToRefresh.jsx'
 import { IcComment, IcVerified } from '../components/Icons.jsx'
 
 export default function Explore() {
@@ -38,6 +39,7 @@ export default function Explore() {
   return (
     <div className="explore-page">
       <MobileTopBar title="Explore" />
+      <PullToRefresh onRefresh={() => { setLoading(true); return explore(app.user.id).then((r) => { setPosts(r); setLoading(false) }).catch(() => setLoading(false)) }}>
       <div className="explore-search">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Search username, name, caption" />
       </div>
@@ -73,6 +75,7 @@ export default function Explore() {
           {posts.map((p) => <GridCell post={p} key={p.id} />)}
         </div>
       )}
+      </PullToRefresh>
     </div>
   )
 }

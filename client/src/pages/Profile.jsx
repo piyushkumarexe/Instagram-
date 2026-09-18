@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useApp } from '../store.jsx'
-import { getUserByUsername, getUser, getUserPosts, getSaved, getLikedPosts, myFollowing, getHighlight, addStoryToHighlight, getStoryGroups, healUsername } from '../fb.js'
+import { getUserByUsername, getUser, getUserPosts, getSaved, getLikedPosts, myFollowing, getHighlight, addStoryToHighlight, getStoryGroups, healUsername, listUserConnections } from '../fb.js'
 import Avatar from '../components/Avatar.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import RichText from '../components/RichText.jsx'
@@ -22,6 +22,7 @@ export default function Profile() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [hasStory, setHasStory] = useState(false)
   const [highlight, setHighlight] = useState(null)
+  const [social, setSocial] = useState(null)
 
   const load = useCallback(async () => {
     try {
@@ -52,6 +53,14 @@ export default function Profile() {
         getStoryGroups(app.user.id).then((gs) => setHasStory(gs.some((g) => g.user.id === u.id))).catch(() => {})
       })
       getHighlight(u.id).then(setHighlight).catch(() => {})
+      // "Followed by" social proof (mere following ∩ unke followers)
+      if (!isMe) {
+        Promise.all([listUserConnections(username, 'followers'), Promise.resolve([...myFollowing])])
+          .then(([followers, mine]) => {
+            const common = followers.filter((f) => mine.includes(f.id))
+            if (common.length) setSocial({ users: common.slice(0, 2), extra: Math.max(0, common.length - 2) })
+          }).catch(() => {})
+      } else setSocial(null)
     } catch (e) {
       setError(e.message)
     }
@@ -137,7 +146,24 @@ export default function Profile() {
           </strong>
           {profile.bio && <RichText text={profile.bio} />}
           {profile.links && <RichText text={profile.links} />}
+          {profile.anthem && (
+            <span className="anthem-chip">🎵 <span className="t">{profile.anthem}</span></span>
+          )}
         </div>
+
+        {social && (
+          <div className="social-proof">
+            <span className="sp-avs">
+              {social.users.map((f) => <span key={f.id} className="sp-av"><Avatar user={f} size={22} /></span>)}
+            </span>
+            <span>
+              Followed by{' '}
+              <Link to={'/' + social.users[0].username} style={{ fontWeight: 700, color: 'var(--text)' }}>{social.users[0].username}</Link>
+              {social.users[1] && <> and <Link to={'/' + social.users[1].username} style={{ fontWeight: 700, color: 'var(--text)' }}>{social.users[1].username}</Link></>}
+              {social.extra > 0 && <> + {social.extra} more</>}
+            </span>
+          </div>
+        )}
 
         {/* action row */}
         <div className="igp-actions">

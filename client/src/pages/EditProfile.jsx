@@ -14,6 +14,7 @@ export default function EditProfile() {
   const [bio, setBio] = useState(app.user.bio || '')
   const [links, setLinks] = useState(app.user.links || '')
   const [gender, setGender] = useState(app.user.gender || '')
+  const [anthem, setAnthem] = useState(app.user.anthem || '')
   const [avatarPreview, setAvatarPreview] = useState(null)
   const [avatarFile, setAvatarFile] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -35,6 +36,7 @@ export default function EditProfile() {
       ...prev,
       name: name.trim() || prev.name,
       bio,
+      anthem,
       pronouns,
       links,
       gender,
@@ -43,7 +45,7 @@ export default function EditProfile() {
     }))
     try {
       const u = await withTimeout(updateMe(app.user.id, {
-        name, bio, pronouns, links, gender, username, avatarFile,
+        name, bio, pronouns, links, gender, anthem, username, avatarFile,
       }), 15000, 'Profile save')
       app.setUser((prev) => ({ ...prev, ...u }))
       app.toast('Profile updated ✅')
@@ -95,6 +97,11 @@ export default function EditProfile() {
           <span>Bio</span>
           <textarea value={bio} onChange={(e) => setBio(e.target.value.slice(0, 160))} placeholder="Tell people about yourself…" rows={3} />
           <em className="eig-count">{bio.length}/160</em>
+        </label>
+
+        <label className="eig-field">
+          <span>Music anthem</span>
+          <input value={anthem} onChange={(e) => setAnthem(e.target.value)} maxLength={60} placeholder="Song you're vibing with 🎵" />
         </label>
 
         <label className="eig-field">

@@ -5,6 +5,7 @@ import { subscribeNotifications, markNotificationsRead, timeAgo, listRequests, a
 import Avatar from '../components/Avatar.jsx'
 import FollowButton from '../components/FollowButton.jsx'
 import { MobileTopBar } from '../components/MobileNav.jsx'
+import PullToRefresh from '../components/PullToRefresh.jsx'
 
 export default function Notifications() {
   const app = useApp()
@@ -58,6 +59,7 @@ export default function Notifications() {
     <div className="notif-page">
       <MobileTopBar title="Notifications" />
       <h2 className="page-title">Notifications</h2>
+      <PullToRefresh onRefresh={() => new Promise((res) => setTimeout(res, 400))}>
       {!!reqs.length && (
         <section className="notif-group req-group">
           <h3>Follow requests</h3>
@@ -110,6 +112,7 @@ export default function Notifications() {
           </section>
         )
       })}
+      </PullToRefresh>
     </div>
   )
 }

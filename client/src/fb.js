@@ -119,7 +119,7 @@ export async function signOutNow() {
 export const VERIFIED_IDS = new Set(['bot-aarav', 'bot-priya', 'bot-rohan', 'bot-ishani', 'bot-karan'])
 
 export function profileOut(id, d) {
-  return { id, username: d.username, name: d.name || d.username, email: d.email || '', bio: d.bio || '', avatar: d.avatar || null, followersCount: d.followersCount || 0, followingCount: d.followingCount || 0, postsCount: d.postsCount || 0, createdAt: tsToMs(d.createdAt), lastActive: tsToMs(d.lastActive), isPrivate: !!d.isPrivate, verified: !!d.verified || VERIFIED_IDS.has(id), pronouns: d.pronouns || '', links: d.links || '', gender: d.gender || '' }
+  return { id, username: d.username, name: d.name || d.username, email: d.email || '', bio: d.bio || '', avatar: d.avatar || null, followersCount: d.followersCount || 0, followingCount: d.followingCount || 0, postsCount: d.postsCount || 0, createdAt: tsToMs(d.createdAt), lastActive: tsToMs(d.lastActive), isPrivate: !!d.isPrivate, verified: !!d.verified || VERIFIED_IDS.has(id), pronouns: d.pronouns || '', links: d.links || '', gender: d.gender || '', anthem: d.anthem || '' }
 }
 
 // admin: kisi bhi username ko verified badge de/hata (owner-only UI se call hota hai)
@@ -260,13 +260,14 @@ async function fileToDataUrl(file, max = 256, q = 0.85) {
   }
 }
 
-export async function updateMe(uid, { name, bio, avatarFile, username, pronouns, links, gender }) {
+export async function updateMe(uid, { name, bio, avatarFile, username, pronouns, links, gender, anthem }) {
   const patch = {}
   if (typeof name === 'string' && name.trim()) patch.name = name.trim().slice(0, 40)
   if (typeof bio === 'string') patch.bio = bio.slice(0, 160)
   if (typeof pronouns === 'string') patch.pronouns = pronouns.trim().slice(0, 20)
   if (typeof links === 'string') patch.links = links.trim().slice(0, 100)
   if (typeof gender === 'string') patch.gender = gender.slice(0, 20)
+  if (typeof anthem === 'string') patch.anthem = anthem.trim().slice(0, 60)
   if (avatarFile) {
     if (!avatarFile.type.startsWith('image/')) throw new Error('Avatar must be an image')
     // Firestore-direct avatar (downscaled dataURL) — upload fail ho hi nahi sakta

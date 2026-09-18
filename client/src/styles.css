@@ -1201,3 +1201,26 @@ html, body { max-width: 100vw; overflow-x: hidden; }
 }
 .follow-btn:disabled { opacity: .5; }
 .follow-btn.sm { min-width: 96px; padding: 7px 14px; font-size: 13px; }
+
+
+/* ============ v4.4: smoothness + social proof + anthem + copy link ============ */
+.post-media { min-height: 320px; display: flex; align-items: center; justify-content: center; }
+.post-media img, .post-media video { min-height: 320px; }
+@media (max-width: 767px) {
+  .post-media { min-height: 0; aspect-ratio: 4 / 5; }
+  .post-media img, .post-media video { width: 100%; height: 100%; object-fit: cover; max-height: none; }
+}
+/* social proof row */
+.social-proof { display: flex; align-items: center; gap: 8px; padding: 4px 20px 8px; font-size: 13px; }
+.sp-avs { display: flex; }
+.sp-avs .sp-av { margin-left: -8px; border: 2px solid var(--card); border-radius: 50%; }
+.sp-avs .sp-av:first-child { margin-left: 0; }
+/* anthem chip */
+.anthem-chip {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 6px;
+  border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px;
+  font-size: 13px; color: var(--text); background: var(--bg); max-width: 100%;
+}
+.anthem-chip .note { color: var(--muted); }
+.anthem-chip span.t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* copy-link sheet icon alignment fine by default */

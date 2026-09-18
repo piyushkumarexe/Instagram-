@@ -226,6 +226,11 @@ export default function PostModal() {
               ) : (
                 <button className="sheet-item" onClick={() => { setMenuOpen(false); nav('/messages/' + post.user.username) }}>Send message</button>
               )}
+              <button className="sheet-item" onClick={async () => {
+                setMenuOpen(false)
+                const url = `${location.origin}/p/${post.id}`
+                try { await navigator.clipboard.writeText(url); app.toast('Link copied 🔗') } catch { app.toast(url) }
+              }}>🔗 Copy link</button>
               <button className="sheet-item" onClick={() => setMenuOpen(false)}>Cancel</button>
             </div>
           </div>
