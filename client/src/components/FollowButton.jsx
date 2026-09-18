@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useApp } from '../store.jsx'
-import { setFollow } from '../fb.js'
+import { setFollow, withTimeout } from '../fb.js'
 
 export default function FollowButton({ user, onChange, size = 'md', full = false }) {
   const app = useApp()
@@ -10,11 +10,13 @@ export default function FollowButton({ user, onChange, size = 'md', full = false
   async function toggle() {
     if (busy) return
     setBusy(true)
+    const next = !user.isFollowing
+    onChange && onChange({ ...user, isFollowing: next }) // instant UI
     try {
-      const nowFollowing = await setFollow(app.user.id, user, !user.isFollowing)
-      onChange && onChange({ ...user, isFollowing: nowFollowing })
-      app.toast(nowFollowing ? `Following ${user.username}` : `Unfollowed ${user.username}`)
+      await withTimeout(setFollow(app.user.id, user, next), 8000, 'Follow')
+      app.toast(next ? `Following ${user.username}` : `Unfollowed ${user.username}`)
     } catch (e) {
+      onChange && onChange(user) // revert
       app.toast(e.message)
     } finally {
       setBusy(false)

@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../store.jsx'
-import { updateMe } from '../fb.js'
+import { updateMe, withTimeout } from '../fb.js'
 import Avatar from '../components/Avatar.jsx'
 import { IcBack } from '../components/Icons.jsx'
 
@@ -15,14 +15,19 @@ export default function EditProfile() {
 
   async function save(avatarFile) {
     setBusy(true)
+    // optimistic: turant local update
+    if (!avatarFile) {
+      app.setUser((prev) => ({ ...prev, name: name.trim() || prev.name, bio }))
+    }
     try {
       const u = await updateMe(app.user.id, { name, bio, avatarFile })
       app.setUser((prev) => ({ ...prev, ...u }))
       app.toast(avatarFile ? 'Profile photo updated ✨' : 'Profile updated ✅')
       if (!avatarFile) nav('/' + u.username)
       window.dispatchEvent(new Event('vg:refresh-stories'))
-    } catch (e) {
-      app.toast(e.message)
+    } catch (err) {
+      app.toast(err.message)
+      app.refreshUser() // server state wapas
     } finally {
       setBusy(false)
     }

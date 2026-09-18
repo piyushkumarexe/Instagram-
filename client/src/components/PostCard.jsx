@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../store.jsx'
-import { timeAgo, formatCount, toggleLike, toggleSave, addComment, deletePost as fbDeletePost } from '../fb.js'
+import { timeAgo, formatCount, toggleLike, toggleSave, addComment, deletePost as fbDeletePost, withTimeout } from '../fb.js'
 import Avatar from './Avatar.jsx'
 import { IcHeart, IcHeartFill, IcComment, IcSend, IcBookmark, IcBookmarkFill, IcDots, IcTrash } from './Icons.jsx'
 
@@ -20,10 +20,15 @@ export default function PostCard({ post, onChange, onDeleted }) {
 
   async function like(forceLike = false) {
     if (forceLike && post.likedByMe) return
+    const next = !post.likedByMe
+    onChange({ ...post, likedByMe: next, likes: post.likes + (next ? 1 : -1) }) // instant ❤️
     try {
-      const liked = await toggleLike(post, app.user.id)
-      onChange({ ...post, likedByMe: liked, likes: post.likes + (liked ? 1 : -1) })
-    } catch (e) { app.toast(e.message) }
+      const liked = await withTimeout(toggleLike(post, app.user.id), 8000, 'Like')
+      if (liked !== next) onChange({ ...post, likedByMe: liked, likes: post.likes + (liked ? 1 : -1) })
+    } catch (e) {
+      onChange(post) // revert
+      app.toast(e.message)
+    }
   }
 
   function onMediaClick() {
@@ -57,11 +62,17 @@ export default function PostCard({ post, onChange, onDeleted }) {
     e.preventDefault()
     const text = commentText.trim()
     if (!text) return
+    setCommentText('')
+    const temp = { id: 'tmp-' + Date.now(), text, createdAt: Date.now(), user: { id: app.user.id, username: app.user.username, avatar: app.user.avatar || null } }
+    const optimistic = { ...post, comments: [...post.comments, temp], commentsCount: post.commentsCount + 1 }
+    onChange(optimistic) // instant 💬
     try {
-      const c = await addComment(app.user, post, text)
-      onChange({ ...post, comments: [...post.comments, c], commentsCount: post.commentsCount + 1 })
-      setCommentText('')
-    } catch (e) { app.toast(e.message) }
+      const c = await withTimeout(addComment(app.user, post, text), 8000, 'Comment')
+      onChange({ ...optimistic, comments: [...post.comments, c] })
+    } catch (err) {
+      onChange(post) // revert
+      app.toast(err.message)
+    }
   }
 
   async function removePost() {

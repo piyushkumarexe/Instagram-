@@ -196,6 +196,14 @@ async function onboardNewUser(uid) {
   }
 }
 
+// every critical action gets a deadline — UI kabhi 'Saving…' pe stuck nahi
+export function withTimeout(p, ms = 8000, label = 'Network') {
+  return Promise.race([
+    Promise.resolve(p),
+    new Promise((_, rej) => setTimeout(() => rej(new Error(label + ' slow hai — internet check karke phir try karo')), ms)),
+  ])
+}
+
 export async function updateMe(uid, { name, bio, avatarFile }) {
   const patch = {}
   if (typeof name === 'string' && name.trim()) patch.name = name.trim().slice(0, 40)
@@ -204,10 +212,10 @@ export async function updateMe(uid, { name, bio, avatarFile }) {
     if (!avatarFile.type.startsWith('image/')) throw new Error('Avatar must be an image')
     const path = `avatars/${uid}-${Date.now()}.jpg`
     const r = ref(storage, path)
-    await uploadBytes(r, avatarFile, { contentType: avatarFile.type })
-    patch.avatar = await getDownloadURL(r)
+    await withTimeout(uploadBytes(r, avatarFile, { contentType: avatarFile.type }), 20000, 'Photo upload')
+    patch.avatar = await withTimeout(getDownloadURL(r), 10000, 'Photo URL')
   }
-  await updateDoc(doc(db, 'users', uid), patch)
+  await withTimeout(updateDoc(doc(db, 'users', uid), patch), 8000, 'Profile save')
   return getUser(uid)
 }
 
@@ -632,6 +640,20 @@ const SEED_POSTS = [
   ['bot-priya', 'posts/chaat2.jpg', 'ASMR but make it chaat 🌶️😋 #reels #foodie', 3, ['bot-aarav'], []],
 ]
 
+// copy a seed file into Firebase Storage so future loads hit Google's CDN
+async function mirrorToStorage(name, fallbackUrl) {
+  try {
+    const res = await fetch(fallbackUrl)
+    if (!res.ok) throw new Error(String(res.status))
+    const blob = await res.blob()
+    const r = ref(storage, 'seed/' + name)
+    await uploadBytes(r, blob)
+    return await getDownloadURL(r)
+  } catch {
+    return fallbackUrl
+  }
+}
+
 export async function seedDemoContentIfEmpty() {
   // transaction lock so only ONE client ever seeds
   const lockRef = doc(db, 'meta', 'seed')
@@ -647,6 +669,7 @@ export async function seedDemoContentIfEmpty() {
   if (!claimed) return
   try {
     for (const [id, b] of Object.entries(SEED_BOTS)) {
+      b = { ...b, avatar: await mirrorToStorage(`avatar-${id}.jpg`, b.avatar) }
       await setDoc(doc(db, 'users', id), {
         ...b, email: b.username.replace(/[^a-z0-9]/g, '') + '@vibegram.app',
         followersCount: 0, followingCount: 0, postsCount: 0, saved: [], viewedStories: [],
@@ -670,9 +693,10 @@ export async function seedDemoContentIfEmpty() {
     for (const [author, img, caption, hrs, likers, comments] of SEED_POSTS) {
       const b = SEED_BOTS[author]
       const isReel = caption.includes('#reels')
+      const mediaUrl = await mirrorToStorage(img.replace(/[^a-z0-9.]/gi, '-'), `${RAW}/${img}`)
       const pRef = await addDoc(collection(db, 'posts'), {
         userId: author, username: b.username, name: b.name, avatar: b.avatar,
-        media: `${RAW}/${img}`, mediaType: 'image', caption, type: isReel ? 'reel' : 'post',
+        media: mediaUrl, mediaType: 'image', caption, type: isReel ? 'reel' : 'post',
         likes: likers, likesCount: likers.length, commentsCount: comments.length, savedBy: [],
         createdAt: serverTimestamp(),
       })
@@ -685,9 +709,10 @@ export async function seedDemoContentIfEmpty() {
     }
     for (const [author, img, hrs] of [['bot-aarav', 'posts/palace.jpg', 2], ['bot-priya', 'posts/chaat.jpg', 5], ['bot-ishani', 'posts/trek.jpg', 8]]) {
       const b = SEED_BOTS[author]
+      const sUrl = await mirrorToStorage('story-' + img.replace(/[^a-z0-9.]/gi, '-'), `${RAW}/${img}`)
       await addDoc(collection(db, 'stories'), {
         userId: author, username: b.username, avatar: b.avatar,
-        media: `${RAW}/${img}`, mediaType: 'image', createdAt: serverTimestamp(),
+        media: sUrl, mediaType: 'image', createdAt: serverTimestamp(),
       })
     }
     // one example conversation between bots

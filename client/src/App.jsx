@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useParams, useNavigate } from 'react-router-dom'
 import { AppProvider, useApp } from './store.jsx'
 import Sidebar, { SearchPanel } from './components/Sidebar.jsx'
 import MobileNav from './components/MobileNav.jsx'
@@ -67,6 +67,34 @@ function PostPage() {
   return <Protected><Home /></Protected>
 }
 
+// Android hardware back: modal close → history back → exit (real app behaviour)
+function BackHandler() {
+  const app = useApp()
+  const nav = useNavigate()
+  useEffect(() => {
+    if (!window.Capacitor?.isNativePlatform?.()) return
+    let handle = null
+    let cancelled = false
+    import('@capacitor/app').then(({ App: CapApp }) => {
+      if (cancelled) return
+      CapApp.addListener('backButton', () => {
+        if (app.postModalId) return app.closePost()
+        if (app.storyView) return app.closeStories()
+        if (app.createMode) return app.closeCreate()
+        if (app.searchOpen) return app.setSearchOpen(false)
+        const idx = (window.history.state && window.history.state.idx) || 0
+        if (idx > 0) window.history.back()
+        else CapApp.exitApp()
+      }).then((h) => { if (cancelled) h.remove(); else handle = h })
+    }).catch(() => {})
+    return () => {
+      cancelled = true
+      if (handle) handle.remove()
+    }
+  }, [app, nav])
+  return null
+}
+
 function Toasts() {
   const app = useApp()
   return (
@@ -111,6 +139,7 @@ export default function App() {
         <Route path="/:username" element={<Protected><Profile /></Protected>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <BackHandler />
       <Modals />
     </AppProvider>
   )
