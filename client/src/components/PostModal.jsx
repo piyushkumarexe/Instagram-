@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../store.jsx'
 import { timeAgo, formatCount, getPost, getComments, toggleLike, toggleSave, addComment, deleteComment, deletePost as fbDeletePost } from '../fb.js'
 import Avatar from './Avatar.jsx'
-import { IcX, IcHeart, IcHeartFill, IcDots, IcTrash, IcSend, IcBookmark, IcBookmarkFill } from './Icons.jsx'
+import { IcX, IcHeart, IcHeartFill, IcComment, IcDots, IcTrash, IcSend, IcBookmark, IcBookmarkFill } from './Icons.jsx'
 
 export default function PostModal() {
   const app = useApp()

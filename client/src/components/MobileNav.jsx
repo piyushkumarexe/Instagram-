@@ -1,5 +1,5 @@
 import React from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate, Link } from 'react-router-dom'
 import { useApp } from '../store.jsx'
 import Avatar from './Avatar.jsx'
 import { IcHome, IcHomeFill, IcCompass, IcCompassFill, IcReels, IcReelsFill, IcHeart, IcHeartFill, IcSend, IcPlusSquare } from './Icons.jsx'

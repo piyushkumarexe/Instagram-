@@ -26,6 +26,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit imports (prevent runtime crashes)
+        run: node scripts/audit-imports.mjs
+
       - name: Build web app
         run: |
           set -o pipefail
