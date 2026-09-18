@@ -151,7 +151,7 @@ fun ProfileScreen(
                 }
                 Spacer(Modifier.width(26.dp))
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    Stat(ps.size, "posts")
+                    Stat(ps.size.toLong(), "posts")
                     Stat(u.followersCount, "followers")
                     Stat(u.followingCount, "following")
                 }
@@ -275,7 +275,7 @@ fun ProfileScreen(
 }
 
 @Composable
-fun Stat(count: Int, label: String) {
+fun Stat(count: Long, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(count.toString(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         Text(label, color = Color.White, fontSize = 13.sp)
