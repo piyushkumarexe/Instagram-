@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useApp } from '../store.jsx'
-import { getUserByUsername, getUserPosts, getSaved, getLikedPosts, myFollowing, getHighlight, addStoryToHighlight, getStoryGroups } from '../fb.js'
+import { getUserByUsername, getUser, getUserPosts, getSaved, getLikedPosts, myFollowing, getHighlight, addStoryToHighlight, getStoryGroups, healUsername } from '../fb.js'
 import Avatar from '../components/Avatar.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import RichText from '../components/RichText.jsx'
@@ -25,7 +25,12 @@ export default function Profile() {
 
   const load = useCallback(async () => {
     try {
-      const u = await getUserByUsername(username)
+      let u = await getUserByUsername(username).catch(() => null)
+      if (!u && username.toLowerCase() === String(app.user.username || '').toLowerCase()) {
+        // apna profile, mapping broken? direct uid se load + self-heal
+        u = await getUser(app.user.id).catch(() => null)
+        if (u) healUsername(u)
+      }
       if (!u) { setError('User not found'); return }
       const isMe = u.id === app.user.id
       u.isFollowing = myFollowing.has(u.id)

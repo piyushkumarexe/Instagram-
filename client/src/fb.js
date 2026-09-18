@@ -272,21 +272,37 @@ export async function updateMe(uid, { name, bio, avatarFile, username, pronouns,
     // Firestore-direct avatar (downscaled dataURL) — upload fail ho hi nahi sakta
     patch.avatar = await withTimeout(fileToDataUrl(avatarFile), 15000, 'Photo process')
   }
+  let oldU = null
   if (typeof username === 'string' && username.trim()) {
     const newU = username.trim().toLowerCase()
-    if (!/^[a-z0-9._]{3,30}$/.test(newU)) throw new Error('Username 3-30 chars, only a-z 0-9 . _')
+    if (!/^[a-z0-9._]{3,30}$/.test(newU)) throw new Error('Username must be 3-30 chars: a-z 0-9 . _')
     const cur = await getDoc(doc(db, 'users', uid)).catch(() => null)
-    const oldU = cur && cur.exists() ? cur.data().username : null
+    oldU = cur && cur.exists() ? cur.data().username : null
     if (newU !== oldU) {
       const taken = await getDoc(doc(db, 'usernames', newU))
-      if (taken.exists()) throw new Error('Username already taken')
-      await withTimeout(setDoc(doc(db, 'usernames', newU), { uid }), 8000, 'Username save')
-      if (oldU) await deleteDoc(doc(db, 'usernames', oldU)).catch(() => {})
+      if (taken.exists() && taken.data().uid !== uid) throw new Error('Username already taken')
       patch.username = newU
     }
   }
+  // SOURCE OF TRUTH pehle: user doc (mapping kabhi akeli na rahe)
   await withTimeout(updateDoc(doc(db, 'users', uid), patch), 10000, 'Profile save')
+  // mapping swap AFTER — best-effort, kabhi bhi self-heal ho sakta hai
+  if (patch.username) {
+    try { await withTimeout(setDoc(doc(db, 'usernames', patch.username), { uid }), 8000, 'Username link') } catch {}
+    if (oldU) deleteDoc(doc(db, 'usernames', oldU)).catch(() => {})
+  }
   return patch // local merge — koi extra read nahi (stuck-proof)
+}
+
+// missing/broken username→uid mapping ko repair karo (self-heal)
+export async function healUsername(u) {
+  try {
+    if (!u?.username || !u.id) return
+    const m = await getDoc(doc(db, 'usernames', u.username))
+    if (!m.exists() || m.data().uid !== u.id) {
+      await setDoc(doc(db, 'usernames', u.username), { uid: u.id }, { merge: true })
+    }
+  } catch {}
 }
 
 // ---------------------------------------------------------------- follow

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { auth } from './firebase.js'
 import {
   watchAuth, finishRedirect, signOutNow, getUser, loadFollowing,
-  subscribeNotifications, subscribeThreads, seedDemoContentIfEmpty, ensureBotsVerified } from './fb.js'
+  subscribeNotifications, subscribeThreads, seedDemoContentIfEmpty, ensureBotsVerified, healUsername } from './fb.js'
 
 const AppCtx = createContext(null)
 export const useApp = () => useContext(AppCtx)
@@ -122,6 +122,7 @@ export function AppProvider({ children }) {
   }, [])
 
   const refreshUser = useCallback(async () => {
+    healUsername(app.user)
     const u = auth?.currentUser
     if (!u) return
     try {
