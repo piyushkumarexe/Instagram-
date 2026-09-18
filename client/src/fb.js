@@ -413,7 +413,7 @@ export async function toggleSave(meId, post) {
 
 function commentOut(d) {
   const data = d.data()
-  return { id: d.id, text: data.text, createdAt: tsToMs(data.createdAt), user: { id: data.userId, username: data.username, avatar: data.avatar || null } }
+  return { id: d.id, text: data.text, createdAt: tsToMs(data.createdAt), user: { id: data.userId, username: data.username, avatar: data.avatar || null }, likesCount: data.likesCount || 0, likes: data.likes || [], parentId: data.parentId || null, parentUsername: data.parentUsername || null }
 }
 
 export async function getComments(postId) {
@@ -421,16 +421,28 @@ export async function getComments(postId) {
   return cs.docs.map(commentOut)
 }
 
-export async function addComment(me, post, text) {
+export async function addComment(me, post, text, parent = null) {
   const clean = String(text || '').trim().slice(0, 1000)
   if (!clean) throw new Error('Comment cannot be empty')
   const cRef = await addDoc(collection(db, 'posts', post.id, 'comments'), {
     userId: me.id, username: me.username, avatar: me.avatar || null,
     text: clean, createdAt: serverTimestamp(),
+    parentId: parent ? parent.id : null, parentUsername: parent ? parent.user.username : null,
+    likes: [], likesCount: 0,
   })
   await updateDoc(doc(db, 'posts', post.id), { commentsCount: increment(1) })
   await addNotification(post.user.id, me.id, 'comment', post.id, post.media)
-  return { id: cRef.id, text: clean, createdAt: Date.now(), user: { id: me.id, username: me.username, avatar: me.avatar || null } }
+  return { id: cRef.id, text: clean, createdAt: Date.now(), user: { id: me.id, username: me.username, avatar: me.avatar || null }, likesCount: 0, likes: [me.id], parentId: parent ? parent.id : null, parentUsername: parent ? parent.user.username : null }
+}
+
+// comment like/unlike (optimistic-friendly)
+export async function likeComment(postId, c, uid) {
+  const liked = (c.likes || []).includes(uid)
+  await updateDoc(doc(db, 'posts', postId, 'comments', c.id), {
+    likes: liked ? arrayRemove(uid) : arrayUnion(uid),
+    likesCount: increment(liked ? -1 : 1),
+  })
+  return !liked
 }
 
 export async function deleteComment(meId, post, comment) {
@@ -497,12 +509,13 @@ export async function markStorySeen(meId, storyId) {
 // ---------------------------------------------------------------- messages
 export function pairId(a, b) { return [a, b].sort().join('__') }
 
-export async function sendMessage(fromId, toId, text) {
+export async function sendMessage(fromId, toId, text, meta = {}) {
   const clean = String(text || '').trim().slice(0, 2000)
   if (!clean) throw new Error('Message cannot be empty')
   const pid = pairId(fromId, toId)
   const mRef = await addDoc(collection(db, 'dms', pid, 'messages'), {
     from: fromId, to: toId, text: clean, createdAt: serverTimestamp(), read: false,
+    replyTo: meta.replyTo ? { text: String(meta.replyTo.text || '').slice(0, 120), from: String(meta.replyTo.from || '') } : null,
   })
   const unreadField = fromId === pairId(fromId, toId).split('__')[0] ? 'unreadA' : 'unreadB'
   const myUnreadField = fromId === pid.split('__')[0] ? 'unreadA' : 'unreadB'
@@ -511,7 +524,7 @@ export async function sendMessage(fromId, toId, text) {
     uids: pid.split('__'), lastText: clean, lastAt: serverTimestamp(), lastFrom: fromId,
     [otherUnreadField]: increment(1),
   }, { merge: true })
-  return { id: mRef.id, text: clean, createdAt: Date.now(), fromMe: true, read: false }
+  return { id: mRef.id, text: clean, createdAt: Date.now(), fromMe: true, read: false, replyTo: meta.replyTo || null }
 }
 
 export function subscribeThread(pid, cb) {
@@ -520,7 +533,7 @@ export function subscribeThread(pid, cb) {
     const me = auth.currentUser?.uid
     const msgs = snap.docs.map((d) => {
       const v = d.data()
-      return { id: d.id, text: v.text, createdAt: tsToMs(v.createdAt), fromMe: v.from === me, read: v.read || false, reaction: v.reaction || '', unsent: !!v.unsent }
+      return { id: d.id, text: v.text, createdAt: tsToMs(v.createdAt), fromMe: v.from === me, read: v.read || false, reaction: v.reaction || '', unsent: !!v.unsent, replyTo: v.replyTo || null }
     })
     cb(msgs)
   })

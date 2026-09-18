@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../store.jsx'
-import { timeAgo, formatCount, getPost, getComments, toggleLike, toggleSave, addComment, deleteComment, deletePost as fbDeletePost } from '../fb.js'
+import { timeAgo, formatCount, getPost, getComments, toggleLike, toggleSave, addComment, deleteComment, likeComment, deletePost as fbDeletePost, withTimeout } from '../fb.js'
 import Avatar from './Avatar.jsx'
 import { IcX, IcHeart, IcHeartFill, IcComment, IcDots, IcTrash, IcSend, IcBookmark, IcBookmarkFill } from './Icons.jsx'
+import RichText from './RichText.jsx'
 
 export default function PostModal() {
   const app = useApp()
@@ -13,6 +14,8 @@ export default function PostModal() {
   const [comments, setComments] = useState([])
   const [error, setError] = useState('')
   const [commentText, setCommentText] = useState('')
+  const [replyTo, setReplyTo] = useState(null)
+  const [openReplies, setOpenReplies] = useState({})
   const [menuOpen, setMenuOpen] = useState(false)
   const listRef = useRef(null)
 
@@ -52,12 +55,25 @@ export default function PostModal() {
     e.preventDefault()
     if (!post || !commentText.trim()) return
     try {
-      const c = await addComment(app.user, post, commentText.trim())
+      const c = await withTimeout(addComment(app.user, post, commentText.trim(), replyTo), 8000, 'Comment')
       setComments((l) => [...l, c])
+      setReplyTo(null)
       setPost({ ...post, commentsCount: post.commentsCount + 1 })
       setCommentText('')
       setTimeout(() => listRef.current?.scrollTo({ top: 1e6, behavior: 'smooth' }), 50)
     } catch (e2) { app.toast(e2.message) }
+  }
+  async function likeC(c) {
+    const uid = app.user.id
+    const liked = (c.likes || []).includes(uid)
+    // optimistic
+    setComments((l) => l.map((x) => x.id === c.id ? { ...x, likes: liked ? x.likes.filter((i) => i !== uid) : [...(x.likes || []), uid], likesCount: x.likesCount + (liked ? -1 : 1) } : x))
+    try {
+      await withTimeout(likeComment(post.id, c, uid), 8000, 'Like')
+    } catch (e) {
+      setComments((l) => l.map((x) => x.id === c.id ? { ...x, likes: c.likes || [], likesCount: c.likesCount || 0 } : x))
+      app.toast(e.message)
+    }
   }
   async function removeComment(cid) {
     if (!post) return
@@ -103,27 +119,62 @@ export default function PostModal() {
                     <Avatar user={post.user} size={32} />
                     <div className="pm-comment-body">
                       <Link to={'/' + post.user.username} className="post-username" onClick={app.closePost}>{post.user.username}</Link>
-                      <span className="pm-comment-text"> {post.caption}</span>
+                      <span className="pm-comment-text"> <RichText text={post.caption} onNav={app.closePost} /></span>
                       <span className="pm-comment-time">{timeAgo(post.createdAt)}</span>
                     </div>
                   </div>
                 )}
-                {comments.map((c) => (
-                  <div className="pm-comment" key={c.id}>
-                    <Avatar user={c.user} size={32} onClick={() => { app.closePost(); nav('/' + c.user.username) }} />
-                    <div className="pm-comment-body">
-                      <Link to={'/' + c.user.username} className="post-username" onClick={app.closePost}>{c.user.username}</Link>
-                      <span className="pm-comment-text"> {c.text}</span>
-                      <div className="pm-comment-meta">
-                        <span className="pm-comment-time">{timeAgo(c.createdAt)}</span>
-                        {(c.user.id === app.user.id || post.user.id === app.user.id) && (
-                          <button className="pm-del" onClick={() => removeComment(c.id)}>Delete</button>
-                        )}
+                {comments.filter((c) => !c.parentId).map((c) => {
+                  const replies = comments.filter((r) => r.parentId === c.id)
+                  const liked = (c.likes || []).includes(app.user.id)
+                  return (
+                    <React.Fragment key={c.id}>
+                      <div className="pm-comment">
+                        <Avatar user={c.user} size={32} onClick={() => { app.closePost(); nav('/' + c.user.username) }} />
+                        <div className="pm-comment-body">
+                          <Link to={'/' + c.user.username} className="post-username" onClick={app.closePost}>{c.user.username}</Link>
+                          <span className="pm-comment-text"> <RichText text={c.text} onNav={app.closePost} /></span>
+                          <div className="pm-comment-meta">
+                            <span className="pm-comment-time">{timeAgo(c.createdAt)}</span>
+                            <button className="pm-del" onClick={() => setReplyTo(c)}>Reply</button>
+                            {(c.user.id === app.user.id || post.user.id === app.user.id) && (
+                              <button className="pm-del" onClick={() => removeComment(c.id)}>Delete</button>
+                            )}
+                            {replies.length > 0 && (
+                              <button className="pm-del strong" onClick={() => setOpenReplies((o) => ({ ...o, [c.id]: !o[c.id] }))}>
+                                {openReplies[c.id] ? 'Hide replies' : `View replies (${replies.length})`}
+                              </button>
+                            )}
+                          </div>
+                          {openReplies[c.id] && replies.map((r) => {
+                            const rLiked = (r.likes || []).includes(app.user.id)
+                            return (
+                              <div className="pm-comment reply" key={r.id}>
+                                <Avatar user={r.user} size={24} onClick={() => { app.closePost(); nav('/' + r.user.username) }} />
+                                <div className="pm-comment-body">
+                                  <Link to={'/' + r.user.username} className="post-username" onClick={app.closePost}>{r.user.username}</Link>
+                                  <span className="pm-comment-text"> <RichText text={r.text} onNav={app.closePost} /></span>
+                                  <div className="pm-comment-meta">
+                                    <span className="pm-comment-time">{timeAgo(r.createdAt)}</span>
+                                    <button className="pm-del" onClick={() => setReplyTo(c)}>Reply</button>
+                                  </div>
+                                </div>
+                                <button className={'icon-btn pm-like-sm' + (rLiked ? ' on' : '')} onClick={() => likeC(r)}>
+                                  {rLiked ? <IcHeartFill size={12} /> : <IcHeart size={12} />}
+                                  {r.likesCount > 0 && <em>{r.likesCount}</em>}
+                                </button>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <button className={'icon-btn pm-like-sm' + (liked ? ' on' : '')} onClick={() => likeC(c)}>
+                          {liked ? <IcHeartFill size={12} /> : <IcHeart size={12} />}
+                          {c.likesCount > 0 && <em>{c.likesCount}</em>}
+                        </button>
                       </div>
-                    </div>
-                    <button className="icon-btn pm-like-sm" onClick={() => app.toast('Nice! ❤️')}><IcHeart size={12} /></button>
-                  </div>
-                ))}
+                    </React.Fragment>
+                  )
+                })}
                 {!comments.length && !post.caption && (
                   <div className="pm-empty">
                     <span className="big-emoji">💬</span>
@@ -147,7 +198,7 @@ export default function PostModal() {
                 <input
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="Add a comment…"
+                  placeholder={replyTo ? `Reply to @${replyTo.user.username}…` : 'Add a comment…'}
                 />
                 {commentText.trim() && <button type="submit" className="post-btn-blue">Post</button>}
               </form>

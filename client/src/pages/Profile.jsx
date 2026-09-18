@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useApp } from '../store.jsx'
 import { getUserByUsername, getUserPosts, getSaved, myFollowing, getHighlight, addStoryToHighlight, getStoryGroups } from '../fb.js'
 import Avatar from '../components/Avatar.jsx'
+import RichText from '../components/RichText.jsx'
 import FollowButton from '../components/FollowButton.jsx'
 import { IcDots, IcGrid, IcReels, IcBookmark, IcPlay, IcCamera, IcSettings, IcLogout } from '../components/Icons.jsx'
 
@@ -103,7 +104,7 @@ export default function Profile() {
           </div>
           <div className="profile-bio">
             <strong className="profile-name">{profile.name}</strong>
-            {profile.bio && <span>{profile.bio}</span>}
+            {profile.bio && <RichText text={profile.bio} />}
           </div>
         </div>
       </header>

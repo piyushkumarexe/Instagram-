@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useApp } from '../store.jsx'
 import { explore, searchUsers, searchPosts, formatCount } from '../fb.js'
 import Avatar from '../components/Avatar.jsx'
@@ -9,7 +9,8 @@ import { IcComment } from '../components/Icons.jsx'
 export default function Explore() {
   const app = useApp()
   const [posts, setPosts] = useState([])
-  const [q, setQ] = useState('')
+  const [sp, setSp] = useSearchParams()
+  const [q, setQ] = useState(sp.get('q') || '')
   const [results, setResults] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -18,7 +19,8 @@ export default function Explore() {
   }, [])
 
   useEffect(() => {
-    if (!q.trim()) { setResults(null); return }
+    if (!q.trim()) { setResults(null); setSp({}); return }
+    setSp({ q: q.trim() }, { replace: true })
     const t = setTimeout(async () => {
       try {
         const [users, searchResultsPosts] = await Promise.all([searchUsers(q.trim()), searchPosts(q.trim())])

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../store.jsx'
 import { timeAgo, formatCount, toggleLike, toggleSave, addComment, deletePost as fbDeletePost, withTimeout, sendMessage, listUserConnections, buzz } from '../fb.js'
 import Avatar from './Avatar.jsx'
+import RichText from './RichText.jsx'
 import { IcHeart, IcHeartFill, IcComment, IcSend, IcBookmark, IcBookmarkFill, IcDots, IcTrash } from './Icons.jsx'
 
 export default function PostCard({ post, onChange, onDeleted }) {
@@ -132,7 +133,7 @@ export default function PostCard({ post, onChange, onDeleted }) {
         {caption && (
           <div className="post-caption">
             <Link to={'/' + post.user.username} className="post-username">{post.user.username}</Link>{' '}
-            <span className={'caption-text' + (expanded ? ' expanded' : '')}>{caption}</span>
+            <span className={'caption-text' + (expanded ? ' expanded' : '')}><RichText text={caption} /></span>
             {!expanded && caption.length > 120 && (
               <button className="more-btn" onClick={() => setExpanded(true)}>more</button>
             )}

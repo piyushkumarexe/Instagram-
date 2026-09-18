@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useApp } from '../store.jsx'
 import { subscribeThreads, subscribeThread, sendMessage, markThreadRead, pairId, searchUsers, timeAgo, subscribeNotes, setNote, searchGifs, subscribeDmState, setTyping, reactToMessage, unsendMessage, buzz } from '../fb.js'
+import RichText from '../components/RichText.jsx'
 import Avatar from '../components/Avatar.jsx'
 import { IcDots, IcBack, IcNewMsg, IcSmile, IcX } from '../components/Icons.jsx'
 
@@ -191,6 +192,8 @@ function Chat({ username }) {
   const endRef = useRef(null)
   const tapRef = useRef({ id: null, t: 0 })
   const pressRef = useRef(null)
+  const [sheetMsg, setSheetMsg] = useState(null)
+  const [replyDraft, setReplyDraft] = useState(null)
   const lastTyping = useRef(0)
   const pid = user ? pairId(app.user.id, user.id) : null
 
@@ -231,8 +234,10 @@ function Chat({ username }) {
     if (!t || !user) return
     setText('')
     setTyping(pid, app.user.id, false).catch(() => {})
+    const meta = replyDraft ? { replyTo: { text: replyDraft.unsent ? '' : replyDraft.text, from: replyDraft.fromMe ? app.user.username : user.username } } : {}
+    setReplyDraft(null)
     try {
-      await sendMessage(app.user.id, user.id, t)
+      await sendMessage(app.user.id, user.id, t, meta)
     } catch (err) { app.toast(err.message); setText(t) }
   }
 
@@ -258,10 +263,8 @@ function Chat({ username }) {
   }
 
   function pressStart(m) {
-    if (!m.fromMe || m.unsent) return
-    pressRef.current = setTimeout(() => {
-      if (window.confirm('Unsend message?')) unsendMessage(pid, m.id).catch(() => {})
-    }, 550)
+    if (m.unsent) return
+    pressRef.current = setTimeout(() => { setSheetMsg(m) }, 480)
   }
   function pressEnd() { clearTimeout(pressRef.current) }
 
@@ -324,14 +327,15 @@ function Chat({ username }) {
                     onTouchStart={() => pressStart(m)}
                     onTouchEnd={pressEnd}
                     onTouchMove={pressEnd}
-                    onContextMenu={(e) => { e.preventDefault(); if (m.fromMe && !m.unsent && window.confirm('Unsend message?')) unsendMessage(pid, m.id).catch(() => {}) }}
+                    onContextMenu={(e) => { e.preventDefault(); if (!m.unsent) setSheetMsg(m) }}
                   >
                     {!m.fromMe && <span className="dm-av"><Avatar user={user} size={28} /></span>}
                     <div className={'bubble' + (m.fromMe ? ' mine' : '')} title={new Date(m.createdAt).toLocaleString()}>
+                      {m.replyTo?.text ? <div className="quote-block"><strong>{m.replyTo.from}</strong>{m.replyTo.text}</div> : null}
                       {m.unsent ? <em className="muted">Message unsent</em>
                         : isGif ? <img className="gif-msg" src={m.text} alt="GIF" loading="lazy" />
-                        : (m.text || '').startsWith('/p/') ? <Link to={m.text} className="post-msg-card">📷 View post</Link>
-                        : m.text}
+                        : (m.text || '').startsWith('/p/') ? <Link to={m.text} className="post-msg-card" onClick={() => nav(m.text)}>📷 View post</Link>
+                        : <RichText text={m.text} />}
                       {m.reaction ? <span className="rx-badge">{m.reaction}</span> : null}
                     </div>
                   </div>
@@ -350,6 +354,25 @@ function Chat({ username }) {
       </div>
 
       <form className="chat-input" onSubmit={send} style={{ position: 'relative' }}>
+        {replyDraft && (
+          <div className="reply-chip">
+            <span>Replying to <strong>{replyDraft.fromMe ? 'yourself' : user.username}</strong>: {(replyDraft.text || '').slice(0, 40)}</span>
+            <button type="button" className="icon-btn" onClick={() => setReplyDraft(null)}><IcX size={14} /></button>
+          </div>
+        )}
+        {sheetMsg && (
+          <div className="msg-sheet-backdrop" onClick={() => setSheetMsg(null)}>
+            <div className="msg-sheet" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => { setReplyDraft(sheetMsg); setSheetMsg(null) }}>↩️ Reply</button>
+              <button onClick={() => { reactToMessage(pid, sheetMsg.id, sheetMsg.reaction === '❤️' ? '' : '❤️').catch(() => {}); buzz(); setSheetMsg(null) }}>
+                {sheetMsg.reaction === '❤️' ? '🤍 Remove heart' : '❤️ React heart'}
+              </button>
+              <button onClick={() => { navigator.clipboard?.writeText(sheetMsg.text || '').catch(() => {}); app.toast('Copied'); setSheetMsg(null) }}>📋 Copy</button>
+              {sheetMsg.fromMe && <button className="danger" onClick={() => { unsendMessage(pid, sheetMsg.id).catch(() => {}); setSheetMsg(null) }}>↩️ Unsend</button>}
+              <button className="cancel" onClick={() => setSheetMsg(null)}>Cancel</button>
+            </div>
+          </div>
+        )}
         {emojiOpen && (
           <div className="emoji-pop">
             {QUICK.map((e) => (
