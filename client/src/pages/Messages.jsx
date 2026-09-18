@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useApp } from '../store.jsx'
-import { subscribeThreads, subscribeThread, sendMessage, markThreadRead, pairId, searchUsers, timeAgo, subscribeNotes, setNote, searchGifs } from '../fb.js'
+import { subscribeThreads, subscribeThread, sendMessage, markThreadRead, pairId, searchUsers, timeAgo, subscribeNotes, setNote, searchGifs, subscribeDmState, setTyping, reactToMessage, unsendMessage, buzz } from '../fb.js'
 import Avatar from '../components/Avatar.jsx'
 import { IcDots, IcBack, IcNewMsg, IcSmile, IcX } from '../components/Icons.jsx'
 
@@ -61,7 +61,10 @@ export default function Messages() {
           )}
           {threads.map((t) => (
             <Link key={t.user.id} to={'/messages/' + t.user.username} className={'dm-thread' + (username === t.user.username ? ' active' : '') + (t.unread ? ' unread' : '')}>
-              <Avatar user={t.user} size={56} />
+              <span className="dm-av">
+                <Avatar user={t.user} size={56} />
+                {t.user.lastActive && Date.now() - t.user.lastActive < 70000 ? <span className="online-dot on" /> : null}
+              </span>
               <div className="dm-thread-meta">
                 <span className="username">{t.user.username}</span>
                 <span className={'dm-preview muted' + (t.unread ? ' strong' : '')}>
@@ -184,7 +187,12 @@ function Chat({ username }) {
   const [gifOpen, setGifOpen] = useState(false)
   const [gifs, setGifs] = useState([])
   const [gifQ, setGifQ] = useState('')
+  const [dmState, setDmState] = useState({ typing: false, otherSeenMs: 0 })
   const endRef = useRef(null)
+  const tapRef = useRef({ id: null, t: 0 })
+  const pressRef = useRef(null)
+  const lastTyping = useRef(0)
+  const pid = user ? pairId(app.user.id, user.id) : null
 
   useEffect(() => {
     let alive = true
@@ -203,6 +211,12 @@ function Chat({ username }) {
   }, [user?.id])
 
   useEffect(() => {
+    if (!user) return
+    const pid2 = pairId(app.user.id, user.id)
+    return subscribeDmState(pid2, user.id, setDmState)
+  }, [user?.id])
+
+  useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages.length])
 
@@ -216,10 +230,41 @@ function Chat({ username }) {
     const t = text.trim()
     if (!t || !user) return
     setText('')
+    setTyping(pid, app.user.id, false).catch(() => {})
     try {
       await sendMessage(app.user.id, user.id, t)
     } catch (err) { app.toast(err.message); setText(t) }
   }
+
+  function onType(e) {
+    setText(e.target.value)
+    const now = Date.now()
+    if (user && now - lastTyping.current > 2500) {
+      lastTyping.current = now
+      setTyping(pid, app.user.id, true).catch(() => {})
+    }
+  }
+
+  function bubbleTap(m) {
+    const now = Date.now()
+    if (tapRef.current.id === m.id && now - tapRef.current.t < 320) {
+      tapRef.current = { id: null, t: 0 }
+      if (!m.unsent) {
+        const emoji = m.reaction === '❤️' ? '' : '❤️'
+        reactToMessage(pid, m.id, emoji).catch(() => {})
+        buzz()
+      }
+    } else tapRef.current = { id: m.id, t: now }
+  }
+
+  function pressStart(m) {
+    if (!m.fromMe || m.unsent) return
+    pressRef.current = setTimeout(() => {
+      if (window.confirm('Unsend message?')) unsendMessage(pid, m.id).catch(() => {})
+    }, 550)
+  }
+  function pressEnd() { clearTimeout(pressRef.current) }
+
 
   async function sendGif(url) {
     if (!user) return
@@ -229,6 +274,7 @@ function Chat({ username }) {
     } catch (e) { app.toast(e.message) }
   }
 
+  const lastOwnId = [...messages].reverse().find((m) => m.fromMe)?.id
   const groups = []
   for (const m of messages) {
     const d = new Date(m.createdAt)
@@ -244,8 +290,12 @@ function Chat({ username }) {
         <button className="icon-btn chat-back" onClick={() => nav('/messages')}><IcBack size={24} /></button>
         {user && (
           <Link to={'/' + user.username} className="chat-head-user">
-            <Avatar user={user} size={32} />
+            <span className="dm-av">
+              <Avatar user={user} size={32} />
+              {user.lastActive && Date.now() - user.lastActive < 70000 ? <span className="online-dot on" /> : null}
+            </span>
             <strong>{user.username}</strong>
+            {dmState.typing ? <span className="typing-sub">typing…</span> : null}
           </Link>
         )}
         <div style={{ flex: 1 }} />
@@ -267,16 +317,35 @@ function Chat({ username }) {
             {g.msgs.map((m) => {
               const isGif = /giphy\.com\/media|\.gif(\?|$)/.test(m.text || '')
               return (
-                <div key={m.id} className={'chat-row ' + (m.fromMe ? 'mine' : 'theirs')}>
-                  {!m.fromMe && <Avatar user={user} size={28} />}
-                  <div className={'bubble' + (m.fromMe ? ' mine' : '')} title={new Date(m.createdAt).toLocaleString()}>
-                    {isGif ? <img className="gif-msg" src={m.text} alt="GIF" loading="lazy" /> : m.text}
+                <div key={m.id}>
+                  <div
+                    className={'chat-row ' + (m.fromMe ? 'mine' : 'theirs')}
+                    onClick={() => bubbleTap(m)}
+                    onTouchStart={() => pressStart(m)}
+                    onTouchEnd={pressEnd}
+                    onTouchMove={pressEnd}
+                    onContextMenu={(e) => { e.preventDefault(); if (m.fromMe && !m.unsent && window.confirm('Unsend message?')) unsendMessage(pid, m.id).catch(() => {}) }}
+                  >
+                    {!m.fromMe && <span className="dm-av"><Avatar user={user} size={28} /></span>}
+                    <div className={'bubble' + (m.fromMe ? ' mine' : '')} title={new Date(m.createdAt).toLocaleString()}>
+                      {m.unsent ? <em className="muted">Message unsent</em>
+                        : isGif ? <img className="gif-msg" src={m.text} alt="GIF" loading="lazy" />
+                        : (m.text || '').startsWith('/p/') ? <Link to={m.text} className="post-msg-card">📷 View post</Link>
+                        : m.text}
+                      {m.reaction ? <span className="rx-badge">{m.reaction}</span> : null}
+                    </div>
                   </div>
+                  {m.fromMe && m.id === lastOwnId && dmState.otherSeenMs >= m.createdAt && !m.unsent && (
+                    <div className="seen-label">Seen</div>
+                  )}
                 </div>
               )
             })}
           </div>
         ))}
+        {dmState.typing && (
+          <div className="typing-pill"><i /><i /><i /></div>
+        )}
         <div ref={endRef} />
       </div>
 
@@ -303,7 +372,7 @@ function Chat({ username }) {
         <button type="button" className="icon-btn" onClick={() => { setGifOpen((o) => !o); setEmojiOpen(false) }}>
           <span style={{ fontWeight: 800, fontSize: 12, border: '1.5px solid currentColor', borderRadius: 6, padding: '2px 4px' }}>GIF</span>
         </button>
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Message…" />
+        <input value={text} onChange={onType} onBlur={() => setTyping(pid, app.user.id, false).catch(() => {})} placeholder="Message…" />
         {text.trim() ? (
           <button type="submit" className="chat-send">Send</button>
         ) : (

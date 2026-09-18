@@ -96,6 +96,25 @@ function BackHandler() {
   return null
 }
 
+function Presence() {
+  const app = useApp()
+  useEffect(() => {
+    if (!app.user?.id) return
+    let iv = null
+    import('./fb.js').then(({ touchPresence }) => {
+      const tick = () => { if (document.visibilityState === 'visible') touchPresence(app.user.id) }
+      tick()
+      iv = setInterval(tick, 55000)
+      document.addEventListener('visibilitychange', tick)
+    }).catch(() => {})
+    return () => {
+      if (iv) clearInterval(iv)
+      document.removeEventListener('visibilitychange', tick)
+    }
+  }, [app.user?.id])
+  return null
+}
+
 function Toasts() {
   const app = useApp()
   return (
@@ -143,6 +162,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <BackHandler />
+      <Presence />
       <Modals />
     </AppProvider>
   )

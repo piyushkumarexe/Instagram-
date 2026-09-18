@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../store.jsx'
-import { timeAgo, formatCount, toggleLike, toggleSave, addComment, deletePost as fbDeletePost, withTimeout } from '../fb.js'
+import { timeAgo, formatCount, toggleLike, toggleSave, addComment, deletePost as fbDeletePost, withTimeout, sendMessage, listUserConnections, buzz } from '../fb.js'
 import Avatar from './Avatar.jsx'
 import { IcHeart, IcHeartFill, IcComment, IcSend, IcBookmark, IcBookmarkFill, IcDots, IcTrash } from './Icons.jsx'
 
@@ -22,6 +22,7 @@ export default function PostCard({ post, onChange, onDeleted }) {
     if (forceLike && post.likedByMe) return
     const next = !post.likedByMe
     onChange({ ...post, likedByMe: next, likes: post.likes + (next ? 1 : -1) }) // instant ❤️
+    if (next) buzz()
     try {
       const liked = await withTimeout(toggleLike(post, app.user.id), 8000, 'Like')
       if (liked !== next) onChange({ ...post, likedByMe: liked, likes: post.likes + (liked ? 1 : -1) })
@@ -50,13 +51,7 @@ export default function PostCard({ post, onChange, onDeleted }) {
     } catch (e) { app.toast(e.message) }
   }
 
-  async function share() {
-    const url = `${location.origin}/p/${post.id}`
-    try {
-      await navigator.clipboard.writeText(url)
-      app.toast('Link copied to clipboard 🔗')
-    } catch { app.toast(url) }
-  }
+  const [shareOpen, setShareOpen] = useState(false)
 
   async function submitComment(e) {
     e.preventDefault()
@@ -123,7 +118,7 @@ export default function PostCard({ post, onChange, onDeleted }) {
             {post.likedByMe ? <IcHeartFill size={25} className="liked" /> : <IcHeart size={25} />}
           </button>
           <button className="icon-btn" onClick={() => commentRef.current?.focus()} aria-label="Comment"><IcComment size={25} /></button>
-          <button className="icon-btn" onClick={share} aria-label="Share"><IcSend size={24} /></button>
+          <button className="icon-btn" onClick={() => setShareOpen(true)} aria-label="Share"><IcSend size={24} /></button>
         </div>
         <button className="icon-btn" onClick={save} aria-label="Save">
           {post.savedByMe ? <IcBookmarkFill size={24} /> : <IcBookmark size={24} />}
@@ -180,6 +175,7 @@ export default function PostCard({ post, onChange, onDeleted }) {
           </div>
         </div>
       )}
+      {shareOpen && <ShareSheet post={post} onClose={() => setShareOpen(false)} />}
     </article>
   )
 }
@@ -190,5 +186,70 @@ function IcVerified({ size, style }) {
       <path fill="#0095f6" d="M12 1.5 14.8 4l3.7-.4 1 3.6 3.2 2-1.6 3.3 1.6 3.3-3.2 2-1 3.6-3.7-.4L12 23l-2.8-2.5-3.7.4-1-3.6-3.2-2L2.9 12 1.3 8.7l3.2-2 1-3.6L9.2 4z" />
       <path d="m8.3 12.3 2.4 2.4 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  )
+}
+
+
+// IG-style Share sheet: post ko DM se bhejo
+function ShareSheet({ post, onClose }) {
+  const app = useApp()
+  const [list, setList] = useState(null)
+  const [q, setQ] = useState('')
+  const [sentTo, setSentTo] = useState([])
+
+  useEffect(() => {
+    listUserConnections(app.user.username, 'following')
+      .then(setList)
+      .catch(() => setList([]))
+  }, [])
+
+  async function send(u) {
+    if (sentTo.includes(u.id)) return
+    try {
+      await sendMessage(app.user.id, u.id, `/p/${post.id}`)
+      setSentTo((s) => [...s, u.id])
+      app.toast('Shared with ' + u.username + ' \u2705')
+    } catch (e) {
+      app.toast(e.message)
+    }
+  }
+
+  function copyLink() {
+    const url = `${location.origin}/p/${post.id}`
+    navigator.clipboard?.writeText(url).then(() => app.toast('Link copied \ud83d\udd17')).catch(() => app.toast(url))
+  }
+
+  const filtered = (list || []).filter((u) => !q.trim() || u.username.includes(q.trim().toLowerCase()) || (u.name || '').toLowerCase().includes(q.trim().toLowerCase()))
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="ulist-modal share-sheet" onClick={(e) => e.stopPropagation()}>
+        <header className="ulist-head">
+          <button className="icon-btn" onClick={onClose}><IcDots size={20} /></button>
+          <strong>Share</strong>
+          <span style={{ width: 40 }} />
+        </header>
+        <div className="ulist-search"><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" autoFocus /></div>
+        <div className="ulist-body">
+          {!list && <div className="modal-loading">Loading…</div>}
+          {list && !filtered.length && <div className="pm-empty"><p style={{ margin: 0 }}>Follow someone to share with them.</p></div>}
+          {filtered.map((u) => (
+            <div className="rail-row" key={u.id}>
+              <Avatar user={u} size={44} />
+              <div className="rail-row-meta">
+                <span className="username">{u.username}</span>
+                <span className="muted">{u.name}</span>
+              </div>
+              <button className={'btn ' + (sentTo.includes(u.id) ? 'btn-grey' : 'btn-blue') + ' btn-sm'} onClick={() => send(u)}>
+                {sentTo.includes(u.id) ? 'Sent \u2713' : 'Send'}
+              </button>
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: 12, borderTop: '1px solid var(--border)' }}>
+          <button className="btn btn-grey" style={{ width: '100%' }} onClick={copyLink}>Copy link</button>
+        </div>
+      </div>
+    </div>
   )
 }

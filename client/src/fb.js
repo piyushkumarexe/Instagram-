@@ -116,7 +116,7 @@ export async function signOutNow() {
 
 // ---------------------------------------------------------------- users / profiles
 export function profileOut(id, d) {
-  return { id, username: d.username, name: d.name || d.username, email: d.email || '', bio: d.bio || '', avatar: d.avatar || null, followersCount: d.followersCount || 0, followingCount: d.followingCount || 0, postsCount: d.postsCount || 0, createdAt: tsToMs(d.createdAt) }
+  return { id, username: d.username, name: d.name || d.username, email: d.email || '', bio: d.bio || '', avatar: d.avatar || null, followersCount: d.followersCount || 0, followingCount: d.followingCount || 0, postsCount: d.postsCount || 0, createdAt: tsToMs(d.createdAt), lastActive: tsToMs(d.lastActive) }
 }
 
 export async function getUser(uid) {
@@ -520,7 +520,7 @@ export function subscribeThread(pid, cb) {
     const me = auth.currentUser?.uid
     const msgs = snap.docs.map((d) => {
       const v = d.data()
-      return { id: d.id, text: v.text, createdAt: tsToMs(v.createdAt), fromMe: v.from === me, read: v.read || false }
+      return { id: d.id, text: v.text, createdAt: tsToMs(v.createdAt), fromMe: v.from === me, read: v.read || false, reaction: v.reaction || '', unsent: !!v.unsent }
     })
     cb(msgs)
   })
@@ -528,7 +528,42 @@ export function subscribeThread(pid, cb) {
 
 export async function markThreadRead(pid, meId) {
   const field = pid.split('__')[0] === meId ? 'unreadA' : 'unreadB'
-  await updateDoc(doc(db, 'dms', pid), { [field]: 0 }).catch(() => {})
+  await updateDoc(doc(db, 'dms', pid), { [field]: 0, ['readAt_' + meId]: serverTimestamp() }).catch(() => {})
+}
+
+// --- DM power features: reactions, unsend, typing, seen, presence ---
+export async function reactToMessage(pid, msgId, emoji) {
+  await updateDoc(doc(db, 'dms', pid, 'messages', msgId), { reaction: emoji || '' })
+}
+
+export async function unsendMessage(pid, msgId) {
+  await updateDoc(doc(db, 'dms', pid, 'messages', msgId), { unsent: true, text: '' })
+}
+
+export async function setTyping(pid, uid, on) {
+  await updateDoc(doc(db, 'dms', pid), { ['typing_' + uid]: on ? Date.now() : 0 }).catch(() => {})
+}
+
+// live typing + seen state for a chat
+export function subscribeDmState(pid, otherId, cb) {
+  return onSnapshot(doc(db, 'dms', pid), (snap) => {
+    if (!snap.exists()) return cb({ typing: false, otherSeenMs: 0 })
+    const v = snap.data()
+    cb({ typing: (v['typing_' + otherId] || 0) > Date.now() - 4500, otherSeenMs: tsToMs(v['readAt_' + otherId]) })
+  })
+}
+
+export async function touchPresence(uid) {
+  await updateDoc(doc(db, 'users', uid), { lastActive: serverTimestamp() }).catch(() => {})
+}
+
+// native haptic tick (no-op on web)
+export async function buzz(style = 'light') {
+  try {
+    if (!window.Capacitor?.isNativePlatform?.()) return
+    const { Haptics, ImpactStyle } = await import('@capacitor/haptics')
+    await Haptics.impact({ style: style === 'medium' ? ImpactStyle.Medium : ImpactStyle.Light })
+  } catch {}
 }
 
 export function subscribeThreads(meId, cb) {

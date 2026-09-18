@@ -840,3 +840,41 @@ html, body { max-width: 100vw; overflow-x: hidden; }
 .conn-row { display: flex; align-items: center; gap: 12px; padding: 9px 16px; }
 .conn-row-meta { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .conn-row-meta .muted { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+
+/* ---- note bubble fit fix (chhoti screen pe bhi perfect) ---- */
+.note-bubble { max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.note-cell { max-width: 84px; }
+.note-set-pop { align-items: flex-start; padding-top: max(96px, calc(env(safe-area-inset-top, 0px) + 64px)); }
+@media (max-width: 768px) {
+  .note-set-card { width: min(380px, calc(100vw - 28px)); }
+  .note-set-card input { font-size: 16px; }
+}
+
+/* ---- DM power features ---- */
+.dm-av { position: relative; display: inline-flex; flex-shrink: 0; }
+.online-dot {
+  position: absolute; right: 0; bottom: 2px; width: 13px; height: 13px; border-radius: 50%;
+  background: #3ad63a; border: 2.5px solid var(--card); opacity: 0; pointer-events: none;
+}
+.online-dot.on { opacity: 1; }
+.typing-sub { color: var(--blue); font-size: 11px; font-weight: 700; margin-left: 6px; }
+.bubble { position: relative; max-width: 78%; word-break: break-word; }
+.rx-badge {
+  position: absolute; bottom: -9px; right: -4px; font-size: 11px; line-height: 1;
+  background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 2px 5px;
+}
+.chat-row.theirs .rx-badge { right: auto; left: -4px; }
+.chat-row.mine .bubble .rx-badge { left: auto; right: -4px; }
+.seen-label { font-size: 11px; color: var(--muted); text-align: right; margin: 3px 8px 0 0; }
+.post-msg-card { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; color: var(--text); text-decoration: none; }
+.typing-pill {
+  display: inline-flex; gap: 3px; padding: 9px 13px; margin: 4px 0 4px 38px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 18px;
+}
+.typing-pill i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: tp 1s infinite; }
+.typing-pill i:nth-child(2) { animation-delay: .15s; }
+.typing-pill i:nth-child(3) { animation-delay: .3s; }
+@keyframes tp { 0%, 100% { opacity: .3; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-2px); } }
+.share-sheet { width: min(420px, 100%); max-height: 72vh; display: flex; flex-direction: column; }
+.share-sheet .ulist-body { overflow-y: auto; }
