@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: build-${{ github.ref }}
+  group: android-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -13,54 +13,17 @@ permissions:
 
 jobs:
   apk:
-    name: 🤖 Android APK
+    name: Build native APK (Kotlin)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Audit imports (prevent runtime crashes)
-        run: node scripts/audit-imports.mjs
-
-      - name: Build web app
-        run: |
-          set -o pipefail
-          npm run build 2>&1 | tee /tmp/build.log
-          if grep -i "is not exported by" /tmp/build.log; then
-            echo "::error::Missing module exports detected — app would crash at runtime"
-            exit 1
-          fi
-          for s in "vibegram-ff651" "Continue with Google"; do
-            grep -rq "$s" client/dist/assets/ || { echo "::error::bundle missing: $s"; exit 1; }
-          done
-          if grep -rqi "try the demo" client/dist/assets/; then
-            echo "::error::bundle contains placeholder wording"
-            exit 1
-          fi
-          echo "bundle smoke checks passed"
-
-      - name: Sync Capacitor (web assets -> Android)
-        continue-on-error: true
-        run: |
-          npx cap sync android > /tmp/sync.log 2>&1 || {
-            MSG=$(tail -c 700 /tmp/sync.log | sed ':a;N;$!ba;s/\n/%0A/g')
-            echo "::error::cap sync failed: $MSG"
-            exit 1
-          }
-
-      - name: Assemble debug APK
+      - name: Build debug APK (Kotlin / Jetpack Compose)
         run: |
           cd android
           chmod +x gradlew
@@ -70,16 +33,9 @@ jobs:
         run: |
           SHA1=$(openssl pkcs12 -in android/keystore/vibegram-debug.keystore -passin pass:vibegram123 -nokeys 2>/dev/null | openssl x509 -fingerprint -sha1 -noout | sed 's/.*=//')
           {
-            echo "### 🔑 Add this SHA-1 in Firebase Console"
-            echo ""
-            echo "Firebase Console → Project settings → Your apps → Android app → Add fingerprint:"
-            echo ""
-            echo '```'
-            echo "$SHA1"
-            echo '```'
+            echo "### 🔑 VibeGram native (Kotlin) build"
+            echo "Signing SHA-1: ${SHA1}"
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "SHA1=$SHA1" >> "$GITHUB_ENV"
-          echo "APK signing SHA-1: $SHA1"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -97,21 +53,10 @@ jobs:
           APK=android/app/build/outputs/apk/debug/app-debug.apk
           NOTES=/tmp/notes.md
           {
-            echo "Automated build from commit ${GITHUB_SHA::7}."
+            echo "VibeGram ${TAG} — native Kotlin app."
             echo ""
             echo "## 📥 Download"
             echo "- 🤖 **Android APK:** app-debug.apk (below)"
-            echo ""
-            echo "## 🔑 Google Sign-In setup (one time, 2 minutes)"
-            echo "1. Open Firebase Console → project **vibegram-ff651**"
-            echo "2. ⚙️ Project settings → **Your apps** → Android app \`com.vibegram.app\`"
-            echo "3. **Add fingerprint** and paste:"
-            echo ""
-            echo '```'
-            echo "${SHA1}"
-            echo '```'
-            echo ""
-            echo "4. Save → reinstall this APK → “Continue with Google” opens the in-app account picker ✅"
           } > "$NOTES"
           for i in 1 2 3 4 5 6; do
             if gh release view "$TAG" >/dev/null 2>&1; then
