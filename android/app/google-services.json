@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "861201865526-n5dctfcuppbs9pqs0fmbdt2oclajkvoo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vibegram.app",
+            "certificate_hash": "82bc41d07c7e6ed1f8d0ae9582fcb43beaa360a3"
+          }
+        },
+        {
           "client_id": "861201865526-kqnu0docnn7sd6co04j29fo0rotnaroc.apps.googleusercontent.com",
           "client_type": 3
         }
