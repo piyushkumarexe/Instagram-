@@ -446,6 +446,14 @@ export async function addComment(me, post, text, parent = null) {
   return { id: cRef.id, text: clean, createdAt: Date.now(), user: { id: me.id, username: me.username, avatar: me.avatar || null }, likesCount: 0, likes: [me.id], parentId: parent ? parent.id : null, parentUsername: parent ? parent.user.username : null }
 }
 
+// caption edit (owner only)
+export async function updateCaption(uid, post, caption) {
+  if (post.user.id !== uid) throw new Error('Not allowed')
+  const clean = String(caption || '').trim().slice(0, 2200)
+  await updateDoc(doc(db, 'posts', post.id), { caption: clean })
+  return clean
+}
+
 // comment like/unlike (optimistic-friendly)
 export async function likeComment(postId, c, uid) {
   const liked = (c.likes || []).includes(uid)

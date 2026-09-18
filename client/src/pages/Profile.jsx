@@ -187,7 +187,8 @@ export default function Profile() {
           <div className="sheet" onClick={(e) => e.stopPropagation()}>
             {me ? (
               <>
-                <button className="sheet-item" onClick={() => { setMenuOpen(false); nav('/accounts/edit') }}><IcSettings size={18} /> Settings and privacy</button>
+                <button className="sheet-item" onClick={() => { setMenuOpen(false); nav('/accounts/edit') }}>✏️ Edit profile</button>
+                <button className="sheet-item" onClick={() => { setMenuOpen(false); nav('/settings') }}><IcSettings size={18} /> Settings and privacy</button>
                 <button className="sheet-item danger" onClick={logout}><IcLogout size={18} /> Log out</button>
               </>
             ) : (

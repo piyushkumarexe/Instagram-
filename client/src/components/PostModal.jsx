@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../store.jsx'
-import { timeAgo, formatCount, getPost, getComments, toggleLike, toggleSave, addComment, deleteComment, likeComment, deletePost as fbDeletePost, withTimeout } from '../fb.js'
+import { timeAgo, formatCount, getPost, getComments, toggleLike, toggleSave, addComment, deleteComment, likeComment, updateCaption, deletePost as fbDeletePost, withTimeout } from '../fb.js'
 import Avatar from './Avatar.jsx'
 import { IcX, IcHeart, IcHeartFill, IcComment, IcDots, IcTrash, IcSend, IcBookmark, IcBookmarkFill } from './Icons.jsx'
 import RichText from './RichText.jsx'
@@ -209,7 +209,20 @@ export default function PostModal() {
           <div className="sheet-backdrop" onClick={() => setMenuOpen(false)}>
             <div className="sheet" onClick={(e) => e.stopPropagation()}>
               {post.user.id === app.user.id ? (
-                <button className="sheet-item danger" onClick={() => { setMenuOpen(false); removePost() }}><IcTrash size={18} /> Delete</button>
+                <>
+                  <button className="sheet-item" onClick={async () => {
+                    setMenuOpen(false)
+                    const nc = window.prompt('Edit caption', post.caption || '')
+                    if (nc === null) return
+                    try {
+                      const clean = await withTimeout(updateCaption(app.user.id, post, nc), 8000, 'Save')
+                      setPost({ ...post, caption: clean })
+                      app.toast('Caption updated ✅')
+                      window.dispatchEvent(new Event('vg:refresh-feed'))
+                    } catch (e) { app.toast(e.message) }
+                  }}>✏️ Edit caption</button>
+                  <button className="sheet-item danger" onClick={() => { setMenuOpen(false); removePost() }}><IcTrash size={18} /> Delete</button>
+                </>
               ) : (
                 <button className="sheet-item" onClick={() => { setMenuOpen(false); nav('/messages/' + post.user.username) }}>Send message</button>
               )}

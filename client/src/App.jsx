@@ -14,6 +14,7 @@ import Notifications from './pages/Notifications.jsx'
 import Profile from './pages/Profile.jsx'
 import Connections from './pages/Connections.jsx'
 import EditProfile from './pages/EditProfile.jsx'
+import Settings from './pages/Settings.jsx'
 import Login, { UsernameSetup } from './pages/Login.jsx'
 import { getPost } from './fb.js'
 
@@ -149,6 +150,7 @@ export default function App() {
         <Route path="/accounts/login" element={<Login />} />
         <Route path="/accounts/signup" element={<Login />} />
         <Route path="/accounts/edit" element={<Protected><EditProfile /></Protected>} />
+        <Route path="/settings" element={<Protected><Settings /></Protected>} />
         <Route path="/" element={<Protected><Home /></Protected>} />
         <Route path="/explore" element={<Protected><Explore /></Protected>} />
         <Route path="/reels" element={<Protected><Reels /></Protected>} />

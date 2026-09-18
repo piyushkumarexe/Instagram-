@@ -82,6 +82,13 @@ export default function StoryViewer() {
     } catch (err) { app.toast(err.message) }
   }
 
+  async function sendReaction(emoji) {
+    try {
+      await sendMessage(app.user.id, group.user.id, emoji)
+      app.toast(emoji + ' reaction bheji ✅')
+    } catch (e) { app.toast(e.message) }
+  }
+
   return (
     <div className="story-viewer" onMouseDown={() => setPaused(true)} onMouseUp={() => setPaused(false)}>
       <div className="story-header">
@@ -125,6 +132,13 @@ export default function StoryViewer() {
       <button className="story-arrow left" onClick={prevStory}><IcChevronL size={20} /></button>
       <button className="story-arrow right" onClick={nextStory}><IcChevronR size={20} /></button>
 
+      {group.user.id !== app.user.id && (
+        <div className="story-reactions">
+          {['❤️', '😂', '😮', '😢', '🙌', '🔥'].map((e) => (
+            <button key={e} type="button" onMouseDown={(ev) => ev.stopPropagation()} onClick={(ev) => { ev.stopPropagation(); sendReaction(e) }}>{e}</button>
+          ))}
+        </div>
+      )}
       <form className="story-reply" onSubmit={sendReply}>
         <input
           value={reply}

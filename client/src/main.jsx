@@ -8,6 +8,12 @@ import './styles.css'
 
 installLogCapture()
 
+// saved theme (Settings se) boot pe apply
+try {
+  const saved = localStorage.getItem('vg_theme')
+  if (saved === 'light' || saved === 'dark') document.documentElement.setAttribute('data-theme', saved)
+} catch {}
+
 // App content status bar ke NEECHE rahe (na overlap, na size issue)
 if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.()) {
   import('@capacitor/status-bar').then(async ({ StatusBar, Style }) => {

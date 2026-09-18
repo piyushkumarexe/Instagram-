@@ -194,6 +194,7 @@ function Chat({ username }) {
   const pressRef = useRef(null)
   const [sheetMsg, setSheetMsg] = useState(null)
   const [replyDraft, setReplyDraft] = useState(null)
+  const [swipeX, setSwipeX] = useState(null)
   const lastTyping = useRef(0)
   const pid = user ? pairId(app.user.id, user.id) : null
 
@@ -268,6 +269,21 @@ function Chat({ username }) {
   }
   function pressEnd() { clearTimeout(pressRef.current) }
 
+  function swipeStart(e, m) { swipeRef.current = { x: e.touches[0].clientX, id: m.id } }
+  function swipeMove(e, m) {
+    if (!swipeRef.current || swipeRef.current.id !== m.id) return
+    const dx = e.touches[0].clientX - swipeRef.current.x
+    setSwipeX({ id: m.id, dx: Math.max(-72, Math.min(72, dx)) })
+  }
+  function swipeEnd(m) {
+    if (swipeX && swipeX.id === m.id && (swipeX.dx <= -45 || swipeX.dx >= 45)) {
+      setReplyDraft(m)
+      buzz()
+    }
+    setSwipeX(null)
+    swipeRef.current = null
+  }
+
 
   async function sendGif(url) {
     if (!user) return
@@ -322,15 +338,16 @@ function Chat({ username }) {
               return (
                 <div key={m.id}>
                   <div
-                    className={'chat-row ' + (m.fromMe ? 'mine' : 'theirs')}
+                    className={'chat-row ' + (m.fromMe ? 'mine' : 'theirs') + (swipeX?.id === m.id ? ' swiping' : '')}
                     onClick={() => bubbleTap(m)}
-                    onTouchStart={() => pressStart(m)}
-                    onTouchEnd={pressEnd}
-                    onTouchMove={pressEnd}
+                    onTouchStart={(e) => { pressStart(m); swipeStart(e, m) }}
+                    onTouchEnd={() => { pressEnd(); swipeEnd(m) }}
+                    onTouchMove={(e) => { pressEnd(); swipeMove(e, m) }}
                     onContextMenu={(e) => { e.preventDefault(); if (!m.unsent) setSheetMsg(m) }}
                   >
                     {!m.fromMe && <span className="dm-av"><Avatar user={user} size={28} /></span>}
-                    <div className={'bubble' + (m.fromMe ? ' mine' : '')} title={new Date(m.createdAt).toLocaleString()}>
+                    <span className="swipe-ghost">↩️</span>
+                    <div className={'bubble' + (m.fromMe ? ' mine' : '')} style={{ transform: swipeX?.id === m.id ? `translateX(${swipeX.dx}px)` : undefined }} title={new Date(m.createdAt).toLocaleString()}>
                       {m.replyTo?.text ? <div className="quote-block"><strong>{m.replyTo.from}</strong>{m.replyTo.text}</div> : null}
                       {m.unsent ? <em className="muted">Message unsent</em>
                         : isGif ? <img className="gif-msg" src={m.text} alt="GIF" loading="lazy" />
