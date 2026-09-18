@@ -636,3 +636,12 @@ h1, h2, h3 { margin: 0; }
 @media (max-width: 760px) {
   .dm-list { width: 100%; min-width: 0; }
 }
+
+/* firestore/data error banner */
+.db-banner {
+  max-width: 640px; margin: 10px auto 0; background: #fff8e1; border: 1px solid #f0d264;
+  border-radius: 10px; padding: 12px 14px; font-size: 13px; color: #7a5d00;
+  display: flex; align-items: center; gap: 12px;
+}
+.db-banner span { flex: 1; line-height: 1.45; }
+.db-banner button { background: #262626; color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-weight: 700; font-size: 13px; cursor: pointer; }

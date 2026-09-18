@@ -2,41 +2,33 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
+import ErrorBoundary from './ErrorBoundary.jsx'
+import { installLogCapture } from './logs.js'
 import './styles.css'
 
-// swap the static boot loader for the app
-const boot = document.getElementById('boot')
-if (boot) boot.remove()
+installLogCapture()
 
-// global crash guard — never show a silent white screen
-function showFatalError(message) {
-  const el = document.createElement('div')
-  el.id = 'fatal'
-  el.innerHTML = `
-    <div style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:30px;text-align:center;z-index:99999">
-      <img src="/logo.png" style="width:64px;height:64px;border-radius:14px" />
-      <h2 style="margin:0;font-size:18px;color:#262626">Kuch galat ho gaya</h2>
-      <p id="fatal-msg" style="color:#8e8e8e;font-size:13px;max-width:320px;margin:0;word-break:break-word">${message}</p>
-      <button onclick="location.reload()" style="margin-top:6px;background:#0095f6;color:#fff;border:none;border-radius:8px;padding:10px 28px;font-weight:700;font-size:14px">Reload</button>
-    </div>`
-  document.body.appendChild(el)
-}
-
-window.addEventListener('error', (e) => {
-  console.error(e.error || e.message)
-})
-window.addEventListener('unhandledrejection', (e) => {
-  console.error('Unhandled:', e.reason)
-})
+// NOTE: the static boot overlay (index.html #boot) is NOT removed here.
+// App removes it once React has actually mounted — so between page load
+// and first paint there is never a white screen.
 
 try {
   ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <ErrorBoundary>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </ErrorBoundary>
     </React.StrictMode>
   )
 } catch (err) {
-  showFatalError(String(err?.message || err))
+  // mount-time crash — show it via plain DOM
+  const boot = document.getElementById('boot')
+  if (boot) {
+    boot.innerHTML = `
+      <img src="/logo.png" alt="" />
+      <p style="color:#ed4956;max-width:300px;text-align:center;word-break:break-word">Start error: ${String(err?.message || err)}</p>
+      <button onclick="location.reload()" style="background:#0095f6;color:#fff;border:none;border-radius:8px;padding:10px 28px;font-weight:700">Reload</button>`
+  }
 }

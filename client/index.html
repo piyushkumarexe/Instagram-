@@ -27,6 +27,23 @@
       <div class="bar"><span></span></div>
     </div>
     <div id="root"></div>
+    <script>
+      // watchdog: if React hasn't mounted in 12s, turn the boot screen into a diagnostic
+      setTimeout(function () {
+        try {
+          var r = document.getElementById('root')
+          var b = document.getElementById('boot')
+          if (b && (!r || r.childElementCount === 0)) {
+            var logs = ''
+            try { logs = window.__vgLogs ? window.__vgLogs() : '' } catch (e) {}
+            var d = document.createElement('div')
+            d.style.cssText = 'max-width:340px;text-align:left;font-size:12px;color:#8e8e8e;white-space:pre-wrap;overflow:auto;max-height:45vh;margin-top:6px'
+            d.textContent = 'App load hone mein zyada time lag raha hai. Internet check karke Reload karo.' + (logs ? '\n\nDetails:\n' + logs : '')
+            b.appendChild(d)
+          }
+        } catch (e) {}
+      }, 12000)
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

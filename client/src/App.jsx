@@ -34,9 +34,28 @@ function Shell({ children }) {
 
 function Protected({ children }) {
   const app = useApp()
-  if (!app.authReady) return <div className="boot-screen"><img src="/logo.png" width="72" style={{ borderRadius: 16 }} alt="" /><p>Loading VibeGram…</p></div>
+  if (!app.authReady) {
+    return (
+      <div className="boot-screen">
+        <img src="/logo.png" width="72" style={{ borderRadius: 16 }} alt="" />
+        <p>Loading VibeGram…</p>
+      </div>
+    )
+  }
   if (!app.user) return <Navigate to="/accounts/login" replace />
-  return <Shell>{children}</Shell>
+  return (
+    <Shell>
+      {app.user.loadError && (
+        <div className="db-banner">
+          <span>
+            ⚠️ Data load nahi ho paya: {app.user.loadError}. Firebase Console → Firestore Database → Rules check karo (test mode). Internet bhi check karo.
+          </span>
+          <button onClick={() => location.reload()}>Reload</button>
+        </div>
+      )}
+      {children}
+    </Shell>
+  )
 }
 
 function PostPage() {
@@ -72,6 +91,10 @@ function Modals() {
 }
 
 export default function App() {
+  // React is alive — retire the static boot overlay
+  useEffect(() => {
+    document.getElementById('boot')?.remove()
+  }, [])
   return (
     <AppProvider>
       <Routes>

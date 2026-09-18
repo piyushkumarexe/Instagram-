@@ -28,7 +28,7 @@ export function AppProvider({ children }) {
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), ms)
   }, [])
 
-  // firebase auth watcher
+  // firebase auth watcher — fail-soft: UI hamesha render hota hai, errors screen pe dikhte hain
   useEffect(() => {
     finishRedirect()
     const unsub = watchAuth(async (u) => {
@@ -41,24 +41,62 @@ export function AppProvider({ children }) {
         setAuthReady(true)
         return
       }
+      // best-effort demo seed; never blocks login
+      try { await seedDemoContentIfEmpty() } catch {}
+
+      let profile = null
+      let loadError = null
       try {
-        await seedDemoContentIfEmpty()
-        const profile = await getUser(u.uid)
-        if (profile) {
-          await loadFollowing(u.uid)
-          setUser({ ...profile, email: profile.email || u.email })
-          // realtime badges
+        profile = await getUser(u.uid)
+      } catch (e) {
+        loadError = String(e?.message || e)
+      }
+
+      // brand-new Google user → auto-claim a username from their email
+      if (!profile && !loadError) {
+        const prefix = String(u.email || '').split('@')[0].toLowerCase().replace(/[^a-z0-9._]/g, '').slice(0, 15) || 'user'
+        const candidate = /^[a-z0-9._]{3,24}$/.test(prefix) ? prefix : 'user' + Math.floor(1000 + Math.random() * 9000)
+        try {
+          const { claimUsername } = await import('./fb.js')
+          await claimUsername(u.uid, u.email || '', candidate, u.displayName || candidate)
+          profile = await getUser(u.uid)
+        } catch (e) {
+          // username taken / invalid → onboarding modal will ask
+        }
+      }
+
+      if (profile) {
+        try { await loadFollowing(u.uid) } catch {}
+        setUser({
+          id: profile.id,
+          username: profile.username,
+          name: profile.name || u.displayName || profile.username,
+          email: profile.email || u.email,
+          avatar: profile.avatar || u.photoURL || null,
+          bio: profile.bio || '',
+          followersCount: profile.followersCount || 0,
+          followingCount: profile.followingCount || 0,
+          loadError: loadError || undefined,
+        })
+        // realtime badges
+        try {
           unsubs.current.push(
             subscribeNotifications(u.uid, (list) => setUnreadNotifs(list.filter((n) => !n.read).length)),
             subscribeThreads(u.uid, (threads) => setUnreadDMs(threads.reduce((a, t) => a + (t.unread || 0), 0)))
           )
-        } else {
-          // authenticated but no username chosen yet
-          setUser({ id: u.uid, username: null, name: u.displayName || '', email: u.email, avatar: u.photoURL, needsUsername: true })
-        }
-      } catch (e) {
-        console.error(e)
-        toast('Failed to load profile: ' + e.message)
+        } catch {}
+      } else {
+        // couldn't read/create the profile — still let the app render,
+        // needsUsername flows (or error banners) take over from here
+        setUser({
+          id: u.uid,
+          username: null,
+          name: u.displayName || '',
+          email: u.email,
+          avatar: u.photoURL || null,
+          needsUsername: !loadError,
+          loadError,
+        })
       }
       setAuthReady(true)
     })
