@@ -8,6 +8,18 @@ import './styles.css'
 
 installLogCapture()
 
+// App content status bar ke NEECHE rahe (na overlap, na size issue)
+if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.()) {
+  import('@capacitor/status-bar').then(async ({ StatusBar, Style }) => {
+    try {
+      await StatusBar.setOverlaysWebView({ overlay: false })
+      const dark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      await StatusBar.setStyle({ style: dark ? Style.Dark : Style.Light })
+      await StatusBar.setBackgroundColor({ color: dark ? '#000000' : '#ffffff' })
+    } catch (e) { console.warn('statusbar', e) }
+  })
+}
+
 // NOTE: the static boot overlay (index.html #boot) is NOT removed here.
 // App removes it once React has actually mounted — so between page load
 // and first paint there is never a white screen.

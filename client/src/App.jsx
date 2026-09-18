@@ -12,6 +12,7 @@ import Reels from './pages/Reels.jsx'
 import Messages from './pages/Messages.jsx'
 import Notifications from './pages/Notifications.jsx'
 import Profile from './pages/Profile.jsx'
+import Connections from './pages/Connections.jsx'
 import EditProfile from './pages/EditProfile.jsx'
 import Login, { UsernameSetup } from './pages/Login.jsx'
 import { getPost } from './fb.js'
@@ -137,6 +138,8 @@ export default function App() {
         <Route path="/notifications" element={<Protected><Notifications /></Protected>} />
         <Route path="/p/:id" element={<PostPage />} />
         <Route path="/:username" element={<Protected><Profile /></Protected>} />
+        <Route path="/:username/followers" element={<Protected><Connections /></Protected>} />
+        <Route path="/:username/following" element={<Protected><Connections /></Protected>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <BackHandler />

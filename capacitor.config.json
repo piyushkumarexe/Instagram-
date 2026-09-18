@@ -7,11 +7,14 @@
     "cleartext": true
   },
   "android": {
-    "allowMixedContent": true
+    "allowMixedContent": true,
+    "adjustMarginsForEdgeToEdge": "auto"
   },
   "plugins": {
     "FirebaseAuthentication": {
-      "providers": ["google.com"],
+      "providers": [
+        "google.com"
+      ],
       "skipNativeAuth": false
     }
   }

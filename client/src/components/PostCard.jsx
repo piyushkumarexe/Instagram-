@@ -132,7 +132,7 @@ export default function PostCard({ post, onChange, onDeleted }) {
 
       <div className="post-body">
         <button className="likes-line" onClick={() => app.openPost(post.id)}>
-          <strong>{formatCount(post.likes)} likes</strong>
+          <strong>{formatCount(post.likes)} like{post.likes === 1 ? '' : 's'}</strong>
         </button>
         {caption && (
           <div className="post-caption">

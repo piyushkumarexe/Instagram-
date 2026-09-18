@@ -4,7 +4,6 @@ import { useApp } from '../store.jsx'
 import { getUserByUsername, getUserPosts, getSaved, myFollowing, getHighlight, addStoryToHighlight, getStoryGroups } from '../fb.js'
 import Avatar from '../components/Avatar.jsx'
 import FollowButton from '../components/FollowButton.jsx'
-import UserListModal from '../components/UserListModal.jsx'
 import { IcDots, IcGrid, IcReels, IcBookmark, IcPlay, IcCamera, IcSettings, IcLogout } from '../components/Icons.jsx'
 
 export default function Profile() {
@@ -17,7 +16,6 @@ export default function Profile() {
   const [saved, setSaved] = useState([])
   const [tab, setTab] = useState('posts')
   const [error, setError] = useState('')
-  const [listState, setListState] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [hasStory, setHasStory] = useState(false)
   const [highlight, setHighlight] = useState(null)
@@ -96,10 +94,10 @@ export default function Profile() {
           </div>
           <div className="profile-counts">
             <span><strong>{posts.length}</strong> posts</span>
-            <button onClick={() => setListState({ title: 'Followers', username: profile.username, kind: 'followers' })}>
+            <button onClick={() => nav('/' + profile.username + '/followers')}>
               <strong>{profile.followersCount}</strong> followers
             </button>
-            <button onClick={() => setListState({ title: 'Following', username: profile.username, kind: 'following' })}>
+            <button onClick={() => nav('/' + profile.username + '/following')}>
               <strong>{profile.followingCount}</strong> following
             </button>
           </div>
@@ -182,8 +180,6 @@ export default function Profile() {
           ))}
         </div>
       )}
-
-      {listState && <UserListModal userState={listState} onClose={() => setListState(null)} />}
 
       {menuOpen && (
         <div className="sheet-backdrop" onClick={() => setMenuOpen(false)}>

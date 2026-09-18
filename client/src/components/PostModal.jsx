@@ -140,7 +140,7 @@ export default function PostModal() {
                 </div>
                 <button className="icon-btn" onClick={save}>{post.savedByMe ? <IcBookmarkFill size={22} /> : <IcBookmark size={22} />}</button>
               </div>
-              <div className="pm-likes"><strong>{formatCount(post.likes)} likes</strong></div>
+              <div className="pm-likes"><strong>{formatCount(post.likes)} like{post.likes === 1 ? '' : 's'}</strong></div>
               <div className="pm-ago">{timeAgo(post.createdAt)}</div>
               <form className="add-comment pm-add" onSubmit={submitComment}>
                 <span className="pm-emoji"><IcHeart size={22} /></span>
