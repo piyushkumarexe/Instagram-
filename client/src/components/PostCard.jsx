@@ -132,7 +132,7 @@ export default function PostCard({ post, onChange, onDeleted }) {
             )}
           </div>
         )}
-        {post.commentsCount > 2 && (
+        {post.commentsCount > 0 && (
           <button className="view-comments" onClick={() => app.openPost(post.id)}>
             View all {formatCount(post.commentsCount)} comments
           </button>

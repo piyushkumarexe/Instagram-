@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useApp } from '../store.jsx'
-import { getUserByUsername, getUserPosts, getSaved, myFollowing } from '../fb.js'
+import { getUserByUsername, getUserPosts, getSaved, myFollowing, getHighlight, addStoryToHighlight, getStoryGroups } from '../fb.js'
 import Avatar from '../components/Avatar.jsx'
 import FollowButton from '../components/FollowButton.jsx'
 import UserListModal from '../components/UserListModal.jsx'
@@ -20,6 +20,7 @@ export default function Profile() {
   const [listState, setListState] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [hasStory, setHasStory] = useState(false)
+  const [highlight, setHighlight] = useState(null)
 
   const load = useCallback(async () => {
     try {
@@ -39,16 +40,12 @@ export default function Profile() {
       if (isMe) {
         const sv = await getSaved(app.user.id)
         setSaved(sv)
-        // check my story
-        import('../fb.js').then(({ getStoryGroups }) => {
-          getStoryGroups(app.user.id).then((gs) => setHasStory(gs.some((g) => g.user.id === app.user.id))).catch(() => {})
-        })
       }
-      if (!isMe) {
-        import('../fb.js').then(({ getStoryGroups }) => {
-          getStoryGroups(app.user.id).then((gs) => setHasStory(gs.some((g) => g.user.id === u.id))).catch(() => {})
-        })
-      }
+      // story check (mine ya kisi aur ka)
+      import('../fb.js').then(({ getStoryGroups }) => {
+        getStoryGroups(app.user.id).then((gs) => setHasStory(gs.some((g) => g.user.id === u.id))).catch(() => {})
+      })
+      getHighlight(u.id).then(setHighlight).catch(() => {})
     } catch (e) {
       setError(e.message)
     }
@@ -112,6 +109,32 @@ export default function Profile() {
           </div>
         </div>
       </header>
+
+      {(highlight || (me && hasStory)) && (
+        <div className="highlights-row">
+          {highlight && highlight.media?.length > 0 && (
+            <div className="highlight-cell" onClick={() => app.openStories(highlight.media.map((m) => ({ id: m, media: m, mediaType: 'image', createdAt: Date.now() })), 0)}>
+              <div className="highlight-ring"><Avatar user={{ username: highlight.title, avatar: highlight.cover }} size={62} /></div>
+              <span className="highlight-name">{highlight.title}</span>
+            </div>
+          )}
+          {me && !highlight && (
+            <div className="highlight-cell" onClick={async () => {
+              try {
+                const gs = await getStoryGroups(app.user.id)
+                const mine = gs.find((g) => g.user.id === app.user.id)
+                if (!mine?.stories?.length) return app.toast('Pehle story daalo, phir highlight banega ✨')
+                await addStoryToHighlight(app.user, mine.stories[mine.stories.length - 1])
+                setHighlight(await getHighlight(app.user.id))
+                app.toast('Highlight created ✨')
+              } catch (e) { app.toast(e.message) }
+            }}>
+              <div className="highlight-ring highlight-new"><div className="avatar-inner" style={{ width: 62, height: 62, borderRadius: '50%' }}>＋</div></div>
+              <span className="highlight-name">New</span>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="profile-tabs">
         <button className={tab === 'posts' ? 'on' : ''} onClick={() => setTab('posts')}><IcGrid size={12} /> POSTS</button>

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useApp } from '../store.jsx'
-import { timeAgo, markStorySeen, sendMessage } from '../fb.js'
+import { timeAgo, markStorySeen, sendMessage, addStoryToHighlight } from '../fb.js'
 import Avatar from './Avatar.jsx'
-import { IcX, IcSend, IcChevronL, IcChevronR } from './Icons.jsx'
+import { IcX, IcSend, IcChevronL, IcChevronR, IcBookmark } from './Icons.jsx'
 
 const STORY_MS = 5000
 
@@ -64,6 +64,13 @@ export default function StoryViewer() {
   const story = group.stories[si]
   if (!story) return null
 
+  async function saveToHighlight() {
+    try {
+      await addStoryToHighlight(app.user, story)
+      app.toast('Highlight mein add ho gaya ✨ (profile pe dikhega)')
+    } catch (e) { app.toast(e.message) }
+  }
+
   async function sendReply(e) {
     e.preventDefault()
     const text = reply.trim()
@@ -81,7 +88,12 @@ export default function StoryViewer() {
         <Avatar user={group.user} size={32} />
         <span className="story-h-username">{group.user.username}</span>
         <span className="story-h-time">{timeAgo(story.createdAt)}</span>
-        <button className="icon-btn light" onClick={close}><IcX size={26} /></button>
+        <div className="story-h-actions">
+          {group.user.id === app.user.id && (
+            <button className="icon-btn light" title="Add to highlight" onClick={saveToHighlight}><IcBookmark size={22} /></button>
+          )}
+          <button className="icon-btn light" onClick={close}><IcX size={26} /></button>
+        </div>
       </div>
 
       <div className="story-progress">

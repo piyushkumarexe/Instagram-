@@ -315,12 +315,7 @@ export async function getFeed({ cursor, count = 6 } = {}) {
   if (cursor) qy = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), startAfter(cursor), limit(40))
   const snap = await getDocs(qy)
   const posts = snap.docs.map(postOut).filter((p) => myFollowing.has(p.user.id) || p.user.id === me)
-  for (const p of posts) {
-    try {
-      const cs = await getDocs(query(collection(db, 'posts', p.id, 'comments'), orderBy('createdAt', 'desc'), limit(2)))
-      p.comments = cs.docs.reverse().map(commentOut)
-    } catch (e) { p.comments = [] }
-  }
+  // speed: no per-post comment queries here — PostModal loads full comments on demand
   return { posts, cursor: snap.docs.length ? snap.docs[snap.docs.length - 1] : null }
 }
 
@@ -709,3 +704,77 @@ export async function seedDemoContentIfEmpty() {
 }
 
 export { deleteField, serverTimestamp }
+
+
+// ---------------------------------------------------------------- notes (24h, like IG notes)
+export async function setNote(me, text) {
+  const clean = String(text || '').trim().slice(0, 60)
+  const refDoc = doc(db, 'notes', me.id)
+  if (!clean) {
+    await deleteDoc(refDoc).catch(() => {})
+    return null
+  }
+  await setDoc(refDoc, {
+    userId: me.id, username: me.username, avatar: me.avatar || null,
+    text: clean, createdAt: serverTimestamp(),
+  })
+  return clean
+}
+
+export function subscribeNotes(meId, cb) {
+  const qy = query(collection(db, 'notes'), limit(30))
+  return onSnapshot(qy, (snap) => {
+    const now = Date.now()
+    const out = []
+    snap.forEach((d) => {
+      const v = d.data()
+      const created = tsToMs(v.createdAt)
+      if (now - created > 24 * 3600 * 1000) return
+      out.push({ id: d.id, text: v.text, username: v.username, avatar: v.avatar, createdAt: created, mine: d.id === meId })
+    })
+    out.sort((a, b) => (b.mine ? 1 : 0) - (a.mine ? 1 : 0) || b.createdAt - a.createdAt)
+    cb(out)
+  })
+}
+
+// ---------------------------------------------------------------- highlights (saved stories on profile)
+export async function addStoryToHighlight(me, story) {
+  const refDoc = doc(db, 'highlights', me.id)
+  const snap = await getDoc(refDoc)
+  if (snap.exists()) {
+    await updateDoc(refDoc, {
+      media: arrayUnion(story.media),
+      updatedAt: serverTimestamp(),
+    })
+  } else {
+    await setDoc(refDoc, {
+      userId: me.id, username: me.username, avatar: me.avatar || null,
+      title: 'Highlights', cover: story.media, media: [story.media],
+      createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    })
+  }
+  return true
+}
+
+export async function getHighlight(uid) {
+  const snap = await getDoc(doc(db, 'highlights', uid))
+  if (!snap.exists()) return null
+  const v = snap.data()
+  return { title: v.title || 'Highlights', cover: v.cover, media: (v.media || []).slice(-30) }
+}
+
+// ---------------------------------------------------------------- GIFs (GIPHY public beta key, graceful fallback)
+const GIPHY_KEY = 'dc6zaTOxFJmzC'
+export async function searchGifs(q) {
+  const ep = q.trim()
+    ? `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q.trim())}&limit=15&rating=pg`
+    : `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=15&rating=pg`
+  try {
+    const res = await fetch(ep)
+    if (!res.ok) throw new Error('giphy ' + res.status)
+    const data = await res.json()
+    return (data.data || []).map((g) => g.images?.fixed_height?.url || g.images?.original?.url).filter(Boolean)
+  } catch (e) {
+    return []
+  }
+}

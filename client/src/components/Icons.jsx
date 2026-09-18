@@ -40,3 +40,9 @@ export const IcVerified = (p) => <S {...p} fill="#0095f6" stroke="none"><path d=
 export const IcImage = (p) => <S {...p}><rect x="3" y="3" width="18" height="18" rx="3" /><circle cx="9" cy="9" r="2" /><path d="m4 19 6.5-6.5 3 3L17 12l4 4.5" /></S>
 export const IcVideo = (p) => <S {...p}><rect x="2.5" y="5" width="14" height="14" rx="3" /><path d="m16.5 10.5 5-3v9l-5-3" /></S>
 export const IcBack = (p) => <S {...p}><path d="M19 12H5" /><path d="m11 6-6 6 6 6" /></S>
+
+export const IcSearchFill = (p) => (
+  <svg width={p.size || 24} height={p.size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round">
+    <circle cx="10.8" cy="10.8" r="7.3" /><path d="m21 21-4.8-4.8" />
+  </svg>
+)
