@@ -90,7 +90,7 @@ fun CreateScreen(
             AsyncImage(
                 model = postUri,
                 contentDescription = null,
-                contentScale = ContentScale.Cover,
+                contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxWidth().aspectRatio(1f).background(Color(0xFF111111))
             )
             Spacer(Modifier.height(12.dp))

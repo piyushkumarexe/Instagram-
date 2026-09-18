@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -239,7 +240,7 @@ fun PostCard(
             AsyncImage(
                 model = post.media,
                 contentDescription = null,
-                contentScale = ContentScale.Cover,
+                contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
             if (post.isVideo) {

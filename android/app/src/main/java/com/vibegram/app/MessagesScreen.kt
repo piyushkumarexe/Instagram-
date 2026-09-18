@@ -124,8 +124,8 @@ fun ChatScreen(
             } else if (list.isEmpty()) {
                 Column(
                     Modifier.fillMaxSize().padding(30.dp),
-                    Alignment.CenterHorizontally,
-                    Arrangement.Center
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     AvatarView(url = other.avatar, size = 72, border = false)
                     Spacer(Modifier.height(10.dp))

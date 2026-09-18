@@ -221,8 +221,10 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
 
 @Composable
 private fun navColors() = NavigationBarItemDefaults.colors(
-    selectedColor = Color.White,
-    unselectedColor = Color(0xFFB0B0B0),
+    selectedIconColor = Color.White,
+    selectedTextColor = Color.White,
+    unselectedIconColor = Color(0xFFB0B0B0),
+    unselectedTextColor = Color(0xFFB0B0B0),
     indicatorColor = Color(0xFF1A1A1A)
 )
 
@@ -252,8 +254,8 @@ fun LoadingBox() {
 fun EmptyBox(text: String, emoji: String = "🙈") {
     Column(
         Modifier.fillMaxSize().padding(30.dp),
-        Alignment.CenterHorizontally,
-        Arrangement.Center
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(emoji, fontSize = 44.sp)
         Text(text, color = Color(0xFFB0B0B0), fontSize = 14.sp)
@@ -264,8 +266,8 @@ fun EmptyBox(text: String, emoji: String = "🙈") {
 fun ErrorBox(text: String?) {
     Column(
         Modifier.fillMaxSize().padding(30.dp),
-        Alignment.CenterHorizontally,
-        Arrangement.Center
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("😕", fontSize = 44.sp)
         Text(text ?: "Something went wrong", color = Color(0xFFED4956), fontSize = 14.sp)
