@@ -12,6 +12,7 @@ export default function Explore() {
   const [sp, setSp] = useSearchParams()
   const [q, setQ] = useState(sp.get('q') || '')
   const [results, setResults] = useState(null)
+  const [searchErr, setSearchErr] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -23,9 +24,13 @@ export default function Explore() {
     setSp({ q: q.trim() }, { replace: true })
     const t = setTimeout(async () => {
       try {
+        setSearchErr('')
         const [users, searchResultsPosts] = await Promise.all([searchUsers(q.trim()), searchPosts(q.trim())])
         setResults({ users, posts: searchResultsPosts })
-      } catch (e) {}
+      } catch (err) {
+        setSearchErr('Search issue: ' + err.message + ' — exact username try karo')
+        setResults({ users: [], posts: [] })
+      }
     }, 300)
     return () => clearTimeout(t)
   }, [q])
@@ -34,7 +39,7 @@ export default function Explore() {
     <div className="explore-page">
       <MobileTopBar title="Explore" />
       <div className="explore-search">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍  Search" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Search username, name, caption" />
       </div>
       {loading && <div className="grid-skeleton">{Array.from({ length: 9 }).map((_, i) => <div key={i} className="skeleton-grid" />)}</div>}
 
@@ -58,8 +63,9 @@ export default function Explore() {
               {results.posts.map((p) => <GridCell post={p} key={p.id} />)}
             </div>
           )}
-          {!results.users.length && !results.posts.length && (
-            <div className="pm-empty"><span className="big-emoji">🔎</span><h3>No results found</h3></div>
+          {searchErr && <div className="pm-empty"><span className="big-emoji">⚠️</span><h3 style={{ fontSize: 14 }}>{searchErr}</h3></div>}
+          {!results.users.length && !results.posts.length && !searchErr && (
+            <div className="pm-empty"><span className="big-emoji">🔎</span><h3>No results found</h3><p style={{ color: 'var(--muted)', fontSize: 13 }}>Username ya caption keywords try karo</p></div>
           )}
         </div>
       ) : (

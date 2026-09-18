@@ -32,15 +32,15 @@ export default function Reels() {
   return (
     <div className="reels-page">
       <div className="reels-scroller">
-        {reels.map((r) => (
-          <ReelItem key={r.id} reel={r} onChange={(p) => patch(r.id, p)} />
+        {reels.map((r, i) => (
+          <ReelItem key={r.id} reel={r} index={i} onChange={(p) => patch(r.id, p)} />
         ))}
       </div>
     </div>
   )
 }
 
-function ReelItem({ reel, onChange }) {
+function ReelItem({ reel, onChange, index = 0 }) {
   const app = useApp()
   const wrapRef = useRef(null)
   const vidRef = useRef(null)
@@ -102,6 +102,7 @@ function ReelItem({ reel, onChange }) {
         )}
       </div>
 
+      {index === 0 && <div className="reel-swipe-hint">SWIPE UP</div>}
       <div className="reel-overlay">
         <div className="reel-info">
           <div className="reel-user-row">

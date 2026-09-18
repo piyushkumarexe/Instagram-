@@ -263,21 +263,32 @@ export async function suggestions(meId) {
 }
 
 export async function searchUsers(q) {
-  const clean = String(q || '').trim().toLowerCase()
+  const clean = String(q || '').trim().toLowerCase().replace(/^@/, '')
   if (!clean) return []
-  const qy = query(
-    collection(db, 'usernames'),
-    orderBy('__name__'),
-    startAt(clean),
-    endAt(clean + '\uf8ff'),
-    limit(12)
-  )
-  const snap = await getDocs(qy)
   const out = []
-  for (const d of snap.docs) {
-    const u = await cachedUser(d.data().uid)
-    if (u) out.push({ ...u, isFollowing: myFollowing.has(u.id) })
-  }
+  const seen = new Set()
+  const push = (u) => { if (u && !seen.has(u.id)) { seen.add(u.id); out.push({ ...u, isFollowing: myFollowing.has(u.id) }) } }
+
+  // Layer 1: exact username (get — hamesha allowed)
+  try {
+    const exact = await getDoc(doc(db, 'usernames', clean))
+    if (exact.exists()) push(await cachedUser(exact.data().uid))
+  } catch (e) { console.warn('search exact', e) }
+
+  // Layer 2: usernames index prefix query
+  try {
+    const qy = query(collection(db, 'usernames'), orderBy('__name__'), startAt(clean), endAt(clean + '\uf8ff'), limit(12))
+    const snap = await getDocs(qy)
+    for (const d of snap.docs) push(await cachedUser(d.data().uid))
+  } catch (e) { console.warn('search prefix', e) }
+
+  // Layer 3: users collection prefix (name/username partial)
+  try {
+    const uq = query(collection(db, 'users'), orderBy('username'), startAt(clean), endAt(clean + '\uf8ff'), limit(12))
+    const usnap = await getDocs(uq)
+    for (const d of usnap.docs) push(profileOut(d.id, d.data()))
+  } catch (e) { console.warn('search users', e) }
+
   return out
 }
 

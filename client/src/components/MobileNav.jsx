@@ -1,5 +1,5 @@
 import React from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useApp } from '../store.jsx'
 import Avatar from './Avatar.jsx'
 import { IcHome, IcHomeFill, IcSearch, IcSearchFill, IcReels, IcReelsFill, IcPlusSquare, IcHeart, IcHeartFill, IcSend } from './Icons.jsx'
@@ -7,7 +7,10 @@ import { IcHome, IcHomeFill, IcSearch, IcSearchFill, IcReels, IcReelsFill, IcPlu
 export default function MobileNav() {
   const app = useApp()
   const nav = useNavigate()
+  const loc = useLocation()
   if (!app.user) return null
+  // Reels full-screen — real IG jaisa, koi bottom tabs nahi
+  if (loc.pathname.startsWith('/reels')) return null
 
   return (
     <nav className="mobile-nav">
