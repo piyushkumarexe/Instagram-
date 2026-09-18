@@ -207,6 +207,20 @@ function ShareSheet({ post, onClose }) {
     }
   }
 
+  async function addToStory() {
+    onClose()
+    if (post.mediaType === 'video') return app.toast('Videos cannot be added to story yet')
+    app.toast('Preparing story…')
+    try {
+      const res = await fetch(post.media)
+      const blob = await res.blob()
+      window.__pendingStoryFile = new File([blob], 'post.jpg', { type: blob.type || 'image/jpeg' })
+      app.openCreate('story')
+    } catch {
+      app.toast('Could not load image — try again')
+    }
+  }
+
   function copyLink() {
     const url = `${location.origin}/p/${post.id}`
     navigator.clipboard?.writeText(url).then(() => app.toast('Link copied \ud83d\udd17')).catch(() => app.toast(url))
@@ -238,6 +252,9 @@ function ShareSheet({ post, onClose }) {
               </button>
             </div>
           ))}
+        </div>
+        <div style={{ padding: '12px 12px 0' }}>
+          <button className="btn btn-grey" style={{ width: '100%' }} onClick={addToStory}>🖼️ Add to story</button>
         </div>
         <div style={{ padding: 12, borderTop: '1px solid var(--border)', display: 'flex', gap: 8 }}>
           <button className="btn btn-grey" style={{ flex: 1 }} onClick={copyLink}>Copy link</button>

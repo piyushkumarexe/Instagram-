@@ -8,6 +8,9 @@ import './styles.css'
 
 installLogCapture()
 
+// native feel: browser long-press context menu band
+document.addEventListener('contextmenu', (e) => e.preventDefault())
+
 // saved theme (Settings se) boot pe apply
 try {
   const saved = localStorage.getItem('vg_theme')

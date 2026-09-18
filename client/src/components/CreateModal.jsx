@@ -28,6 +28,16 @@ export default function CreateModal() {
     if (mode) { setFile(null); setPreviewUrl(null); setStep(1); setFilterIdx(0); setCaption(''); setStickers([]); setActiveSticker(null) }
   }, [mode])
 
+  // share-sheet se aayi post → seedha story editor mein kholo
+  useEffect(() => {
+    if (mode !== 'story') return
+    const f = window.__pendingStoryFile
+    if (f) {
+      delete window.__pendingStoryFile
+      pickFile(f)
+    }
+  }, [mode])
+
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape' && !busy) app.closeCreate() }
     window.addEventListener('keydown', onKey)

@@ -116,15 +116,16 @@ function Presence() {
   useEffect(() => {
     if (!app.user?.id) return
     let iv = null
+    let tick = null
     import('./fb.js').then(({ touchPresence }) => {
-      const tick = () => { if (document.visibilityState === 'visible') touchPresence(app.user.id) }
+      tick = () => { if (document.visibilityState === 'visible') touchPresence(app.user.id) }
       tick()
       iv = setInterval(tick, 55000)
       document.addEventListener('visibilitychange', tick)
     }).catch(() => {})
     return () => {
       if (iv) clearInterval(iv)
-      document.removeEventListener('visibilitychange', tick)
+      if (tick) document.removeEventListener('visibilitychange', tick)
     }
   }, [app.user?.id])
   return null
