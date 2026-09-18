@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../store.jsx'
-import { setPrivate } from '../fb.js'
+import { setPrivate, setVerified, listVerified, searchUsers } from '../fb.js'
 import Avatar from '../components/Avatar.jsx'
 import { IcBack } from '../components/Icons.jsx'
 
@@ -23,6 +23,33 @@ export default function Settings() {
   const nav = useNavigate()
   const [theme, setTheme] = useState(localStorage.getItem('vg_theme') || 'system')
   const [priv, setPriv] = useState(!!app.user.isPrivate)
+  const isOwner = String(app.user.email || '').toLowerCase() === 'piyushpk811@gmail.com'
+  const [vq, setVq] = useState('')
+  const [vBusy, setVBusy] = useState(false)
+  const [vMsg, setVMsg] = useState('')
+  const [vList, setVList] = useState([])
+
+  useEffect(() => {
+    if (!isOwner) return
+    listVerified().then(setVList).catch(() => {})
+  }, [isOwner])
+
+  async function giveBadge(val) {
+    if (!vq.trim()) return
+    setVBusy(true)
+    setVMsg('')
+    try {
+      const uid = await setVerified(vq, val)
+      setVMsg(val ? `✅ @${vq.trim().toLowerCase()} verified` : `↩️ @${vq.trim().toLowerCase()} unverified`)
+      app.toast(val ? 'Badge given ✅' : 'Badge removed')
+      setVList(await listVerified().catch(() => []))
+      setVq('')
+    } catch (e) {
+      setVMsg('⚠️ ' + e.message)
+    } finally {
+      setVBusy(false)
+    }
+  }
 
   function pick(t) {
     setTheme(t)
@@ -60,6 +87,28 @@ export default function Settings() {
           </button>
         ))}
       </div>
+
+      {isOwner && (
+        <>
+          <div className="settings-group-label">Verified badges (admin)</div>
+          <div className="settings-card">
+            <div className="vadmin-row">
+              <input value={vq} onChange={(e) => setVq(e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, ''))} placeholder="username without @" autoCapitalize="none" />
+              <button className="btn btn-blue btn-sm" disabled={vBusy || !vq.trim()} onClick={() => giveBadge(true)}>Verify</button>
+              <button className="btn btn-grey btn-sm" disabled={vBusy || !vq.trim()} onClick={() => giveBadge(false)}>Remove</button>
+            </div>
+            {vMsg && <div className="vadmin-msg">{vMsg}</div>}
+            {!!vList.length && (
+              <div className="vadmin-list">
+                <span className="muted" style={{ fontSize: 12 }}>Currently verified:</span>
+                {vList.map((u) => (
+                  <span key={u.id} className="vadmin-chip" onClick={() => setVq(u.username)}>{u.username} ✕</span>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       <div className="settings-group-label">Privacy</div>
       <div className="settings-card">

@@ -122,6 +122,20 @@ export function profileOut(id, d) {
   return { id, username: d.username, name: d.name || d.username, email: d.email || '', bio: d.bio || '', avatar: d.avatar || null, followersCount: d.followersCount || 0, followingCount: d.followingCount || 0, postsCount: d.postsCount || 0, createdAt: tsToMs(d.createdAt), lastActive: tsToMs(d.lastActive), isPrivate: !!d.isPrivate, verified: !!d.verified || VERIFIED_IDS.has(id), pronouns: d.pronouns || '', links: d.links || '', gender: d.gender || '' }
 }
 
+// admin: kisi bhi username ko verified badge de/hata (owner-only UI se call hota hai)
+export async function setVerified(username, val) {
+  const uname = String(username || '').trim().toLowerCase().replace(/^@/, '')
+  const unameSnap = await getDoc(doc(db, 'usernames', uname))
+  if (!unameSnap.exists()) throw new Error('Username not found: ' + uname)
+  await updateDoc(doc(db, 'users', unameSnap.data().uid), { verified: !!val })
+  return unameSnap.data().uid
+}
+
+export async function listVerified() {
+  const snap = await getDocs(query(collection(db, 'users'), where('verified', '==', true), limit(50)))
+  return snap.docs.map((d) => profileOut(d.id, d.data()))
+}
+
 // one-time: bots ko verified mark karo (profile/search/connections badges)
 export async function ensureBotsVerified() {
   try {
