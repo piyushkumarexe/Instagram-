@@ -1,6 +1,8 @@
 package com.vibegram.app
 
 import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -51,7 +53,9 @@ import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
-import androidx.credentials.exceptions.NoCredentialException
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.FirebaseException
@@ -69,22 +73,55 @@ fun LoginScreen(onDone: () -> Unit) {
     var err by remember { mutableStateOf<String?>(null) }
     var help by remember { mutableStateOf(false) }
 
-    // dual-engine Google sign-in:
-    // pass 1 = normal picker; pass 2 = force FULL device account list
-    fun signIn(forceFullList: Boolean) {
+    // engine 2 (fallback): legacy GoogleSignIn — native in-app account picker,
+    // bypasses the newer credential-provider routing entirely
+    val legacy = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+        try {
+            val account = GoogleSignIn.getSignedInAccountFromIntent(res.data).getResult(ApiException::class.java)
+            val idToken = account?.idToken
+            if (idToken != null) {
+                scope.launch {
+                    try {
+                        Fb.signInWithIdToken(idToken)
+                        onDone()
+                    } catch (e: Exception) {
+                        err = "Could not complete sign-in. Please try again."
+                        busy = false
+                    }
+                }
+            } else {
+                busy = false // cancelled
+            }
+        } catch (e: ApiException) {
+            busy = false // cancelled or no result
+        }
+    }
+
+    fun legacyFallback() {
+        val act = ctx as Activity
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(WEB_CLIENT_ID)
+            .requestEmail()
+            .build()
+        legacy.launch(GoogleSignIn.getClient(act, gso).signInIntent)
+    }
+
+    // engine 1: Credential Manager; falls back to engine 2 on failure
+    fun signIn() {
         if (busy) return
         busy = true
         err = null
         scope.launch {
+            var fell = false
             try {
                 val act = ctx as Activity
                 val cm = CredentialManager.create(act)
-                val opt = GetGoogleIdOption.Builder()
+                val option = GetGoogleIdOption.Builder()
                     .setServerClientId(WEB_CLIENT_ID)
                     .setFilterByAuthorizedAccounts(false)
                     .setAutoSelectEnabled(false)
-                if (forceFullList) opt.setAccountNames(emptyList<String>())
-                val request = GetCredentialRequest.Builder().addCredentialOption(opt.build()).build()
+                    .build()
+                val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
                 val response = cm.getCredential(act, request)
                 val cred = response.credential
                 if (cred is CustomCredential && cred.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
@@ -93,24 +130,19 @@ fun LoginScreen(onDone: () -> Unit) {
                     onDone()
                 } else {
                     err = "Unexpected sign-in response. Please try again."
+                    busy = false
                 }
             } catch (e: GetCredentialCancellationException) {
-                // user closed the picker — stay silent
-            } catch (e: NoCredentialException) {
-                if (forceFullList) {
-                    err = "Sign-in is warming up. This happens right after install — try again in a few minutes, or check Settings for a Google account."
-                } else {
-                    signIn(forceFullList = true)
-                }
+                busy = false // user closed the picker — stay silent
             } catch (e: GetCredentialException) {
-                err = "Google sign-in unavailable. Check your internet and try again."
+                fell = true
             } catch (e: FirebaseException) {
                 err = "Could not complete sign-in. Please try again in a moment."
-            } catch (e: Exception) {
-                err = e.message ?: "Sign-in failed. Please try again."
-            } finally {
                 busy = false
+            } catch (e: Exception) {
+                fell = true
             }
+            if (fell) legacyFallback() // busy stays true until engine 2 returns
         }
     }
 
@@ -120,16 +152,16 @@ fun LoginScreen(onDone: () -> Unit) {
             val line = Color.White.copy(alpha = 0.09f)
             val w = size.width
             val h = size.height
-            fun trace(x1: Float, y1: Float, x2: Float, y2: Float, x3: Float, y3: Float, dx: Float, dy: Float) {
+            fun trace(x1: Float, y1: Float, x2: Float, y2: Float, x3: Float, y3: Float) {
                 drawLine(line, Offset(x1, y1), Offset(x2, y2), strokeWidth = 2.5f, cap = StrokeCap.Round)
                 drawLine(line, Offset(x2, y2), Offset(x3, y3), strokeWidth = 2.5f, cap = StrokeCap.Round)
-                drawCircle(Color(0xFFDC2743).copy(alpha = 0.55f), radius = 7f, center = Offset(x3 + dx, y3 + dy))
-                drawCircle(Color(0xFFF09433).copy(alpha = 0.35f), radius = 13f, center = Offset(x3 + dx, y3 + dy))
+                drawCircle(Color(0xFFDC2743).copy(alpha = 0.55f), radius = 7f, center = Offset(x3, y3))
+                drawCircle(Color(0xFFF09433).copy(alpha = 0.30f), radius = 13f, center = Offset(x3, y3))
             }
-            trace(0f, h * 0.10f, w * 0.16f, h * 0.10f, w * 0.16f, h * 0.22f, 0f, 0f)
-            trace(w, h * 0.06f, w * 0.88f, h * 0.06f, w * 0.88f, h * 0.16f, 0f, 0f)
-            trace(0f, h * 0.86f, w * 0.12f, h * 0.86f, w * 0.12f, h * 0.74f, 0f, 0f)
-            trace(w, h * 0.92f, w * 0.84f, h * 0.92f, w * 0.84f, h * 0.80f, 0f, 0f)
+            trace(0f, h * 0.10f, w * 0.16f, h * 0.10f, w * 0.16f, h * 0.22f)
+            trace(w, h * 0.06f, w * 0.88f, h * 0.06f, w * 0.88f, h * 0.16f)
+            trace(0f, h * 0.86f, w * 0.12f, h * 0.86f, w * 0.12f, h * 0.74f)
+            trace(w, h * 0.92f, w * 0.84f, h * 0.92f, w * 0.84f, h * 0.80f)
         }
 
         Column(
@@ -179,7 +211,7 @@ fun LoginScreen(onDone: () -> Unit) {
                         color = Color(0xFF3B82F6),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable { signIn(forceFullList = false) }
+                        modifier = Modifier.clickable { signIn() }
                     )
                 }
 
@@ -187,7 +219,7 @@ fun LoginScreen(onDone: () -> Unit) {
 
                 // primary action (design's blue button)
                 Button(
-                    onClick = { signIn(forceFullList = false) },
+                    onClick = { signIn() },
                     enabled = !busy,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF0A5CFF),
@@ -222,7 +254,7 @@ fun LoginScreen(onDone: () -> Unit) {
                 Text(
                     "All your posts, followers and chats —\none account everywhere.",
                     color = Color(0xFF6E6E73),
-                    fontSize = 11.5.sp,
+                    fontSize = 12.sp,
                     lineHeight = 16.sp,
                     textAlign = TextAlign.Center
                 )
