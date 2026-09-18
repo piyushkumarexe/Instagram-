@@ -6,6 +6,10 @@ import PostCard from '../components/PostCard.jsx'
 import StoryBar from '../components/StoryBar.jsx'
 import Suggestions from '../components/Suggestions.jsx'
 import { MobileTopBar } from '../components/MobileNav.jsx'
+import PullToRefresh from '../components/PullToRefresh.jsx'
+import Avatar from '../components/Avatar.jsx'
+import FollowButton from '../components/FollowButton.jsx'
+import { suggestions } from '../fb.js'
 
 const FEED_CACHE = 'vg_feed_cache'
 
@@ -21,52 +25,6 @@ function writeCache(posts) {
       user: p.user, likedByMe: p.likedByMe, savedByMe: p.savedByMe, comments: p.comments || [],
     }))))
   } catch {}
-}
-
-function PullToRefresh({ onRefresh, children }) {
-  const [pull, setPull] = useState(0)
-  const [refreshing, setRefreshing] = useState(false)
-  const startY = useRef(null)
-  const pullRef = useRef(0)
-  pullRef.current = pull
-
-  useEffect(() => {
-    const scrollTop = () => window.scrollY || document.documentElement.scrollTop || 0
-    const ts = (e) => { if (scrollTop() <= 0 && !refreshing) startY.current = e.touches[0].clientY }
-    const tm = (e) => {
-      if (startY.current == null) return
-      const d = e.touches[0].clientY - startY.current
-      if (d > 0 && scrollTop() <= 0) setPull(Math.min(110, d * 0.45))
-      else setPull(0)
-    }
-    const te = () => {
-      if (pullRef.current > 52 && !refreshing) {
-        setRefreshing(true)
-        setPull(56)
-        Promise.resolve(onRefresh()).catch(() => {}).finally(() => { setRefreshing(false); setPull(0) })
-      } else setPull(0)
-      startY.current = null
-    }
-    window.addEventListener('touchstart', ts, { passive: true })
-    window.addEventListener('touchmove', tm, { passive: true })
-    window.addEventListener('touchend', te)
-    return () => {
-      window.removeEventListener('touchstart', ts)
-      window.removeEventListener('touchmove', tm)
-      window.removeEventListener('touchend', te)
-    }
-  }, [onRefresh, refreshing])
-
-  return (
-    <div className="ptr-wrap" style={{ transform: pull ? `translateY(${pull}px)` : undefined, transition: pull && !refreshing ? 'none' : 'transform .25s ease', position: 'relative' }}>
-      {(pull > 0 || refreshing) && (
-        <div className={'ptr-indicator' + (refreshing ? '' : '')} style={{ opacity: refreshing ? 1 : Math.min(1, pull / 52) }}>
-          <div className="ring" />
-        </div>
-      )}
-      {children}
-    </div>
-  )
 }
 
 export default function Home() {
@@ -131,6 +89,9 @@ export default function Home() {
     })
   }
 
+  const [sugg, setSugg] = useState([])
+  useEffect(() => { suggestions(app.user.id).then((r) => setSugg(r.slice(0, 6))).catch(() => {}) }, [])
+
   const refreshAll = useCallback(async () => {
     await load()
     window.dispatchEvent(new Event('vg:refresh-stories'))
@@ -144,8 +105,25 @@ export default function Home() {
           <PullToRefresh onRefresh={refreshAll}>
           <StoryBar />
           {loading && !posts.length && <div className="feed-skeleton"><div className="skeleton-card" /><div className="skeleton-card" /></div>}
-          {posts.map((p) => (
-            <PostCard key={p.id} post={p} onChange={(np) => patch(p.id, np)} onDeleted={() => setPosts((l) => l.filter((x) => x.id !== p.id))} />
+          {posts.map((p, i) => (
+            <React.Fragment key={p.id}>
+              <PostCard post={p} onChange={(np) => patch(p.id, np)} onDeleted={() => setPosts((l) => l.filter((x) => x.id !== p.id))} />
+              {i === 2 && !!sugg.length && (
+                <div className="feed-suggested">
+                  <div className="fs-head"><strong>Suggested for you</strong></div>
+                  <div className="fs-row">
+                    {sugg.map((u) => (
+                      <div className="fs-card" key={u.id}>
+                        <Avatar user={u} size={56} />
+                        <span className="fs-username">{u.username}</span>
+                        <span className="fs-name muted">{u.name}</span>
+                        <FollowButton user={u} size="sm" onChange={(nu) => setSugg((l) => l.filter((x) => x.id !== nu.id))} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </React.Fragment>
           ))}
           {!loading && posts.length === 0 && (
             <div className="feed-empty card">

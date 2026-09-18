@@ -12,6 +12,8 @@ export default function StoryViewer() {
   const [gi, setGi] = useState(view?.index || 0)
   const [si, setSi] = useState(0)
   const [reply, setReply] = useState('')
+  const [viewers, setViewers] = useState(null)
+  const [viewersOpen, setViewersOpen] = useState(false)
   const [paused, setPaused] = useState(false)
   const timer = useRef(null)
 
@@ -59,6 +61,17 @@ export default function StoryViewer() {
     document.body.style.overflow = 'hidden'
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
   }, [view, nextStory, prevStory, close])
+
+  // view record + viewers (hooks BEFORE early returns — React rules)
+  const curId = view && group ? group.stories[si]?.id : null
+  useEffect(() => {
+    if (!curId || !view || group.user.id === app.user.id) return
+    addStoryView(curId, app.user.id).catch(() => {})
+  }, [curId, view])
+  useEffect(() => {
+    if (!viewersOpen || !view) return
+    getStoryViewers(group.stories[si]?.id).then(setViewers).catch(() => setViewers([]))
+  }, [viewersOpen, si, view])
 
   if (!view || !group) return null
   const story = group.stories[si]
@@ -132,13 +145,37 @@ export default function StoryViewer() {
       <button className="story-arrow left" onClick={prevStory}><IcChevronL size={20} /></button>
       <button className="story-arrow right" onClick={nextStory}><IcChevronR size={20} /></button>
 
-      {group.user.id !== app.user.id && (
+      {group.user.id === app.user.id && (
+        <button className="story-views-btn" onClick={(e) => { e.stopPropagation(); setViewersOpen(true) }}>
+          👁 {Array.isArray(story.views) ? story.views.length : ''}
+        </button>
+      )}
+      {viewersOpen && (
+          <div className="sheet-backdrop" onClick={() => setViewersOpen(false)}>
+            <div className="sheet" onClick={(e) => e.stopPropagation()}>
+              <div className="ulist-head" style={{ justifyContent: 'center', padding: '12px 0 4px' }}><strong>Viewers</strong></div>
+              {!viewers && <div className="modal-loading">Loading…</div>}
+              {viewers && !viewers.length && <div className="pm-empty"><p style={{ margin: 0 }}>Abhi koi viewer nahi</p></div>}
+              {viewers && viewers.map((u) => (
+                <div className="rail-row" key={u.id}>
+                  <Avatar user={u} size={40} />
+                  <div className="rail-row-meta">
+                    <span className="username">{u.username}</span>
+                    <span className="muted">{u.name}</span>
+                  </div>
+                </div>
+              ))}
+              <button className="sheet-item" onClick={() => setViewersOpen(false)}>Close</button>
+            </div>
+          </div>
+        )}
+        {group.user.id !== app.user.id && (
         <div className="story-reactions">
           {['❤️', '😂', '😮', '😢', '🙌', '🔥'].map((e) => (
             <button key={e} type="button" onMouseDown={(ev) => ev.stopPropagation()} onClick={(ev) => { ev.stopPropagation(); sendReaction(e) }}>{e}</button>
           ))}
         </div>
-      )}
+        )}
       <form className="story-reply" onSubmit={sendReply}>
         <input
           value={reply}

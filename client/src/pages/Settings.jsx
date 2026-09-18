@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../store.jsx'
+import { setPrivate } from '../fb.js'
 import Avatar from '../components/Avatar.jsx'
 import { IcBack } from '../components/Icons.jsx'
 
@@ -21,6 +22,7 @@ export default function Settings() {
   const app = useApp()
   const nav = useNavigate()
   const [theme, setTheme] = useState(localStorage.getItem('vg_theme') || 'system')
+  const [priv, setPriv] = useState(!!app.user.isPrivate)
 
   function pick(t) {
     setTheme(t)
@@ -57,6 +59,25 @@ export default function Settings() {
             {theme === t && <span className="settings-check">✓</span>}
           </button>
         ))}
+      </div>
+
+      <div className="settings-group-label">Privacy</div>
+      <div className="settings-card">
+        <button className="settings-item" onClick={async () => {
+          const nv = !priv
+          setPriv(nv)
+          try {
+            await setPrivate(app.user.id, nv)
+            app.setUser((p) => ({ ...p, isPrivate: nv }))
+            app.toast(nv ? 'Account private ho gaya 🔒' : 'Account public ho gaya 🌍')
+          } catch (e) {
+            setPriv(!nv)
+            app.toast(e.message)
+          }
+        }}>
+          <span>🔒 Private account</span>
+          <span className="muted" style={{ fontSize: 13, maxWidth: 180 }}>{priv ? 'Sirf followers ko dikhega' : 'Sabko dikhega'}</span>
+        </button>
       </div>
 
       <div className="settings-group-label">Account</div>

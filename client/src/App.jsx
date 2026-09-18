@@ -97,6 +97,19 @@ function BackHandler() {
   return null
 }
 
+function BadgeSync() {
+  const app = useApp()
+  useEffect(() => {
+    if (!window.Capacitor?.isNativePlatform?.() || !app.user) return
+    import('@capawesome/capacitor-badge').then(({ Badge }) => {
+      const n = app.unreadDMs || 0
+      if (n > 0) Badge.set({ count: n }).catch(() => {})
+      else Badge.clear().catch(() => {})
+    }).catch(() => {})
+  }, [app.unreadDMs, app.user?.id])
+  return null
+}
+
 function Presence() {
   const app = useApp()
   useEffect(() => {
@@ -164,6 +177,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <BackHandler />
+      <BadgeSync />
       <Presence />
       <Modals />
     </AppProvider>

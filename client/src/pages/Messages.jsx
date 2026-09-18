@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useApp } from '../store.jsx'
-import { subscribeThreads, subscribeThread, sendMessage, markThreadRead, pairId, searchUsers, timeAgo, subscribeNotes, setNote, searchGifs, subscribeDmState, setTyping, reactToMessage, unsendMessage, buzz } from '../fb.js'
+import { subscribeThreads, subscribeThread, sendMessage, markThreadRead, pairId, searchUsers, timeAgo, subscribeNotes, setNote, searchGifs, subscribeDmState, setTyping, reactToMessage, unsendMessage, buzz, clearChat, withTimeout } from '../fb.js'
 import RichText from '../components/RichText.jsx'
 import Avatar from '../components/Avatar.jsx'
 import { IcDots, IcBack, IcNewMsg, IcSmile, IcX } from '../components/Icons.jsx'
@@ -195,6 +195,7 @@ function Chat({ username }) {
   const [sheetMsg, setSheetMsg] = useState(null)
   const [replyDraft, setReplyDraft] = useState(null)
   const [swipeX, setSwipeX] = useState(null)
+  const [chatMenu, setChatMenu] = useState(false)
   const lastTyping = useRef(0)
   const pid = user ? pairId(app.user.id, user.id) : null
 
@@ -318,7 +319,23 @@ function Chat({ username }) {
           </Link>
         )}
         <div style={{ flex: 1 }} />
-        <button className="icon-btn" onClick={() => app.toast('Chat options coming soon')}><IcDots size={20} /></button>
+        <button className="icon-btn" onClick={() => setChatMenu(true)}><IcDots size={20} /></button>
+        {chatMenu && (
+          <div className="sheet-backdrop" onClick={() => setChatMenu(false)}>
+            <div className="sheet" onClick={(e) => e.stopPropagation()}>
+              <button className="sheet-item" onClick={async () => {
+                setChatMenu(false)
+                if (!window.confirm('Poora chat clear? (sirf tumhare liye nahi — dono taraf se messages hat jayenge)')) return
+                try {
+                  await withTimeout(clearChat(pid), 12000, 'Clear')
+                  app.toast('Chat cleared 🧹')
+                } catch (e) { app.toast(e.message) }
+              }}>🧹 Clear chat</button>
+              <button className="sheet-item" onClick={() => { setChatMenu(false); app.toast('Report submitted 🚩') }}>🚩 Report user</button>
+              <button className="sheet-item" onClick={() => setChatMenu(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
       </header>
 
       <div className="chat-body">

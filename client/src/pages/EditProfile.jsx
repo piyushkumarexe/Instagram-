@@ -20,7 +20,7 @@ export default function EditProfile() {
       app.setUser((prev) => ({ ...prev, name: name.trim() || prev.name, bio }))
     }
     try {
-      const u = await updateMe(app.user.id, { name, bio, avatarFile })
+      const u = await withTimeout(updateMe(app.user.id, { name, bio, avatarFile }), 15000, 'Profile save')
       app.setUser((prev) => ({ ...prev, ...u }))
       app.toast(avatarFile ? 'Profile photo updated ✨' : 'Profile updated ✅')
       if (!avatarFile) nav('/' + u.username)

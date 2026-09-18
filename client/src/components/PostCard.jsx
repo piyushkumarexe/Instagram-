@@ -247,8 +247,16 @@ function ShareSheet({ post, onClose }) {
             </div>
           ))}
         </div>
-        <div style={{ padding: 12, borderTop: '1px solid var(--border)' }}>
-          <button className="btn btn-grey" style={{ width: '100%' }} onClick={copyLink}>Copy link</button>
+        <div style={{ padding: 12, borderTop: '1px solid var(--border)', display: 'flex', gap: 8 }}>
+          <button className="btn btn-grey" style={{ flex: 1 }} onClick={copyLink}>Copy link</button>
+          <button className="btn btn-blue" style={{ flex: 1 }} onClick={async () => {
+            try {
+              const { Share } = await import('@capacitor/share')
+              await Share.share({ title: 'VibeGram post', url: `${location.origin}/p/${post.id}`, dialogTitle: 'Share post' })
+            } catch {
+              try { await navigator.clipboard.writeText(`${location.origin}/p/${post.id}`); app.toast('Link copied 🔗') } catch {}
+            }
+          }}>Share via apps ↗</button>
         </div>
       </div>
     </div>

@@ -116,7 +116,7 @@ export async function signOutNow() {
 
 // ---------------------------------------------------------------- users / profiles
 export function profileOut(id, d) {
-  return { id, username: d.username, name: d.name || d.username, email: d.email || '', bio: d.bio || '', avatar: d.avatar || null, followersCount: d.followersCount || 0, followingCount: d.followingCount || 0, postsCount: d.postsCount || 0, createdAt: tsToMs(d.createdAt), lastActive: tsToMs(d.lastActive) }
+  return { id, username: d.username, name: d.name || d.username, email: d.email || '', bio: d.bio || '', avatar: d.avatar || null, followersCount: d.followersCount || 0, followingCount: d.followingCount || 0, postsCount: d.postsCount || 0, createdAt: tsToMs(d.createdAt), lastActive: tsToMs(d.lastActive), isPrivate: !!d.isPrivate }
 }
 
 export async function getUser(uid) {
@@ -215,20 +215,71 @@ export async function updateMe(uid, { name, bio, avatarFile }) {
     await withTimeout(uploadBytes(r, avatarFile, { contentType: avatarFile.type }), 20000, 'Photo upload')
     patch.avatar = await withTimeout(getDownloadURL(r), 10000, 'Photo URL')
   }
-  await withTimeout(updateDoc(doc(db, 'users', uid), patch), 8000, 'Profile save')
-  return getUser(uid)
+  await withTimeout(updateDoc(doc(db, 'users', uid), patch), 10000, 'Profile save')
+  return patch // local merge — koi extra read nahi (stuck-proof)
 }
 
 // ---------------------------------------------------------------- follow
+// ---------- follow requests (private accounts) ----------
+export async function setPrivate(uid, val) {
+  await updateDoc(doc(db, 'users', uid), { isPrivate: !!val })
+}
+
+export async function requestFollow(meId, target) {
+  await setDoc(doc(db, 'requests', `${meId}__${target.id}`), {
+    fromId: meId, toId: target.id, createdAt: serverTimestamp(),
+  })
+  await addNotification(target.id, meId, 'follow_request', null, null)
+}
+
+export async function cancelRequest(meId, targetId) {
+  await deleteDoc(doc(db, 'requests', `${meId}__${targetId}`)).catch(() => {})
+}
+
+export async function amRequesting(meId, targetId) {
+  const r = await getDoc(doc(db, 'requests', `${meId}__${targetId}`)).catch(() => null)
+  return !!(r && r.exists())
+}
+
+export async function listRequests(meId) {
+  const snap = await getDocs(query(collection(db, 'requests'), where('toId', '==', meId), limit(30)))
+  const out = []
+  for (const d of snap.docs) {
+    const u = await cachedUser(d.data().fromId)
+    if (u) out.push({ reqId: d.id, user: u })
+  }
+  return out
+}
+
+export async function acceptRequest(me, requesterUser) {
+  await deleteDoc(doc(db, 'requests', `${requesterUser.id}__${me.id}`)).catch(() => {})
+  const key = `${requesterUser.id}_${me.id}`
+  await setDoc(doc(db, 'follows', key), { followerId: requesterUser.id, followingId: me.id, createdAt: serverTimestamp() })
+  await updateDoc(doc(db, 'users', requesterUser.id), { followingCount: increment(1) })
+  await updateDoc(doc(db, 'users', me.id), { followersCount: increment(1) })
+  myFollowing.add(requesterUser.id)
+  await addNotification(me.id, requesterUser.id, 'follow', null, null)
+  await addNotification(requesterUser.id, me.id, 'follow_accept', null, null)
+}
+
+export async function deleteRequest(reqId) {
+  await deleteDoc(doc(db, 'requests', reqId))
+}
+
 export async function setFollow(meId, target, wantFollow) {
   const key = `${meId}_${target.id}`
   if (wantFollow) {
+    if (target.isPrivate) {
+      await requestFollow(meId, target)
+      return 'requested'
+    }
     await setDoc(doc(db, 'follows', key), { followerId: meId, followingId: target.id, createdAt: serverTimestamp() })
     await updateDoc(doc(db, 'users', meId), { followingCount: increment(1) })
     await updateDoc(doc(db, 'users', target.id), { followersCount: increment(1) })
     myFollowing.add(target.id)
     await addNotification(target.id, meId, 'follow', null, null)
   } else {
+    await cancelRequest(meId, target.id)
     await deleteDoc(doc(db, 'follows', key))
     await updateDoc(doc(db, 'users', meId), { followingCount: increment(-1) })
     await updateDoc(doc(db, 'users', target.id), { followersCount: increment(-1) })
@@ -473,6 +524,21 @@ export async function deleteComment(meId, post, comment) {
 }
 
 // ---------------------------------------------------------------- stories
+export async function addStoryView(storyId, uid) {
+  await updateDoc(doc(db, 'stories', storyId), { views: arrayUnion(uid) }).catch(() => {})
+}
+
+export async function getStoryViewers(storyId) {
+  const snap = await getDoc(doc(db, 'stories', storyId)).catch(() => null)
+  const ids = (snap && snap.exists() ? snap.data().views : []) || []
+  const out = []
+  for (const id of ids.slice(0, 50)) {
+    const u = await cachedUser(id)
+    if (u) out.push(u)
+  }
+  return out
+}
+
 const STORY_TTL = 24 * 60 * 60 * 1000
 
 export async function addStory(me, file) {
@@ -570,6 +636,12 @@ export async function reactToMessage(pid, msgId, emoji) {
 
 export async function unsendMessage(pid, msgId) {
   await updateDoc(doc(db, 'dms', pid, 'messages', msgId), { unsent: true, text: '' })
+}
+
+export async function clearChat(pid) {
+  const snap = await getDocs(query(collection(db, 'dms', pid, 'messages'), limit(200)))
+  await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)))
+  await updateDoc(doc(db, 'dms', pid), { lastText: '' }).catch(() => {})
 }
 
 export async function setTyping(pid, uid, on) {
@@ -677,6 +749,13 @@ export async function searchPosts(q) {
   if (!clean) return []
   const snap = await getDocs(query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(100)))
   return snap.docs.map(postOut).filter((p) => (p.caption || '').toLowerCase().includes(clean)).slice(0, 12)
+}
+
+export async function getLikedPosts(uid) {
+  const snap = await getDocs(query(collection(db, 'posts'), where('likes', 'array-contains', uid), limit(60)))
+  const out = snap.docs.map(postOut)
+  out.sort((a, b) => b.createdAt - a.createdAt)
+  return out
 }
 
 // ---------------------------------------------------------------- demo seed (runs from the app on first login)
