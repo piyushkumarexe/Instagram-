@@ -1181,3 +1181,23 @@ html, body { max-width: 100vw; overflow-x: hidden; }
 }
 /* video thoda dim (IG style) */
 .grid-cell video { opacity: .92; }
+
+
+/* ============ v4.3: DM fit + chat spacing ============ */
+@media (max-width: 767px) {
+  /* list bottom nav ke neeche na chhupe */
+  .dm-list { width: 100%; min-width: 0; padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)); }
+  /* chat full-screen — bottom tabs hidden (IG jaisa), input upar fit */
+  .chat-input { margin: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px)); }
+  .chat-body { padding-bottom: 12px; }
+}
+/* chat screen pe bottom nav hide hoga (MobileNav jsx se) — desktop unaffected */
+
+
+/* follow buttons — IG-like, always tappable */
+.follow-btn {
+  min-width: 108px; padding: 9px 18px; border-radius: 9px; font-weight: 700; font-size: 14px;
+  text-align: center; cursor: pointer; transition: opacity .12s;
+}
+.follow-btn:disabled { opacity: .5; }
+.follow-btn.sm { min-width: 96px; padding: 7px 14px; font-size: 13px; }

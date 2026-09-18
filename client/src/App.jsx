@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { lazy, Suspense, useEffect  } from 'react'
 import { Routes, Route, Navigate, useLocation, useParams, useNavigate } from 'react-router-dom'
 import { AppProvider, useApp } from './store.jsx'
 import Sidebar, { SearchPanel } from './components/Sidebar.jsx'
@@ -7,14 +7,14 @@ import CreateModal from './components/CreateModal.jsx'
 import StoryViewer from './components/StoryViewer.jsx'
 import PostModal from './components/PostModal.jsx'
 import Home from './pages/Home.jsx'
-import Explore from './pages/Explore.jsx'
-import Reels from './pages/Reels.jsx'
-import Messages from './pages/Messages.jsx'
-import Notifications from './pages/Notifications.jsx'
+const Explore = lazy(() => import('./pages/Explore.jsx'))
+const Reels = lazy(() => import('./pages/Reels.jsx'))
+const Messages = lazy(() => import('./pages/Messages.jsx'))
+const Notifications = lazy(() => import('./pages/Notifications.jsx'))
 import Profile from './pages/Profile.jsx'
-import Connections from './pages/Connections.jsx'
+const Connections = lazy(() => import('./pages/Connections.jsx'))
 import EditProfile from './pages/EditProfile.jsx'
-import Settings from './pages/Settings.jsx'
+const Settings = lazy(() => import('./pages/Settings.jsx'))
 import Login, { UsernameSetup } from './pages/Login.jsx'
 import { getPost } from './fb.js'
 
@@ -160,6 +160,7 @@ export default function App() {
   }, [])
   return (
     <AppProvider>
+      <Suspense fallback={<div className="boot-screen"><img src="/logo.png" width="64" style={{ borderRadius: 14 }} alt="" /></div>}>
       <Routes>
         <Route path="/accounts/login" element={<Login />} />
         <Route path="/accounts/signup" element={<Login />} />
@@ -177,6 +178,7 @@ export default function App() {
         <Route path="/:username/following" element={<Protected><Connections /></Protected>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
       <BackHandler />
       <BadgeSync />
       <Presence />

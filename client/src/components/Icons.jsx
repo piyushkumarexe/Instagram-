@@ -46,3 +46,5 @@ export const IcSearchFill = (p) => (
     <circle cx="10.8" cy="10.8" r="7.3" /><path d="m21 21-4.8-4.8" />
   </svg>
 )
+
+export const IcLock = (p) => <S {...p}><rect x="5" y="10.5" width="14" height="10" rx="2.2" /><path d="M8 10.5V7.5a4 4 0 1 1 8 0v3" /></S>

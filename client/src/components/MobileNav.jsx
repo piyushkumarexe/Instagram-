@@ -9,8 +9,9 @@ export default function MobileNav() {
   const nav = useNavigate()
   const loc = useLocation()
   if (!app.user) return null
-  // Reels & story-create full-screen — real IG jaisa, koi bottom tabs nahi
+  // Reels, chat & story-create full-screen — real IG jaisa, koi bottom tabs nahi
   if (loc.pathname.startsWith('/reels') || app.createMode) return null
+  if (/^\/messages\/.+/.test(loc.pathname)) return null
 
   return (
     <nav className="mobile-nav">

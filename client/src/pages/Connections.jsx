@@ -11,21 +11,47 @@ export default function Connections() {
   const { username, kind } = useParams()
   const app = useApp()
   const nav = useNavigate()
-  const activeKind = kind === 'following' ? 'following' : 'followers'
-  const [users, setUsers] = useState(null)
+  // local tab state — instant switch, route bhi sync rehta hai
+  const [active, setActive] = useState(kind === 'following' ? 'following' : 'followers')
+  const [cache, setCache] = useState({}) // { followers: [...], following: [...] }
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [q, setQ] = useState('')
 
   useEffect(() => {
-    setUsers(null)
-    setError('')
-    listUserConnections(username, activeKind)
-      .then(setUsers)
-      .catch((e) => setError(e.message))
-    window.scrollTo(0, 0)
-  }, [username, activeKind])
+    setActive(kind === 'following' ? 'following' : 'followers')
+  }, [kind])
 
-  const filtered = (users || []).filter((u) =>
+  useEffect(() => {
+    if (cache[active]) return
+    setLoading(true)
+    setError('')
+    listUserConnections(username, active)
+      .then((users) => {
+        setCache((c) => ({ ...c, [active]: users }))
+        setLoading(false)
+      })
+      .catch((e) => {
+        setError(e.message)
+        setLoading(false)
+      })
+  }, [active, username])
+
+  function switchTab(k) {
+    setActive(k)
+    nav(`/${username}/${k}`, { replace: true })
+    window.scrollTo(0, 0)
+  }
+
+  function updateUser(nu) {
+    setCache((c) => ({
+      followers: (c.followers || []).map((x) => (x.id === nu.id ? nu : x)),
+      following: (c.following || []).map((x) => (x.id === nu.id ? nu : x)),
+    }))
+  }
+
+  const users = cache[active] || []
+  const filtered = users.filter((u) =>
     !q.trim() ||
     u.username.includes(q.trim().toLowerCase()) ||
     (u.name || '').toLowerCase().includes(q.trim().toLowerCase())
@@ -38,17 +64,17 @@ export default function Connections() {
         <strong>{username}</strong>
       </header>
       <div className="conn-tabs">
-        <button className={activeKind === 'followers' ? 'on' : ''} onClick={() => nav(`/${username}/followers`)}>Followers</button>
-        <button className={activeKind === 'following' ? 'on' : ''} onClick={() => nav(`/${username}/following`)}>Following</button>
+        <button className={active === 'followers' ? 'on' : ''} onClick={() => switchTab('followers')}>Followers</button>
+        <button className={active === 'following' ? 'on' : ''} onClick={() => switchTab('following')}>Following</button>
       </div>
       <div className="ulist-search">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" />
       </div>
       <div className="conn-body">
         {error && <div className="pm-empty"><span className="big-emoji">⚠️</span><h3>{error}</h3></div>}
-        {!error && !users && <div className="modal-loading">Loading…</div>}
-        {users && !filtered.length && (
-          <div className="pm-empty"><span className="big-emoji">🙈</span><h3>{activeKind === 'followers' ? 'No followers yet' : 'Not following anyone yet'}</h3></div>
+        {!error && (loading || !cache[active]) && <div className="modal-loading">Loading…</div>}
+        {!error && cache[active] && !filtered.length && (
+          <div className="pm-empty"><span className="big-emoji">🙈</span><h3>{active === 'followers' ? 'No followers yet' : 'Not following anyone yet'}</h3></div>
         )}
         {filtered.map((u) => (
           <div className="conn-row" key={u.id}>
@@ -58,7 +84,7 @@ export default function Connections() {
               <span className="muted">{u.name}</span>
             </div>
             {u.id !== app.user.id && (
-              <FollowButton user={u} size="sm" onChange={(nu) => setUsers((l) => l.map((x) => (x.id === nu.id ? nu : x)))} />
+              <FollowButton user={u} size="sm" onChange={updateUser} />
             )}
           </div>
         ))}

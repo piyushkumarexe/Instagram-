@@ -6,7 +6,7 @@ import Avatar from '../components/Avatar.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import RichText from '../components/RichText.jsx'
 import FollowButton from '../components/FollowButton.jsx'
-import { IcDots, IcGrid, IcReels, IcBookmark, IcPlay, IcCamera, IcSettings, IcLogout, IcHeart, IcVerified } from '../components/Icons.jsx'
+import { IcDots, IcGrid, IcReels, IcBookmark, IcPlay, IcCamera, IcSettings, IcLogout, IcHeart, IcVerified, IcLock } from '../components/Icons.jsx'
 
 export default function Profile() {
   const { username } = useParams()
@@ -103,7 +103,7 @@ export default function Profile() {
         <h1>
           {profile.username}
           {profile.verified && <IcVerified size={16} style={{ marginLeft: 5, verticalAlign: -3 }} />}
-          {profile.isPrivate && <span className="igp-lock" title="Private">🔒</span>}
+          {profile.isPrivate && <IcLock size={15} style={{ marginLeft: 6, verticalAlign: -2 }} />}
         </h1>
         <div style={{ flex: 1 }} />
         {me ? (
