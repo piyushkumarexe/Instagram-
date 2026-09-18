@@ -154,6 +154,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         me = me,
                         onBack = { goBack() },
                         onProfile = { goProfile(it) },
+                        onChat = { chatWith = it },
                         onAddStory = { tab = "create" },
                         onLogout = onLogout,
                         onAvatarChanged = { u -> me = u }

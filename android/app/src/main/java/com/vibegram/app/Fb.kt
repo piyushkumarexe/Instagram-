@@ -252,6 +252,21 @@ object Fb {
         return out
     }
 
+    suspend fun addStoryUrl(media: String) {
+        val idv = uid ?: return
+        val meDoc = db.collection("users").document(idv).get().await()
+        db.collection("stories").add(
+            hashMapOf<String, Any?>(
+                "userId" to idv,
+                "username" to (meDoc.getString("username") ?: ""),
+                "avatar" to (meDoc.getString("avatar") ?: ""),
+                "media" to media,
+                "mediaType" to "image",
+                "createdAt" to FieldValue.serverTimestamp()
+            )
+        ).await()
+    }
+
     suspend fun addStory(bmp: Bitmap) {
         val idv = uid ?: return
         val meDoc = db.collection("users").document(idv).get().await()

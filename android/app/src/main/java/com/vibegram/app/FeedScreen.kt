@@ -29,7 +29,6 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.PullToRefreshBox
 import androidx.compose.material3.Text
@@ -251,7 +250,7 @@ fun PostCard(
                         onClick = {
                             menu = false
                             cardScope.launch {
-                                try { Fb.addStory(post.media); sharedNote = true } catch (_: Exception) { }
+                                try { Fb.addStoryUrl(post.media); sharedNote = true } catch (_: Exception) { }
                             }
                         }
                     )
@@ -315,7 +314,7 @@ fun PostCard(
             }
             IconButton(onClick = {
                 cardScope.launch {
-                    try { Fb.addStory(post.media); sharedNote = true } catch (_: Exception) { }
+                    try { Fb.addStoryUrl(post.media); sharedNote = true } catch (_: Exception) { }
                 }
             }) {
                 Icon(Icons.Filled.Send, null, tint = Color.White, modifier = Modifier.size(22.dp))
