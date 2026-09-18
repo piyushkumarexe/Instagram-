@@ -116,7 +116,7 @@ export async function signOutNow() {
 
 // ---------------------------------------------------------------- users / profiles
 export function profileOut(id, d) {
-  return { id, username: d.username, name: d.name || d.username, email: d.email || '', bio: d.bio || '', avatar: d.avatar || null, followersCount: d.followersCount || 0, followingCount: d.followingCount || 0, postsCount: d.postsCount || 0, createdAt: tsToMs(d.createdAt), lastActive: tsToMs(d.lastActive), isPrivate: !!d.isPrivate }
+  return { id, username: d.username, name: d.name || d.username, email: d.email || '', bio: d.bio || '', avatar: d.avatar || null, followersCount: d.followersCount || 0, followingCount: d.followingCount || 0, postsCount: d.postsCount || 0, createdAt: tsToMs(d.createdAt), lastActive: tsToMs(d.lastActive), isPrivate: !!d.isPrivate, pronouns: d.pronouns || '', links: d.links || '', gender: d.gender || '' }
 }
 
 export async function getUser(uid) {
@@ -204,16 +204,60 @@ export function withTimeout(p, ms = 8000, label = 'Network') {
   ])
 }
 
-export async function updateMe(uid, { name, bio, avatarFile }) {
+// image ko canvas se downscale karke dataURL banao (Firestore-safe, Storage ki zaroorat nahi)
+async function fileToDataUrl(file, max = 256, q = 0.85) {
+  try {
+    const bmp = await createImageBitmap(file)
+    const scale = Math.min(1, max / Math.max(bmp.width, bmp.height))
+    const c = document.createElement('canvas')
+    c.width = Math.round(bmp.width * scale)
+    c.height = Math.round(bmp.height * scale)
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height)
+    return c.toDataURL('image/jpeg', q)
+  } catch {
+    // fallback: FileReader + Image
+    const url = URL.createObjectURL(file)
+    try {
+      const img = await new Promise((res, rej) => {
+        const i = new Image()
+        i.onload = () => res(i)
+        i.onerror = () => rej(new Error('Image decode failed'))
+        i.src = url
+      })
+      const scale = Math.min(1, max / Math.max(img.width, img.height))
+      const c = document.createElement('canvas')
+      c.width = Math.round(img.width * scale)
+      c.height = Math.round(img.height * scale)
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height)
+      return c.toDataURL('image/jpeg', q)
+    } finally { URL.revokeObjectURL(url) }
+  }
+}
+
+export async function updateMe(uid, { name, bio, avatarFile, username, pronouns, links, gender }) {
   const patch = {}
   if (typeof name === 'string' && name.trim()) patch.name = name.trim().slice(0, 40)
   if (typeof bio === 'string') patch.bio = bio.slice(0, 160)
+  if (typeof pronouns === 'string') patch.pronouns = pronouns.trim().slice(0, 20)
+  if (typeof links === 'string') patch.links = links.trim().slice(0, 100)
+  if (typeof gender === 'string') patch.gender = gender.slice(0, 20)
   if (avatarFile) {
     if (!avatarFile.type.startsWith('image/')) throw new Error('Avatar must be an image')
-    const path = `avatars/${uid}-${Date.now()}.jpg`
-    const r = ref(storage, path)
-    await withTimeout(uploadBytes(r, avatarFile, { contentType: avatarFile.type }), 20000, 'Photo upload')
-    patch.avatar = await withTimeout(getDownloadURL(r), 10000, 'Photo URL')
+    // Firestore-direct avatar (downscaled dataURL) — upload fail ho hi nahi sakta
+    patch.avatar = await withTimeout(fileToDataUrl(avatarFile), 15000, 'Photo process')
+  }
+  if (typeof username === 'string' && username.trim()) {
+    const newU = username.trim().toLowerCase()
+    if (!/^[a-z0-9._]{3,30}$/.test(newU)) throw new Error('Username 3-30 chars, only a-z 0-9 . _')
+    const cur = await getDoc(doc(db, 'users', uid)).catch(() => null)
+    const oldU = cur && cur.exists() ? cur.data().username : null
+    if (newU !== oldU) {
+      const taken = await getDoc(doc(db, 'usernames', newU))
+      if (taken.exists()) throw new Error('Username already taken')
+      await withTimeout(setDoc(doc(db, 'usernames', newU), { uid }), 8000, 'Username save')
+      if (oldU) await deleteDoc(doc(db, 'usernames', oldU)).catch(() => {})
+      patch.username = newU
+    }
   }
   await withTimeout(updateDoc(doc(db, 'users', uid), patch), 10000, 'Profile save')
   return patch // local merge — koi extra read nahi (stuck-proof)

@@ -124,8 +124,12 @@ export default function Profile() {
         </div>
 
         <div className="igp-bio">
-          <strong className="profile-name">{profile.name}</strong>
+          <strong className="profile-name">
+            {profile.name}
+            {profile.pronouns && <span className="igp-pronouns">{profile.pronouns}</span>}
+          </strong>
           {profile.bio && <RichText text={profile.bio} />}
+          {profile.links && <RichText text={profile.links} />}
         </div>
 
         {/* action row */}
