@@ -90,6 +90,12 @@ object Fb {
         db.collection("users").document(idv).update("avatar", bmp.toDataUrl(320, 85)).await()
     }
 
+    suspend fun updateProfile(name: String, bio: String) {
+        val idv = uid ?: return
+        db.collection("users").document(idv)
+            .update("name", name.trim(), "bio", bio.trim()).await()
+    }
+
     // ---------- feed / posts ----------
     suspend fun feed(): List<Post> {
         val snap = db.collection("posts")

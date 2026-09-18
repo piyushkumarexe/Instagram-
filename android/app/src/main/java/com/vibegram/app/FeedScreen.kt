@@ -22,16 +22,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.PullToRefreshBox
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -40,11 +45,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedScreen(
     posts: List<Post>?,
@@ -57,9 +64,17 @@ fun FeedScreen(
     onProfile: (String) -> Unit,
     onAddStory: () -> Unit,
     onOpenStory: (VUser) -> Unit,
-    onChat: (VUser) -> Unit
+    onOpenNotifications: () -> Unit,
+    onOpenMessages: () -> Unit
 ) {
-    Column(Modifier.fillMaxSize().background(Color.Black)) {
+    var refreshing by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(posts) { refreshing = false }
+    PullToRefreshBox(
+        isRefreshing = refreshing,
+        onRefresh = { refreshing = true; onRefresh() },
+        modifier = Modifier.fillMaxSize().background(Color.Black)
+    ) {
+        Column(Modifier.fillMaxSize()) {
         // top bar
         Row(
             Modifier.fillMaxWidth().height(54.dp).background(Color.Black).padding(horizontal = 14.dp),
@@ -74,10 +89,14 @@ fun FeedScreen(
                 )
             )
             Spacer(Modifier.width(8.dp))
-            Text("VibeGram", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Text("VibeGram", color = Color.White, fontSize = 26.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive)
             Box(Modifier.weight(1f))
-            IconButton(onClick = onRefresh) { Icon(Icons.Filled.Refresh, null, tint = Color.White) }
-            IconButton(onClick = { onChat(me) }) { Icon(Icons.Filled.Send, null, tint = Color.White) }
+            IconButton(onClick = onOpenNotifications) {
+                Icon(Icons.Filled.FavoriteBorder, null, tint = Color.White, modifier = Modifier.size(24.dp))
+            }
+            IconButton(onClick = onOpenMessages) {
+                Icon(Icons.Filled.Send, null, tint = Color.White, modifier = Modifier.size(22.dp))
+            }
         }
 
         if (posts == null) {
@@ -103,13 +122,13 @@ fun FeedScreen(
                         onLike = onLike,
                         onComments = { onComments(post) },
                         onProfile = onProfile,
-                        onAvatar = onOpenStory,
-                        onChat = onChat
+                        onAvatar = onOpenStory
                     )
                 }
             }
         }
     }
+}
 }
 
 @Composable
@@ -194,10 +213,12 @@ fun PostCard(
     onLike: (Post) -> Unit,
     onComments: () -> Unit,
     onProfile: (String) -> Unit,
-    onAvatar: (VUser) -> Unit,
-    onChat: (VUser) -> Unit
+    onAvatar: (VUser) -> Unit
 ) {
     var showHeart by remember { mutableStateOf(false) }
+    var menu by remember { mutableStateOf(false) }
+    var sharedNote by remember { mutableStateOf(false) }
+    val cardScope = rememberCoroutineScope()
     val myId = Fb.uid
     val liked = myId != null && post.likes.contains(myId)
 
@@ -220,8 +241,21 @@ fun PostCard(
                     }
                 }
             }
-            IconButton(onClick = { onChat(VUser(post.userId, post.username, post.name, post.avatar, "", 0, 0, 0, post.verified, false)) }) {
-                Icon(Icons.Outlined.ChatBubbleOutline, null, tint = Color.White, modifier = Modifier.size(20.dp))
+            Box {
+                IconButton(onClick = { menu = true }) {
+                    Icon(Icons.Filled.MoreVert, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                }
+                androidx.compose.material3.DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text("Add to story", color = Color.White) },
+                        onClick = {
+                            menu = false
+                            cardScope.launch {
+                                try { Fb.addStory(post.media); sharedNote = true } catch (_: Exception) { }
+                            }
+                        }
+                    )
+                }
             }
         }
 
@@ -279,7 +313,25 @@ fun PostCard(
             IconButton(onClick = onComments) {
                 Icon(Icons.Outlined.ChatBubbleOutline, null, tint = Color.White, modifier = Modifier.size(24.dp))
             }
+            IconButton(onClick = {
+                cardScope.launch {
+                    try { Fb.addStory(post.media); sharedNote = true } catch (_: Exception) { }
+                }
+            }) {
+                Icon(Icons.Filled.Send, null, tint = Color.White, modifier = Modifier.size(22.dp))
+            }
             Box(Modifier.weight(1f))
+        }
+        if (sharedNote) {
+            Text(
+                "Added to your story",
+                color = Color(0xFF8E8E8E), fontSize = 12.sp,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+            androidx.compose.runtime.LaunchedEffect(sharedNote) {
+                kotlinx.coroutines.delay(2500)
+                sharedNote = false
+            }
         }
 
         // likes + caption
