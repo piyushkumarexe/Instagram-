@@ -41,6 +41,7 @@ function Protected({ children }) {
       <div className="boot-screen">
         <img src="/logo.png" width="72" style={{ borderRadius: 16 }} alt="" />
         <p>Loading VibeGram…</p>
+        <span className="made-by">Made by Piyush</span>
       </div>
     )
   }
@@ -50,7 +51,7 @@ function Protected({ children }) {
       {app.user.loadError && (
         <div className="db-banner">
           <span>
-            ⚠️ Data load nahi ho paya: {app.user.loadError}. Firebase Console → Firestore Database → Rules check karo (test mode). Internet bhi check karo.
+            ⚠️ Data could not load: {app.user.loadError}. Check Firebase Console → Firestore Database → Rules (test mode). Also check your internet.
           </span>
           <button onClick={() => location.reload()}>Reload</button>
         </div>

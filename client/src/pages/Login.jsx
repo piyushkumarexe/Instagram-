@@ -95,6 +95,7 @@ export default function Login() {
           <div className="auth-logo">
             <img src="/logo.png" alt="VibeGram" width="72" height="72" style={{ borderRadius: 16 }} />
             <span className="auth-wordmark">VibeGram</span>
+            <span className="made-by" style={{ marginTop: 8 }}>Made by Piyush</span>
           </div>
           <h2 className="auth-tag">Sign in to see photos and videos from your friends.</h2>
 

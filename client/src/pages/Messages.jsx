@@ -105,7 +105,7 @@ function NoteEditor({ current, onClose }) {
     setBusy(true)
     try {
       await setNote(app.user, text)
-      app.toast(text.trim() ? 'Note set — 24h ke liye dikhega 📝' : 'Note removed')
+      app.toast(text.trim() ? 'Note set — visible for 24 hours 📝' : 'Note removed')
       onClose()
     } catch (e) {
       app.toast(e.message)
@@ -117,8 +117,8 @@ function NoteEditor({ current, onClose }) {
     <div className="note-set-pop" onClick={onClose}>
       <div className="note-set-card" onClick={(e) => e.stopPropagation()}>
         <div className="note-row-head"><strong>Your note</strong><button className="icon-btn" onClick={onClose}><IcX size={20} /></button></div>
-        <p className="muted" style={{ margin: 0, fontSize: 13 }}>24 ghante ke liye dikhne wala short status — jaise Instagram notes.</p>
-        <input value={text} onChange={(e) => setText(e.target.value.slice(0, 60))} placeholder="Kya chal raha hai?" autoFocus />
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>A short status visible to your friends for 24 hours — like Instagram notes.</p>
+        <input value={text} onChange={(e) => setText(e.target.value.slice(0, 60))} placeholder="What's happening?" autoFocus />
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {EMO.map((e) => <button key={e} style={{ fontSize: 20 }} onClick={() => setText((t) => (t + ' ' + e).trim().slice(0, 60))}>{e}</button>)}
         </div>
@@ -325,7 +325,7 @@ function Chat({ username }) {
             <div className="sheet" onClick={(e) => e.stopPropagation()}>
               <button className="sheet-item" onClick={async () => {
                 setChatMenu(false)
-                if (!window.confirm('Poora chat clear? (sirf tumhare liye nahi — dono taraf se messages hat jayenge)')) return
+                if (!window.confirm('Clear entire chat? Messages will be removed for both of you.')) return
                 try {
                   await withTimeout(clearChat(pid), 12000, 'Clear')
                   app.toast('Chat cleared 🧹')
@@ -422,7 +422,7 @@ function Chat({ username }) {
             </div>
             <div className="gif-grid">
               {gifs.map((g) => <img key={g} src={g} alt="gif" loading="lazy" onClick={() => sendGif(g)} />)}
-              {!gifs.length && <p className="muted" style={{ gridColumn: '1/-1', textAlign: 'center', fontSize: 13 }}>GIFs load ho rahe hain… (GIPHY)</p>}
+              {!gifs.length && <p className="muted" style={{ gridColumn: '1/-1', textAlign: 'center', fontSize: 13 }}>Loading GIFs… (GIPHY)</p>}
             </div>
           </div>
         )}

@@ -80,7 +80,7 @@ export default function StoryViewer() {
   async function saveToHighlight() {
     try {
       await addStoryToHighlight(app.user, story)
-      app.toast('Highlight mein add ho gaya ✨ (profile pe dikhega)')
+      app.toast('Added to highlight ✨ (visible on your profile)')
     } catch (e) { app.toast(e.message) }
   }
 
@@ -98,7 +98,7 @@ export default function StoryViewer() {
   async function sendReaction(emoji) {
     try {
       await sendMessage(app.user.id, group.user.id, emoji)
-      app.toast(emoji + ' reaction bheji ✅')
+      app.toast('Reaction sent ' + emoji)
     } catch (e) { app.toast(e.message) }
   }
 
@@ -155,7 +155,7 @@ export default function StoryViewer() {
             <div className="sheet" onClick={(e) => e.stopPropagation()}>
               <div className="ulist-head" style={{ justifyContent: 'center', padding: '12px 0 4px' }}><strong>Viewers</strong></div>
               {!viewers && <div className="modal-loading">Loading…</div>}
-              {viewers && !viewers.length && <div className="pm-empty"><p style={{ margin: 0 }}>Abhi koi viewer nahi</p></div>}
+              {viewers && !viewers.length && <div className="pm-empty"><p style={{ margin: 0 }}>No viewers yet</p></div>}
               {viewers && viewers.map((u) => (
                 <div className="rail-row" key={u.id}>
                   <Avatar user={u} size={40} />

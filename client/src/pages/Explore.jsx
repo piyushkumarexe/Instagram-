@@ -28,7 +28,7 @@ export default function Explore() {
         const [users, searchResultsPosts] = await Promise.all([searchUsers(q.trim()), searchPosts(q.trim())])
         setResults({ users, posts: searchResultsPosts })
       } catch (err) {
-        setSearchErr('Search issue: ' + err.message + ' — exact username try karo')
+        setSearchErr('Search issue: ' + err.message + ' — try an exact username')
         setResults({ users: [], posts: [] })
       }
     }, 300)
@@ -65,7 +65,7 @@ export default function Explore() {
           )}
           {searchErr && <div className="pm-empty"><span className="big-emoji">⚠️</span><h3 style={{ fontSize: 14 }}>{searchErr}</h3></div>}
           {!results.users.length && !results.posts.length && !searchErr && (
-            <div className="pm-empty"><span className="big-emoji">🔎</span><h3>No results found</h3><p style={{ color: 'var(--muted)', fontSize: 13 }}>Username ya caption keywords try karo</p></div>
+            <div className="pm-empty"><span className="big-emoji">🔎</span><h3>No results found</h3><p style={{ color: 'var(--muted)', fontSize: 13 }}>Try a username or caption keywords</p></div>
           )}
         </div>
       ) : (

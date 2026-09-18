@@ -155,7 +155,7 @@ export default function CreateModal() {
   const title = isStory ? 'Add to story' : mode === 'reel' ? 'Create new reel' : 'Create new post'
 
   return (
-    <div className="modal-backdrop dark" onClick={() => !busy && app.closeCreate()}>
+    <div className={'modal-backdrop dark' + (isStory && step === 2 ? ' story-takeover' : '')} onClick={() => !busy && app.closeCreate()}>
       <button className="modal-close" onClick={() => !busy && app.closeCreate()}><IcX size={28} /></button>
       <div className="create-modal" onClick={(e) => e.stopPropagation()}>
         <header className="create-head">
@@ -226,7 +226,7 @@ export default function CreateModal() {
                   <button type="button" className="sticker-add-text" onClick={addTextSticker}>Aa Text</button>
                 </div>
                 {stickers.length > 0 && (
-                  <p className="muted" style={{ padding: '8px 12px', fontSize: 12, margin: 0 }}>Sticker ko drag karke set karo — photo ke saath bake ho jayega ✨</p>
+                  <p className="muted" style={{ padding: '8px 12px', fontSize: 12, margin: 0 }}>Drag stickers to position them — they get baked into the photo ✨</p>
                 )}
               </div>
             )}

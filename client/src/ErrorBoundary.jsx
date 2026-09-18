@@ -39,13 +39,13 @@ export default class ErrorBoundary extends React.Component {
 
           {isPerm && (
             <div style={{ textAlign: 'left', background: '#fff8e1', border: '1px solid #f0d264', borderRadius: 10, padding: 14, fontSize: 12.5, color: '#7a5d00', marginBottom: 14 }}>
-              <strong>Fix (2 min):</strong> Firebase Console → Firestore Database → Rules → ye rules paste karke Publish karo:
+              <strong>Fix (2 min):</strong> Firebase Console → Firestore Database → Rules → paste these rules and Publish:
               <pre style={{ background: '#262626', color: '#9ae6b4', padding: 10, borderRadius: 8, overflowX: 'auto', fontSize: 11, marginTop: 8 }}>{RULES_HELP}</pre>
             </div>
           )}
           {!isPerm && (
             <div style={{ textAlign: 'left', background: '#f7f7f7', border: '1px solid #dbdbdb', borderRadius: 10, padding: 14, fontSize: 12.5, color: '#555', marginBottom: 14 }}>
-              Internet connection check karo aur Reload karo. Problem bani rahe toh neeche wali details bhej do.
+              Check your internet connection and Reload. If the problem persists, share the details below.
             </div>
           )}
 

@@ -21,7 +21,7 @@ export default function Notifications() {
     try {
       await acceptRequest(app.user, r.user)
       setReqs((l) => l.filter((x) => x.reqId !== r.reqId))
-      app.toast(r.user.username + ' ab aapko follow kar sakte hain ✅')
+      app.toast(r.user.username + ' can now follow you ✅')
     } catch (e) { app.toast(e.message) }
   }
   async function declineReq(r) {

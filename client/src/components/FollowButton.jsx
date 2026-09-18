@@ -32,7 +32,7 @@ export default function FollowButton({ user, size = 'sm', onChange }) {
       if (r === 'requested') {
         setRequested(true)
         onChange && onChange({ ...user, isFollowing: false })
-        app.toast('Follow request bheji gayi 📨')
+        app.toast('Follow request sent 📨')
       } else {
         setRequested(false)
         onChange && onChange({ ...user, isFollowing: r })

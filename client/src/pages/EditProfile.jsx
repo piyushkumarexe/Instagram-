@@ -122,7 +122,7 @@ export default function EditProfile() {
           </div>
           <span className="muted" style={{ fontSize: 20 }}>›</span>
         </button>
-        <button className="eig-row" onClick={() => app.toast('Professional tools aane wale hain 🚧')}>
+        <button className="eig-row" onClick={() => app.toast('Professional tools coming soon 🚧')}>
           <div>
             <strong className="eig-blue">Switch to professional account</strong>
           </div>

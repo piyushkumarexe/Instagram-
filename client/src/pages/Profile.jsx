@@ -160,7 +160,7 @@ export default function Profile() {
                 try {
                   const gs = await getStoryGroups(app.user.id)
                   const mine = gs.find((g) => g.user.id === app.user.id)
-                  if (!mine?.stories?.length) return app.toast('Pehle story daalo, phir highlight banega ✨')
+                  if (!mine?.stories?.length) return app.toast('Add a story first to create a highlight ✨')
                   await addStoryToHighlight(app.user, mine.stories[mine.stories.length - 1])
                   setHighlight(await getHighlight(app.user.id))
                   app.toast('Highlight created ✨')

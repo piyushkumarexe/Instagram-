@@ -200,7 +200,7 @@ async function onboardNewUser(uid) {
 export function withTimeout(p, ms = 8000, label = 'Network') {
   return Promise.race([
     Promise.resolve(p),
-    new Promise((_, rej) => setTimeout(() => rej(new Error(label + ' slow hai — internet check karke phir try karo')), ms)),
+    new Promise((_, rej) => setTimeout(() => rej(new Error(label + ' is taking too long — check your internet and try again')), ms)),
   ])
 }
 

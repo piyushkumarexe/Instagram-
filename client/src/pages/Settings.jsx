@@ -69,14 +69,14 @@ export default function Settings() {
           try {
             await setPrivate(app.user.id, nv)
             app.setUser((p) => ({ ...p, isPrivate: nv }))
-            app.toast(nv ? 'Account private ho gaya 🔒' : 'Account public ho gaya 🌍')
+            app.toast(nv ? 'Account is now private 🔒' : 'Account is now public 🌍')
           } catch (e) {
             setPriv(!nv)
             app.toast(e.message)
           }
         }}>
           <span>🔒 Private account</span>
-          <span className="muted" style={{ fontSize: 13, maxWidth: 180 }}>{priv ? 'Sirf followers ko dikhega' : 'Sabko dikhega'}</span>
+          <span className="muted" style={{ fontSize: 13, maxWidth: 180 }}>{priv ? 'Only followers can see your posts' : 'Anyone can see your posts'}</span>
         </button>
       </div>
 
@@ -86,7 +86,7 @@ export default function Settings() {
         <button className="settings-item" onClick={logout}><span className="danger-text">Log out</span></button>
       </div>
 
-      <div className="settings-foot muted">VibeGram v3.3 · Made with 💜 in India</div>
+      <div className="settings-foot muted">VibeGram · Made by Piyush</div>
     </div>
   )
 }
