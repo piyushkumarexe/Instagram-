@@ -1,4 +1,4 @@
-name: Build Apps
+name: Android APK
 
 on:
   push:
@@ -99,9 +99,8 @@ jobs:
           {
             echo "Automated build from commit ${GITHUB_SHA::7}."
             echo ""
-            echo "## 📥 Downloads"
+            echo "## 📥 Download"
             echo "- 🤖 **Android APK:** app-debug.apk (below)"
-            echo "- 🍎 **iOS IPA:** VibeGram-iOS-unsigned.ipa (below — needs Apple ID via AltStore/Sideloadly)"
             echo ""
             echo "## 🔑 Google Sign-In setup (one time, 2 minutes)"
             echo "1. Open Firebase Console → project **vibegram-ff651**"
@@ -122,88 +121,3 @@ jobs:
             sleep 15
           done
           gh release create "$TAG" "$APK" -t "VibeGram $TAG" --notes-file "$NOTES" || gh release upload "$TAG" "$APK" --clobber
-
-  ipa:
-    name: 🍎 iOS IPA (unsigned)
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Audit imports (prevent runtime crashes)
-        run: node scripts/audit-imports.mjs
-
-      - name: Build web app
-        run: |
-          set -o pipefail
-          npm run build 2>&1 | tee /tmp/build.log
-          if grep -i "is not exported by" /tmp/build.log; then
-            echo "::error::Missing module exports detected — app would crash at runtime"
-            exit 1
-          fi
-          echo "web build ok"
-
-      - name: Sync Capacitor (web assets -> iOS)
-        run: npx cap sync ios
-
-      - name: Build unsigned IPA
-        run: |
-          set -e
-          cd ios/App
-          mkdir -p ../../build
-          xcodebuild -project App.xcodeproj \
-            -scheme App \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -archivePath ../../build/App.xcarchive \
-            archive \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= \
-            -skipPackagePluginValidation -quiet || \
-          { echo "::warning::archive failed, trying target build"; \
-            xcodebuild -project App.xcodeproj \
-              -target App \
-              -configuration Release \
-              -destination 'generic/platform=iOS' \
-              SYMROOT=../../build/Build \
-              CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= \
-              -skipPackagePluginValidation -quiet; }
-
-          APP_PATH=$(find ../../build -type d -name "*.app" | head -1)
-          if [ -z "$APP_PATH" ]; then echo "::error::built .app not found"; exit 1; fi
-          echo "found app: $APP_PATH"
-
-          mkdir -p Payload
-          cp -R "$APP_PATH" Payload/
-          zip -qry VibeGram-iOS-unsigned.ipa Payload
-          mkdir -p /tmp/out
-          mv VibeGram-iOS-unsigned.ipa /tmp/out/
-          echo "IPA ready"
-
-      - name: Upload IPA artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: VibeGram-iOS-unsigned
-          path: /tmp/out/VibeGram-iOS-unsigned.ipa
-          if-no-files-found: error
-
-      - name: Attach IPA to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-          for i in 1 2 3 4 5 6 7 8; do
-            if gh release view "$TAG" >/dev/null 2>&1; then
-              gh release upload "$TAG" /tmp/out/VibeGram-iOS-unsigned.ipa --clobber || true
-              exit 0
-            fi
-            sleep 15
-          done
-          gh release create "$TAG" /tmp/out/VibeGram-iOS-unsigned.ipa -t "VibeGram $TAG" --generate-notes || gh release upload "$TAG" /tmp/out/VibeGram-iOS-unsigned.ipa --clobber

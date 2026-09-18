@@ -91,6 +91,7 @@ export function AppProvider({ children }) {
       }
 
       if (profile) {
+        healUsername(profile) // mapping auto-repair har login pe
         const merged = {
           id: profile.id,
           username: profile.username,
@@ -122,7 +123,7 @@ export function AppProvider({ children }) {
   }, [])
 
   const refreshUser = useCallback(async () => {
-    healUsername(app.user)
+    if (app.user) healUsername(app.user)
     const u = auth?.currentUser
     if (!u) return
     try {

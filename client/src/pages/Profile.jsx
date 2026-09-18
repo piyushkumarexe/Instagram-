@@ -26,8 +26,9 @@ export default function Profile() {
   const load = useCallback(async () => {
     try {
       let u = await getUserByUsername(username).catch(() => null)
-      if (!u && username.toLowerCase() === String(app.user.username || '').toLowerCase()) {
-        // apna profile, mapping broken? direct uid se load + self-heal
+      const myUsernames = [app.user.username, app.user._cachedUsername].filter(Boolean).map((x) => String(x).toLowerCase())
+      if (!u && myUsernames.includes(username.toLowerCase())) {
+        // apna profile, mapping broken? direct uid se load + auto-repair mapping
         u = await getUser(app.user.id).catch(() => null)
         if (u) healUsername(u)
       }
