@@ -7,7 +7,62 @@ import { IcVerified } from '../components/Icons.jsx'
 import Avatar from '../components/Avatar.jsx'
 import { IcDots, IcBack, IcNewMsg, IcSmile, IcX } from '../components/Icons.jsx'
 
-const QUICK = ['❤️', '😂', '🔥', '👏', '😍', '🙏', '👍', '✨', '🎉', '😅']
+const EMOJI_CATS = [
+  { name: 'Smileys', items: '😀 😃 😄 😁 😆 😅 🤣 😂 🙂 😉 😊 😇 🥰 😍 🤩 😘 😗 😚 🥲 😋 😛 😜 🤪 😝 🤑 🤗 🤭 🤫 🤔 🤐 🤨 😐 😑 😶 😏 😒 🙄 😬 😌 😔 😪 🤤 😴 😷 🤒 🤕 🤢 🤮 🥵 🥶 😵 🤯 🤠 🥳 😎 🤓 🧐 😕 😟 🙁 😮 😲 😳 🥺 😨 😰 😥 😢 😭 😱 😖 😣 😞 😓 😩 😫 🥱 😤 😡 😠 🤬 😈 💀 💩 🤡 👻 👽 🤖'.split(' ') },
+  { name: 'Gestures', items: '👋 🤚 🖐 ✋ 🖖 👌 🤌 🤏 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 👐 🤲 🤝 🙏 💪 🦾 👀 🧠 🫶'.split(' ') },
+  { name: 'Hearts', items: '❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 ✨ ⭐ 🌟 💫 🔥 💥 🎀 🌈'.split(' ') },
+  { name: 'Animals', items: '🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🐔 🐧 🐦 🦆 🦅 🦉 🐺 🐴 🦄 🐝 🦋 🐢 🐍 🐙 🦀 🐬 🐳'.split(' ') },
+  { name: 'Food', items: '🍎 🍌 🍉 🍇 🍓 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🥑 🍆 🥕 🌽 🍞 🥐 🧀 🍳 🥓 🍔 🍟 🍕 🌭 🌮 🌯 🍜 🍣 🍤 🍦 🍩 🍪 🎂 🍰 🍫 🍬 🍭 ☕ 🍵 🧋 🥤'.split(' ') },
+  { name: 'Fun', items: '⚽ 🏀 ⚾ 🎾 🏐 🏓 🎯 🎮 🎲 🎸 🎻 🎬 🎤 🎧 🎨 🚗 ✈️ 🚀 🎉 🎊 🎁 🏆 🥇 🎈 ⚡ 🌧️ ❄️ 🌸 🌙 ☀️'.split(' ') },
+]
+const STICKERS = '😂 ❤️ 🥰 😍 😭 🥺 😡 🔥 👍 👏 🙏 💪 🤯 😱 🤔 🙄 😴 🎉 🎁 💀 👑 💯 🤡 😎 🚀 ⚡ 🌟 🌈 🍕 🍫 ☕ 🎮 ⚽ 🏆 🐶 🐱 🦄 🦋'.split(' ')
+
+function isBigEmoji(t) {
+  const s = String(t || '').trim()
+  if (!s || s.length > 12) return false
+  try {
+    const re = new RegExp('^(?:\\p{Extended_Pictographic}|\\uFE0F|\\u200D|\\u20E3|[0-9#]){1,8}$', 'u')
+    return re.test(s)
+  } catch {
+    return /^(❤️|😄|😍|😂|🔥|👏|🙏|👍|✨|🎉|😭|🥰|🥺|💀|💯|🐍)$/.test(s)
+  }
+}
+
+function EmojiPicker({ onEmoji, onSticker, onClose }) {
+  const [tab, setTab] = useState('emoji')
+  const [cat, setCat] = useState(0)
+  return (
+    <div className="emoji-pop big">
+      <div className="emoji-tabs">
+        <button className={tab === 'emoji' ? 'on' : ''} onClick={() => setTab('emoji')}>😀 Emoji</button>
+        <button className={tab === 'stickers' ? 'on' : ''} onClick={() => setTab('stickers')}>✨ Stickers</button>
+        <span style={{ flex: 1 }} />
+        <button className="icon-btn" onClick={onClose}><IcX size={16} /></button>
+      </div>
+      {tab === 'emoji' && (
+        <>
+          <div className="emoji-cats">
+            {EMOJI_CATS.map((c, i) => (
+              <button key={c.name} className={cat === i ? 'on' : ''} onClick={() => setCat(i)}>{c.items[0]}</button>
+            ))}
+          </div>
+          <div className="emoji-grid">
+            {EMOJI_CATS[cat].items.map((e, i) => (
+              <button type="button" key={e + i} onClick={() => onEmoji(e)}>{e}</button>
+            ))}
+          </div>
+        </>
+      )}
+      {tab === 'stickers' && (
+        <div className="emoji-grid stickers">
+          {STICKERS.map((e, i) => (
+            <button type="button" key={e + i} onClick={() => onSticker(e)}>{e}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function Messages() {
   const { username } = useParams()
@@ -287,6 +342,14 @@ function Chat({ username }) {
   }
 
 
+  async function sendSticker(emoji) {
+    if (!user) return
+    try {
+      await sendMessage(app.user.id, user.id, emoji)
+      buzz()
+    } catch (e) { app.toast(e.message) }
+  }
+
   async function sendGif(url) {
     if (!user) return
     setGifOpen(false)
@@ -370,6 +433,7 @@ function Chat({ username }) {
                       {m.unsent ? <em className="muted">Message unsent</em>
                         : isGif ? <img className="gif-msg" src={m.text} alt="GIF" loading="lazy" />
                         : (m.text || '').startsWith('/p/') ? <Link to={m.text} className="post-msg-card" onClick={() => nav(m.text)}>📷 View post</Link>
+                        : isBigEmoji(m.text) ? <span className="big-emoji-msg">{m.text}</span>
                         : <RichText text={m.text} />}
                       {m.reaction ? <span className="rx-badge">{m.reaction}</span> : null}
                     </div>
@@ -409,11 +473,11 @@ function Chat({ username }) {
           </div>
         )}
         {emojiOpen && (
-          <div className="emoji-pop">
-            {QUICK.map((e) => (
-              <button type="button" key={e} onClick={() => setText((t) => t + e)}>{e}</button>
-            ))}
-          </div>
+          <EmojiPicker
+            onEmoji={(e) => setText((t) => (t + e).slice(0, 2000))}
+            onSticker={(e) => { setEmojiOpen(false); sendSticker(e) }}
+            onClose={() => setEmojiOpen(false)}
+          />
         )}
         {gifOpen && (
           <div className="gif-pop">

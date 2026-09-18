@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useApp } from '../store.jsx'
 import { getUserByUsername, getUser, getUserPosts, getSaved, getLikedPosts, myFollowing, getHighlight, addStoryToHighlight, getStoryGroups, healUsername, listUserConnections } from '../fb.js'
@@ -6,7 +6,7 @@ import Avatar from '../components/Avatar.jsx'
 import PullToRefresh from '../components/PullToRefresh.jsx'
 import RichText from '../components/RichText.jsx'
 import FollowButton from '../components/FollowButton.jsx'
-import { IcDots, IcGrid, IcReels, IcBookmark, IcPlay, IcCamera, IcSettings, IcLogout, IcHeart, IcVerified, IcLock, IcPencil, IcLinkIcon, IcSend } from '../components/Icons.jsx'
+import { IcDots, IcGrid, IcReels, IcBookmark, IcPlay, IcCamera, IcSettings, IcLogout, IcHeart, IcVerified, IcLock, IcPencil, IcLinkIcon, IcSend, IcX } from '../components/Icons.jsx'
 
 export default function Profile() {
   const { username } = useParams()
@@ -23,6 +23,9 @@ export default function Profile() {
   const [hasStory, setHasStory] = useState(false)
   const [highlight, setHighlight] = useState(null)
   const [social, setSocial] = useState(null)
+  const [avOpen, setAvOpen] = useState(false)
+  const [anthemPlaying, setAnthemPlaying] = useState(false)
+  const anthemAudio = useRef(null)
 
   const load = useCallback(async () => {
     try {
@@ -68,6 +71,18 @@ export default function Profile() {
 
   useEffect(() => { load() }, [load])
   useEffect(() => { setTab('posts') }, [username])
+
+  useEffect(() => () => { if (anthemAudio.current) anthemAudio.current.pause() }, [])
+
+  function toggleAnthem() {
+    if (!profile?.anthemUrl) return
+    if (anthemPlaying) { anthemAudio.current?.pause(); setAnthemPlaying(false); return }
+    if (!anthemAudio.current) {
+      anthemAudio.current = new Audio(profile.anthemUrl)
+      anthemAudio.current.addEventListener('ended', () => setAnthemPlaying(false))
+    }
+    anthemAudio.current.play().then(() => setAnthemPlaying(true)).catch(() => app.toast('Preview unavailable'))
+  }
 
   useEffect(() => {
     if (tab === 'liked' && !liked.length) {
@@ -126,7 +141,20 @@ export default function Profile() {
         {/* IG avatar + stats row */}
         <div className="igp-idrow">
           <div className="igp-avwrap">
-            <Avatar user={profile} size={86} ring={hasStory} />
+            <button className="igp-avatar-btn" onClick={() => {
+              if (me) setAvSheet(true)
+              else if (hasStory) {
+                import('../fb.js').then(({ getStoryGroups }) => {
+                  getStoryGroups(app.user.id).then((gs) => {
+                    const g = gs.find((x) => x.user.id === profile.id)
+                    if (g) app.openStories(gs, gs.indexOf(g))
+                    else setAvOpen(true)
+                  }).catch(() => setAvOpen(true))
+                })
+              } else setAvOpen(true)
+            }}>
+              <Avatar user={profile} size={86} ring={hasStory} />
+            </button>
           </div>
           <div className="igp-stats">
             <div className="igp-stat"><strong>{posts.length}</strong><span>posts</span></div>
@@ -147,7 +175,11 @@ export default function Profile() {
           {profile.bio && <RichText text={profile.bio} />}
           {profile.links && <RichText text={profile.links} />}
           {profile.anthem && (
-            <span className="anthem-chip">🎵 <span className="t">{profile.anthem}</span></span>
+            <button className={'anthem-chip' + (anthemPlaying ? ' playing' : '')} onClick={toggleAnthem}>
+              <span className="note">{anthemPlaying ? '⏸' : '▶'}</span>
+              <span className="t">{profile.anthem}{profile.anthemArtist ? ` — ${profile.anthemArtist}` : ''}</span>
+              {anthemPlaying && <span className="eq"><i /><i /><i /></span>}
+            </button>
           )}
         </div>
 
@@ -253,6 +285,35 @@ export default function Profile() {
           </div>
         )}
       </PullToRefresh>
+
+      {avSheet && (
+        <div className="sheet-backdrop" onClick={() => setAvSheet(false)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-group">
+              <button className="sheet-item left" onClick={() => { setAvSheet(false); app.openCreate('story') }}><IcCamera size={20} /> Add to story</button>
+              {hasStory && (
+                <button className="sheet-item left" onClick={async () => {
+                  setAvSheet(false)
+                  const { getStoryGroups } = await import('../fb.js')
+                  const gs = await getStoryGroups(app.user.id).catch(() => [])
+                  const g = gs.find((x) => x.user.id === app.user.id)
+                  if (g) app.openStories(gs, gs.indexOf(g))
+                }}><IcPlay size={20} /> View story</button>
+              )}
+              <button className="sheet-item left" onClick={() => { setAvSheet(false); nav('/accounts/edit') }}><IcCamera size={20} /> Change profile photo</button>
+            </div>
+            <div className="sheet-group">
+              <button className="sheet-item cancel" onClick={() => setAvSheet(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {avOpen && (
+        <div className="avatar-full" onClick={() => setAvOpen(false)}>
+          <img src={profile.avatar || `https://ui-avatars.com/api/?background=random&name=${encodeURIComponent(profile.username)}`} alt="" />
+          <button className="avatar-full-close"><IcX size={26} /></button>
+        </div>
+      )}
 
       {menuOpen && (
         <div className="sheet-backdrop" onClick={() => setMenuOpen(false)}>

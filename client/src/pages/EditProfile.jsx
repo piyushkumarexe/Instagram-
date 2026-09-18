@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../store.jsx'
 import { updateMe, withTimeout } from '../fb.js'
-import { IcBack } from '../components/Icons.jsx'
+import { IcBack, IcX } from '../components/Icons.jsx'
 
 // IG-style Edit Profile — floating labels, avatar+ring, pronouns/links/gender
 export default function EditProfile() {
@@ -15,6 +15,9 @@ export default function EditProfile() {
   const [links, setLinks] = useState(app.user.links || '')
   const [gender, setGender] = useState(app.user.gender || '')
   const [anthem, setAnthem] = useState(app.user.anthem || '')
+  const [anthemArtist, setAnthemArtist] = useState(app.user.anthemArtist || '')
+  const [anthemUrl, setAnthemUrl] = useState(app.user.anthemUrl || '')
+  const [songOpen, setSongOpen] = useState(false)
   const [avatarPreview, setAvatarPreview] = useState(null)
   const [avatarFile, setAvatarFile] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -36,7 +39,7 @@ export default function EditProfile() {
       ...prev,
       name: name.trim() || prev.name,
       bio,
-      anthem,
+      anthem, anthemArtist, anthemUrl,
       pronouns,
       links,
       gender,
@@ -45,7 +48,7 @@ export default function EditProfile() {
     }))
     try {
       const u = await withTimeout(updateMe(app.user.id, {
-        name, bio, pronouns, links, gender, anthem, username, avatarFile,
+        name, bio, pronouns, links, gender, anthem, anthemArtist, anthemUrl, username, avatarFile,
       }), 15000, 'Profile save')
       app.setUser((prev) => ({ ...prev, ...u }))
       app.toast('Profile updated ✅')
@@ -99,10 +102,11 @@ export default function EditProfile() {
           <em className="eig-count">{bio.length}/160</em>
         </label>
 
-        <label className="eig-field">
-          <span>Music anthem</span>
-          <input value={anthem} onChange={(e) => setAnthem(e.target.value)} maxLength={60} placeholder="Song you're vibing with 🎵" />
-        </label>
+        <button className="eig-field eig-music" onClick={() => setSongOpen(true)}>
+          <span>Music</span>
+          <span className="eig-music-val">{anthem ? `🎵 ${anthem}${anthemArtist ? ' — ' + anthemArtist : ''}` : 'Add music to profile'}</span>
+          {anthemUrl && <em className="eig-clear" onClick={(ev) => { ev.stopPropagation(); setAnthem(''); setAnthemArtist(''); setAnthemUrl('') }}>✕</em>}
+        </button>
 
         <label className="eig-field">
           <span>Links</span>
@@ -144,7 +148,95 @@ export default function EditProfile() {
       </div>
 
       <button className="eig-save-big" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
+      {songOpen && <SongPicker current={anthem} onPick={(s) => { setAnthem(s.title); setAnthemArtist(s.artist); setAnthemUrl(s.url); setSongOpen(false) }} onClose={() => setSongOpen(false)} />}
       <div style={{ height: 40 }} />
+    </div>
+  )
+}
+
+
+// iTunes Search (JSONP — no CORS issues) + 30s preview player
+function jsonp(url) {
+  return new Promise((res, rej) => {
+    const cb = 'itjp' + Math.random().toString(36).slice(2)
+    const sc = document.createElement('script')
+    const timer = setTimeout(() => { cleanup(); rej(new Error('Search timed out')) }, 9000)
+    function cleanup() { clearTimeout(timer); try { delete window[cb] } catch {} ; sc.remove() }
+    window[cb] = (data) => { cleanup(); res(data) }
+    sc.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb
+    sc.onerror = () => { cleanup(); rej(new Error('Music search failed')) }
+    document.head.appendChild(sc)
+  })
+}
+
+let previewAudio = null
+function stopPreview() { if (previewAudio) { previewAudio.pause(); previewAudio = null } }
+
+function SongPicker({ current, onPick, onClose }) {
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState([])
+  const [busy, setBusy] = useState(false)
+  const [playingId, setPlayingId] = useState(null)
+  const [err, setErr] = useState('')
+
+  useEffect(() => () => stopPreview(), [])
+
+  useEffect(() => {
+    if (!q.trim()) { setResults([]); return }
+    setBusy(true)
+    const t = setTimeout(async () => {
+      try {
+        const data = await jsonp(`https://itunes.apple.com/search?term=${encodeURIComponent(q.trim())}&media=music&entity=song&limit=25`)
+        setResults((data.results || []).filter((r) => r.previewUrl))
+        setErr((data.results || []).length ? '' : 'No songs found')
+      } catch (e) {
+        setErr('Music search unavailable — try again')
+      } finally { setBusy(false) }
+    }, 400)
+    return () => clearTimeout(t)
+  }, [q])
+
+  function play(r) {
+    stopPreview()
+    if (playingId === r.trackId) { setPlayingId(null); return }
+    previewAudio = new Audio(r.previewUrl)
+    previewAudio.play().catch(() => {})
+    setPlayingId(r.trackId)
+  }
+
+  function use(r) {
+    stopPreview()
+    onPick({ title: r.trackName.slice(0, 80), artist: (r.artistName || '').slice(0, 60), url: r.previewUrl })
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={() => { stopPreview(); onClose() }}>
+      <div className="ulist-modal song-picker" onClick={(e) => e.stopPropagation()}>
+        <header className="ulist-head">
+          <button className="icon-btn" onClick={() => { stopPreview(); onClose() }}><IcX size={20} /></button>
+          <strong>Find a song</strong>
+          <span style={{ width: 40 }} />
+        </header>
+        <div className="ulist-search"><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Song, artist…" autoFocus /></div>
+        <div className="ulist-body">
+          {busy && <div className="modal-loading">Searching…</div>}
+          {err && !busy && <div className="pm-empty"><p style={{ margin: 0 }}>{err}</p></div>}
+          {!q && !busy && <div className="pm-empty"><p style={{ margin: 0 }}>Search millions of songs — 30s preview plays right here.</p></div>}
+          {results.map((r) => (
+            <div className="rail-row" key={r.trackId}>
+              <img className="song-art" src={r.artworkUrl100} alt="" loading="lazy" />
+              <div className="rail-row-meta">
+                <span className="username">{r.trackName}</span>
+                <span className="muted">{r.artistName}</span>
+              </div>
+              <button className={'icon-btn' + (playingId === r.trackId ? ' playing' : '')} onClick={() => play(r)}>
+                {playingId === r.trackId ? '⏸' : '▶'}
+              </button>
+              <button className="btn btn-blue btn-sm" onClick={() => use(r)}>Use</button>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
