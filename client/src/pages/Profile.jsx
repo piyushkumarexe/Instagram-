@@ -102,6 +102,7 @@ export default function Profile() {
       <header className="igp-top">
         <h1>
           {profile.username}
+          {profile.verified && <IcVerified size={16} style={{ marginLeft: 5, verticalAlign: -3 }} />}
           {profile.isPrivate && <span className="igp-lock" title="Private">🔒</span>}
         </h1>
         <div style={{ flex: 1 }} />
@@ -179,11 +180,11 @@ export default function Profile() {
           </div>
         )}
 
-        <div className="profile-tabs">
-          <button className={tab === 'posts' ? 'on' : ''} onClick={() => setTab('posts')}><IcGrid size={12} /> POSTS</button>
-          <button className={tab === 'reels' ? 'on' : ''} onClick={() => setTab('reels')}><IcReels size={12} /> REELS</button>
-          {me && <button className={tab === 'saved' ? 'on' : ''} onClick={() => setTab('saved')}><IcBookmark size={12} /> SAVED</button>}
-          {me && <button className={tab === 'liked' ? 'on' : ''} onClick={() => setTab('liked')}><IcHeart size={12} /> LIKED</button>}
+        <div className="profile-tabs igp-tabs">
+          <button className={tab === 'posts' ? 'on' : ''} onClick={() => setTab('posts')} aria-label="Posts"><IcGrid size={22} /></button>
+          <button className={tab === 'reels' ? 'on' : ''} onClick={() => setTab('reels')} aria-label="Reels"><IcReels size={22} /></button>
+          {me && <button className={tab === 'saved' ? 'on' : ''} onClick={() => setTab('saved')} aria-label="Saved"><IcBookmark size={22} /></button>}
+          {me && <button className={tab === 'liked' ? 'on' : ''} onClick={() => setTab('liked')} aria-label="Liked"><IcHeart size={22} /></button>}
         </div>
 
         {locked ? (
