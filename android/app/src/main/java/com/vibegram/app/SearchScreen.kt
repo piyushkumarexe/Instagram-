@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -53,7 +52,7 @@ fun SearchScreen(onProfile: (String) -> Unit) {
                 ),
                 singleLine = true,
                 modifier = Modifier.weight(1f),
-                shape = RoundedCornerShapeSafe()
+                shape = RoundedCornerShape(12.dp)
             )
             Spacer(Modifier.width(8.dp))
             Button(
@@ -101,6 +100,3 @@ fun SearchScreen(onProfile: (String) -> Unit) {
     }
 }
 
-// small helper to avoid importing RoundedCornerShape at two places with name clash
-@Composable
-private fun RoundedCornerShapeSafe() = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)

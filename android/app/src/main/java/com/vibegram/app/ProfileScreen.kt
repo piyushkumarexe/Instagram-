@@ -88,7 +88,8 @@ fun ProfileScreen(
     }
 
     val u = user
-    if (u == null || posts == null) {
+    val ps = posts
+    if (u == null || ps == null) {
         LoadingBox()
         return
     }
@@ -150,7 +151,7 @@ fun ProfileScreen(
                 }
                 Spacer(Modifier.width(26.dp))
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    Stat(posts.size, "posts")
+                    Stat(ps.size, "posts")
                     Stat(u.followersCount, "followers")
                     Stat(u.followingCount, "following")
                 }
@@ -236,10 +237,10 @@ fun ProfileScreen(
             Spacer(Modifier.height(14.dp))
 
             // grid
-            if (posts.isEmpty()) {
+            if (ps.isEmpty()) {
                 EmptyBox(if (isOwn) "Share your first photo from the + tab!" else "No posts yet", "📷")
             } else {
-                val rows = posts.chunked(3)
+                val rows = ps.chunked(3)
                 Column {
                     for (row in rows) {
                         Row(Modifier.fillMaxWidth()) {
@@ -274,7 +275,7 @@ fun ProfileScreen(
 }
 
 @Composable
-fun Stat(count: Long, label: String) {
+fun Stat(count: Int, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(count.toString(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         Text(label, color = Color.White, fontSize = 13.sp)
