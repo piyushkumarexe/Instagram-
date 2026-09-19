@@ -72,6 +72,8 @@ fun LoginScreen(onDone: () -> Unit) {
     var busy by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<String?>(null) }
     var help by remember { mutableStateOf(false) }
+    val crashReport = remember { VibeGramApp.takeCrashReport(ctx) }
+    var showCrash by remember { mutableStateOf(crashReport != null) }
 
     // engine 2 (fallback): legacy GoogleSignIn — native in-app account picker,
     // bypasses the newer credential-provider routing entirely
@@ -296,7 +298,60 @@ fun LoginScreen(onDone: () -> Unit) {
             }
         }
     }
+
+    if (showCrash && crashReport != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showCrash = false },
+            title = { Text("Something broke last time", color = Color.White) },
+            text = {
+                Column {
+                    Text(
+                        "Tap Copy and send this to Piyush so it gets fixed fast:",
+                        color = Color(0xFFC7C7C7), fontSize = 13.sp
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        crashReport.takeLast(600),
+                        color = Color(0xFF8E8E8E), fontSize = 10.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    )
+                }
+            },
+            confirmButton = {
+                Text(
+                    "Copy",
+                    color = Color(0xFF3B82F6), fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .androidxTapCopy(crashReport, ctx)
+                        .padding(6.dp)
+                )
+            },
+            dismissButton = {
+                Text(
+                    "Dismiss",
+                    color = Color(0xFF8E8E8E),
+                    modifier = Modifier
+                        .clickable {
+                            VibeGramApp.clearCrashReport(ctx)
+                            showCrash = false
+                        }
+                        .padding(6.dp)
+                )
+            },
+            containerColor = Color(0xFF1C1C1E)
+        )
+    }
 }
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+private fun Modifier.androidxTapCopy(text: String, ctx: android.content.Context): Modifier =
+    this.then(
+        Modifier.clickable {
+            val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("crash", text))
+            android.widget.Toast.makeText(ctx, "Copied", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    )
 
 @Composable
 private fun HelpRow(text: String) {

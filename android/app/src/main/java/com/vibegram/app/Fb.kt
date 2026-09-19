@@ -57,9 +57,17 @@ object Fb {
     fun logout() = auth.signOut()
 
     // ---------- users ----------
-    suspend fun me(): VUser? {
+    suspend fun me(retries: Int = 3): VUser? {
         val idv = uid ?: return null
-        return db.collection("users").document(idv).get().await().toVUser()
+        repeat(retries) { attempt ->
+            try {
+                return db.collection("users").document(idv).get().await().toVUser()
+            } catch (_: Exception) {
+                if (attempt == retries - 1) return null
+                kotlinx.coroutines.delay(800L * (attempt + 1))
+            }
+        }
+        return null
     }
 
     suspend fun userByUsername(uname: String): VUser? {
