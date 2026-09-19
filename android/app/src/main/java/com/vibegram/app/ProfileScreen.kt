@@ -78,7 +78,7 @@ fun ProfileScreen(
     onAddStory: () -> Unit,
     onLogout: () -> Unit,
     onAvatarChanged: (VUser) -> Unit,
-    onConnections: (String, String) -> Unit,
+    onConnections: (String, String, String) -> Unit,
     onSettings: () -> Unit = {},
     onDiscover: () -> Unit = {},
     onOpenOwnStory: () -> Unit = {},
@@ -238,10 +238,10 @@ fun ProfileScreen(
                     Spacer(Modifier.width(24.dp))
                     Row(Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceEvenly) {
                         Stat(ps.size.toLong(), "posts")
-                        Box(Modifier.clickable { onConnections(u.username, "followers") }) {
+                        Box(Modifier.clickable { onConnections(u.username, "followers", u.id) }) {
                             Stat(u.followersCount, "followers")
                         }
-                        Box(Modifier.clickable { onConnections(u.username, "following") }) {
+                        Box(Modifier.clickable { onConnections(u.username, "following", u.id) }) {
                             Stat(u.followingCount, "following")
                         }
                     }

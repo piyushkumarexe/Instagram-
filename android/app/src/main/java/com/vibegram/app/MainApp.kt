@@ -58,6 +58,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
     var tab by remember { mutableStateOf("feed") }
     var profileUsername by remember { mutableStateOf(initialMe.username) }
     var connKind by remember { mutableStateOf("followers") }
+    var connUserId by remember { mutableStateOf("") }
     var postFor by remember { mutableStateOf<Post?>(null) }
     var storyUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var unreadDms by remember { mutableStateOf(0) }
@@ -71,9 +72,10 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
         tab = "profile"
     }
 
-    fun goConnections(username: String, kind: String) {
+    fun goConnections(username: String, kind: String, userId: String) {
         stack.add(Route(tab, profileUsername))
         connKind = kind
+        connUserId = userId
         profileUsername = username
         tab = "connections"
     }
@@ -273,6 +275,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         onChat = { chatWith = it }
                     )
                     "connections" -> ConnectionsScreen(
+                        userId = connUserId,
                         username = profileUsername,
                         kind = connKind,
                         me = me,
@@ -289,7 +292,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         onAddStory = { tab = "create" },
                         onLogout = onLogout,
                         onAvatarChanged = { u -> me = u },
-                        onConnections = { uname, kind -> goConnections(uname, kind) },
+                        onConnections = { uname, kind, uid2 -> goConnections(uname, kind, uid2) },
                         onSettings = { pushTabRoute("settings") },
                         onDiscover = { pushTabRoute("discover") },
                         onOpenOwnStory = {

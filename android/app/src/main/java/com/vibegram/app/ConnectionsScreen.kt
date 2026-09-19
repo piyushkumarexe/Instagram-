@@ -35,8 +35,10 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 
 // Full page (never popup) with Followers / Following tabs — IG style
+// userId passed directly (no extra lookup — that lookup was silently emptying the list)
 @Composable
 fun ConnectionsScreen(
+    userId: String,
     username: String,
     kind: String,
     me: VUser,
@@ -46,21 +48,31 @@ fun ConnectionsScreen(
 ) {
     var tab by remember { mutableStateOf(kind) }
     var list by remember { mutableStateOf<List<VUser>?>(null) }
+    var err by remember { mutableStateOf<String?>(null) }
     var myFollowingIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var busyId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(username, kind) {
-        val u = try { Fb.userByUsername(username) } catch (_: Exception) { null }
-        myFollowingIds = try {
-            Fb.followingOf(me.id).mapNotNull { it.id }.toSet()
-        } catch (_: Exception) { emptySet() }
-        list = if (u != null) {
+    fun load() {
+        scope.launch {
+            list = null
+            err = null
             try {
-                if (kind == "followers") Fb.followersOf(u.id) else Fb.followingOf(u.id)
-            } catch (_: Exception) { emptyList() }
-        } else emptyList()
+                val l = if (tab == "followers") Fb.followersOf(userId) else Fb.followingOf(userId)
+                list = l
+                if (l.isEmpty()) {
+                    // surface a real error if the query itself failed (e.g. permissions)
+                    // (empty is a valid state too — list stays empty with the friendly empty box)
+                }
+            } catch (e: Exception) {
+                err = e.message ?: "Could not load"
+                list = emptyList()
+            }
+            try { myFollowingIds = Fb.followingOf(me.id).map { it.id }.toSet() } catch (_: Exception) { }
+        }
     }
+
+    LaunchedEffect(userId, tab) { load() }
 
     Column(Modifier.fillMaxSize().background(Color.Black).statusBarsPadding()) {
         // header: back + username
@@ -78,7 +90,7 @@ fun ConnectionsScreen(
         Row(Modifier.fillMaxWidth()) {
             listOf("followers" to "Followers", "following" to "Following").forEach { (key, label) ->
                 Column(
-                    Modifier.weight(1f).clickable { tab = key; },
+                    Modifier.weight(1f).clickable { tab = key },
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Spacer(Modifier.height(12.dp))
@@ -97,66 +109,90 @@ fun ConnectionsScreen(
             }
         }
 
-        val l = list
-        if (l == null) {
-            LoadingBox()
-        } else if (l.isEmpty()) {
-            EmptyBox(
-                if (tab == "followers") "No followers yet" else "Not following anyone yet",
-                "👥"
-            )
+        if (err != null) {
+            Column(
+                Modifier.fillMaxSize().padding(30.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
+            ) {
+                Text("⚠️", fontSize = 34.sp)
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    "Couldn't load " + (if (tab == "followers") "followers" else "following"),
+                    color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    err ?: "", color = Color(0xFFFF5A6E), fontSize = 12.sp,
+                    lineHeight = 17.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = { load() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0095F6))
+                ) { Text("Retry", color = Color.White, fontWeight = FontWeight.Bold) }
+            }
         } else {
-            LazyColumn(Modifier.fillMaxSize()) {
-                items(l) { u ->
-                    val isMe = u.id == me.id
-                    var following by remember(u.id) { mutableStateOf(myFollowingIds.contains(u.id)) }
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onProfile(u.username) }
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        AvatarView(url = u.avatar, size = 46, border = false)
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(u.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                if (u.verified) {
-                                    Spacer(Modifier.width(4.dp))
-                                    VerifiedBadge(14)
-                                }
-                            }
-                            Text(u.name, color = Color(0xFF8E8E8E), fontSize = 13.sp)
-                        }
-                        if (!isMe) {
-                            Button(
-                                onClick = {
-                                    if (busyId == u.id) return@Button
-                                    busyId = u.id
-                                    val want = !following
-                                    scope.launch {
-                                        try {
-                                            val ok = Fb.follow(u, want)
-                                            if (ok) { following = want; }
-                                            else { following = false }
-                                            myFollowingIds = if (want) myFollowingIds + u.id else myFollowingIds - u.id
-                                        } catch (_: Exception) {
-                                        } finally { busyId = null }
+            val l = list
+            if (l == null) {
+                LoadingBox()
+            } else if (l.isEmpty()) {
+                EmptyBox(
+                    if (tab == "followers") "No followers yet" else "Not following anyone yet",
+                    "👥"
+                )
+            } else {
+                LazyColumn(Modifier.fillMaxSize()) {
+                    items(l) { u ->
+                        val isMe = u.id == me.id
+                        var following by remember(u.id) { mutableStateOf(myFollowingIds.contains(u.id)) }
+                        Row(
+                            Modifier.fillMaxWidth().clickable { onProfile(u.username) }
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AvatarView(url = u.avatar, size = 46, border = false, name = u.username)
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(u.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    if (u.verified) {
+                                        Spacer(Modifier.width(4.dp))
+                                        VerifiedBadge(14)
                                     }
-                                },
-                                enabled = busyId != u.id,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (following) Color(0xFF262626) else Color(0xFF0095F6)
-                                ),
-                                modifier = Modifier.height(32.dp),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                if (busyId == u.id) {
-                                    CircularProgressIndicator(Modifier.width(14.dp).height(14.dp), color = Color.White, strokeWidth = 2.dp)
-                                } else {
-                                    Text(
-                                        if (following) "Following" else "Follow",
-                                        color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp
-                                    )
+                                }
+                                Text(u.name, color = Color(0xFF8E8E8E), fontSize = 13.sp)
+                            }
+                            if (!isMe) {
+                                Button(
+                                    onClick = {
+                                        if (busyId == u.id) return@Button
+                                        busyId = u.id
+                                        val want = !following
+                                        scope.launch {
+                                            try {
+                                                val ok = Fb.follow(u, want)
+                                                if (ok) following = want else following = false
+                                                myFollowingIds = if (want) myFollowingIds + u.id else myFollowingIds - u.id
+                                            } catch (_: Exception) {
+                                            } finally { busyId = null }
+                                        }
+                                    },
+                                    enabled = busyId != u.id,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (following) Color(0xFF262626) else Color(0xFF0095F6)
+                                    ),
+                                    modifier = Modifier.height(32.dp),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    if (busyId == u.id) {
+                                        CircularProgressIndicator(Modifier.width(14.dp).height(14.dp), color = Color.White, strokeWidth = 2.dp)
+                                    } else {
+                                        Text(
+                                            if (following) "Following" else "Follow",
+                                            color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -166,4 +202,3 @@ fun ConnectionsScreen(
         }
     }
 }
-
