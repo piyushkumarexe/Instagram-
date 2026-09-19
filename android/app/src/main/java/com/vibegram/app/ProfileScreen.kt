@@ -104,7 +104,12 @@ fun ProfileScreen(
     fun reload(done: () -> Unit = {}) {
         scope.launch {
             try {
-                val u = if (isOwn) (Fb.me() ?: me) else Fb.userByUsername(username)
+                var u = if (isOwn) (Fb.me(retries = 2) ?: me) else Fb.userByUsername(username)
+                // own profile + doc missing -> provision it, then read again (fixes self "User not found")
+                if (isOwn && (u == null || u.id != Fb.uid)) {
+                    u = Fb.ensureMyDoc() ?: u
+                    if (u != null) onAvatarChanged(u)
+                }
                 if (u == null) { err = "User not found"; return@launch }
                 user = u
                 if (isOwn) onAvatarChanged(u)

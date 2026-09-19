@@ -80,6 +80,36 @@ object Fb {
         return null
     }
 
+    // creates users/{uid} if missing (self-heal for failed auto-provision), then returns fresh profile
+    suspend fun ensureMyDoc(): VUser? {
+        val u = auth.currentUser ?: return null
+        val ref = db.collection("users").document(u.uid)
+        val doc = try { ref.get().await() } catch (_: Exception) { return null }
+        if (doc.exists()) return doc.toVUser()
+        var uname = baseUsername(u.email)
+        var guard = 0
+        while (guard < 6 && try { db.collection("usernames").document(uname).get().await().exists() } catch (_: Exception) { false }) {
+            uname = uname + Random.nextInt(10, 99)
+            guard++
+        }
+        val profile = hashMapOf<String, Any?>(
+            "username" to uname,
+            "name" to (u.displayName ?: uname),
+            "email" to (u.email ?: ""),
+            "avatar" to (u.photoUrl ?: ""),
+            "bio" to "",
+            "followersCount" to 0L,
+            "followingCount" to 0L,
+            "postsCount" to 0L,
+            "createdAt" to FieldValue.serverTimestamp()
+        )
+        return try {
+            ref.set(profile).await()
+            db.collection("usernames").document(uname).set(hashMapOf("uid" to u.uid)).await()
+            ref.get().await().toVUser()
+        } catch (_: Exception) { null }
+    }
+
     // instant placeholder from the signed-in Google account (never blocks UI)
     fun tempMe(): VUser {
         val u = auth.currentUser

@@ -117,12 +117,13 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
         }
     }
     LaunchedEffect(Unit) {
-        // self-heal profile (in case we entered with temp data)
+        // self-heal profile: fetch, and if the doc is missing PROVISION it (fixes "User not found" on own profile)
         scope.launch {
-            val fresh = try { Fb.me(retries = 3) } catch (_: Exception) { null }
+            var fresh = try { Fb.me(retries = 3) } catch (_: Exception) { null }
+            if (fresh == null) fresh = try { Fb.ensureMyDoc() } catch (_: Exception) { null }
             if (fresh != null && fresh.username != me.username) {
                 me = fresh
-                if (profileUsername.isEmpty() || profileUsername == "user") profileUsername = fresh.username
+                if (profileUsername.isEmpty() || profileUsername == me.username) profileUsername = fresh.username
             }
         }
         loadFeed()
