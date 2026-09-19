@@ -395,7 +395,10 @@ object Fb {
 
     // cached non-suspend check (best-effort)
     @Volatile var lastRequestCheck: Pair<String, Boolean>? = null
-    fun amRequestingSync(targetId: String): Boolean = lastRequestCheck?.first == targetId && lastRequestCheck.second
+    fun amRequestingSync(targetId: String): Boolean {
+        val c = lastRequestCheck
+        return c?.first == targetId && c.second
+    }
 
     suspend fun amRequesting(targetId: String): Boolean {
         val idv = uid ?: return false
