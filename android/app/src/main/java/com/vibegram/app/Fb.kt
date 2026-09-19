@@ -343,4 +343,93 @@ fun Bitmap.toDataUrl(max: Int = 1080, quality: Int = 82): String {
     val bos = ByteArrayOutputStream()
     b.compress(Bitmap.CompressFormat.JPEG, quality, bos)
     return "data:image/jpeg;base64," + Base64.encodeToString(bos.toByteArray(), Base64.NO_WRAP)
+
+    // ---------- v5.4 full parity ----------
+    val VERIFIED_IDS = setOf("bot-aarav", "bot-priya", "bot-rohan", "bot-ishani", "bot-karan")
+
+    suspend fun listRequests(): List<Pair<String, VUser>> {
+        val idv = uid ?: return emptyList()
+        val snap = db.collection("requests").whereEqualTo("toId", idv).limit(30).get().await()
+        val out = mutableListOf<Pair<String, VUser>>()
+        for (d in snap.documents) {
+            val fid = d.getString("fromId") ?: continue
+            val u = try { db.collection("users").document(fid).get().await().toVUser() } catch (_: Exception) { null } ?: continue
+            out.add(d.id to u)
+        }
+        return out
+    }
+
+    suspend fun acceptRequest(reqId: String, requester: VUser) {
+        val idv = uid ?: return
+        db.collection("requests").document(reqId).delete().await()
+        db.collection("follows").document("${requester.id}_${idv}")
+            .set(hashMapOf("followerId" to requester.id, "followingId" to idv, "createdAt" to FieldValue.serverTimestamp()))
+            .await()
+        db.collection("users").document(requester.id).update("followingCount", FieldValue.increment(1)).await()
+        db.collection("users").document(idv).update("followersCount", FieldValue.increment(1)).await()
+        db.collection("notifications").document().set(
+            hashMapOf<String, Any?>("userId" to idv, "actorId" to requester.id, "type" to "follow", "postId" to null, "read" to false, "createdAt" to FieldValue.serverTimestamp())
+        ).await()
+        db.collection("notifications").document().set(
+            hashMapOf<String, Any?>("userId" to requester.id, "actorId" to idv, "type" to "follow_accept", "postId" to null, "read" to false, "createdAt" to FieldValue.serverTimestamp())
+        ).await()
+    }
+
+    suspend fun deleteRequest(reqId: String) {
+        db.collection("requests").document(reqId).delete().await()
+    }
+
+    suspend fun amRequesting(targetId: String): Boolean {
+        val idv = uid ?: return false
+        return try { db.collection("requests").document("${idv}__${targetId}").get().await().exists() } catch (_: Exception) { false }
+    }
+
+    suspend fun followersOf(targetUid: String): List<VUser> {
+        val snap = db.collection("follows").whereEqualTo("followingId", targetUid).limit(100).get().await()
+        val ids = snap.documents.mapNotNull { it.getString("followerId") }.filter { it != targetUid }
+        return ids.take(30).mapNotNull { id -> try { db.collection("users").document(id).get().await().toVUser() } catch (_: Exception) { null } }
+    }
+
+    suspend fun followingOf(targetUid: String): List<VUser> {
+        val snap = db.collection("follows").whereEqualTo("followerId", targetUid).limit(100).get().await()
+        val ids = snap.documents.mapNotNull { it.getString("followingId") }.filter { it != targetUid }
+        return ids.take(30).mapNotNull { id -> try { db.collection("users").document(id).get().await().toVUser() } catch (_: Exception) { null } }
+    }
+
+    suspend fun explorePosts(): List<Post> {
+        val snap = db.collection("posts")
+            .orderBy("createdAt", Query.Direction.DESCENDING).limit(48).get().await()
+        return snap.documents.mapNotNull { it.toPost() }
+    }
+
+    suspend fun updateAnthem(title: String, artist: String, url: String) {
+        val idv = uid ?: return
+        db.collection("users").document(idv)
+            .update("anthem", title.trim(), "anthemArtist", artist.trim(), "anthemUrl", url.trim()).await()
+    }
+
+    suspend fun itunesSearch(term: String): List<Song> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        try {
+            val u = java.net.URL("https://itunes.apple.com/search?term=" +
+                java.net.URLEncoder.encode(term, "UTF-8") + "&limit=25")
+            val conn = u.openConnection() as java.net.HttpURLConnection
+            conn.connectTimeout = 8000
+            conn.readTimeout = 8000
+            conn.setRequestProperty("User-Agent", "VibeGram/1.0")
+            val body = conn.inputStream.bufferedReader().readText()
+            val arr = org.json.JSONObject(body).getJSONArray("results")
+            val out = mutableListOf<Song>()
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                val track = o.optString("trackName")
+                val artist = o.optString("artistName")
+                val preview = o.optString("previewUrl")
+                val art = o.optString("artworkUrl100")
+                if (track.isNotEmpty() && preview.isNotEmpty()) out.add(Song(track, artist, preview, art))
+            }
+            out
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 }

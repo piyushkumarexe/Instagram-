@@ -13,7 +13,8 @@ data class VUser(
     val postsCount: Long,
     val verified: Boolean,
     val isPrivate: Boolean,
-    val anthem: String = ""
+    val anthem: String = "",
+    val anthemArtist: String = ""
 )
 
 data class Post(
@@ -68,9 +69,10 @@ fun DocumentSnapshot.toVUser(): VUser? {
         followersCount = getLong("followersCount") ?: 0L,
         followingCount = getLong("followingCount") ?: 0L,
         postsCount = getLong("postsCount") ?: 0L,
-        verified = getBoolean("verified") ?: false,
+        verified = (getBoolean("verified") ?: false) || Fb.VERIFIED_IDS.contains(id ?: ""),
         isPrivate = getBoolean("isPrivate") ?: false,
-        anthem = getString("anthem") ?: ""
+        anthem = getString("anthem") ?: "",
+        anthemArtist = getString("anthemArtist") ?: ""
     )
 }
 
@@ -85,7 +87,7 @@ fun DocumentSnapshot.toPost(): Post? {
         username = getString("username") ?: "?",
         name = getString("name") ?: "?",
         avatar = getString("avatar")?.takeIf { it.isNotBlank() },
-        verified = getBoolean("userVerified") ?: false,
+        verified = (getBoolean("userVerified") ?: false) || Fb.VERIFIED_IDS.contains(getString("username") ?: ""),
         media = media,
         isVideo = getString("mediaType") == "video",
         caption = getString("caption") ?: "",
@@ -107,3 +109,5 @@ fun DocumentSnapshot.toComment(): VComment? {
         createdAt = getTimestamp("createdAt")?.toDate()?.time ?: 0L
     )
 }
+
+data class Song(val title: String, val artist: String, val previewUrl: String, val artwork: String)

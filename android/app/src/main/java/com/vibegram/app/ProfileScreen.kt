@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -69,7 +71,8 @@ fun ProfileScreen(
     onChat: (VUser) -> Unit,
     onAddStory: () -> Unit,
     onLogout: () -> Unit,
-    onAvatarChanged: (VUser) -> Unit
+    onAvatarChanged: (VUser) -> Unit,
+    onConnections: (String, String) -> Unit
 ) {
     val ctx = LocalContext.current
     val isOwn = username.equals(me.username, ignoreCase = true)
@@ -83,6 +86,8 @@ fun ProfileScreen(
     var refreshing by remember { mutableStateOf(false) }
     var menuSheet by remember { mutableStateOf(false) }
     var editSheet by remember { mutableStateOf(false) }
+    var ptab by remember { mutableStateOf("grid") }
+    var songSheet by remember { mutableStateOf(false) }
 
     fun reload(done: () -> Unit = {}) {
         scope.launch {
@@ -206,8 +211,12 @@ fun ProfileScreen(
                     Spacer(Modifier.width(24.dp))
                     Row(Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceEvenly) {
                         Stat(ps.size.toLong(), "posts")
-                        Stat(u.followersCount, "followers")
-                        Stat(u.followingCount, "following")
+                        Box(Modifier.clickable { onConnections(u.username, "followers") }) {
+                            Stat(u.followersCount, "followers")
+                        }
+                        Box(Modifier.clickable { onConnections(u.username, "following") }) {
+                            Stat(u.followingCount, "following")
+                        }
                     }
                 }
 
@@ -224,7 +233,24 @@ fun ProfileScreen(
                         Text(u.bio, color = Color.White, fontSize = 13.sp, lineHeight = 18.sp)
                     }
                     if (u.anthem.isNotBlank()) {
-                        Text("🎵 " + u.anthem, color = Color(0xFF9AA0A6), fontSize = 12.sp)
+                        Spacer(Modifier.height(6.dp))
+                        Row(
+                            Modifier.background(Color(0xFF1C1C1E), RoundedCornerShape(16.dp))
+                                .clickable { if (isOwn) songSheet = true }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("🎵", fontSize = 12.sp)
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                u.anthem + (if (u.anthemArtist.isNotBlank()) " · " + u.anthemArtist else ""),
+                                color = Color(0xFFDDDDDD), fontSize = 12.sp
+                            )
+                            if (isOwn) {
+                                Spacer(Modifier.width(8.dp))
+                                Text("Edit", color = Color(0xFF0095F6), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
 
@@ -290,10 +316,48 @@ fun ProfileScreen(
                     }
                 }
 
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(10.dp))
+
+                // ---- IG profile tabs (grid / reels / tagged) ----
+                Row(Modifier.fillMaxWidth()) {
+                    listOf(
+                        "grid" to "▦",
+                        "reels" to "▶",
+                        "tagged" to "👤"
+                    ).forEach { (key, ic) ->
+                        Column(
+                            Modifier.weight(1f).clickable { ptab = key },
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(ic, fontSize = 18.sp, color = if (ptab == key) Color.White else Color(0xFF5A5A5A))
+                            Spacer(Modifier.height(7.dp))
+                            Box(
+                                Modifier.fillMaxWidth(0.6f).height(1.5.dp)
+                                    .background(if (ptab == key) Color.White else Color.Transparent)
+                            )
+                        }
+                    }
+                }
 
                 // ---- posts grid ----
-                if (ps.isEmpty()) {
+                if (ptab == "reels") {
+                    Spacer(Modifier.height(60.dp))
+                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("▶", fontSize = 36.sp)
+                        Spacer(Modifier.height(10.dp))
+                        Text("No reels yet", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+                } else if (ptab == "tagged") {
+                    Spacer(Modifier.height(60.dp))
+                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("👤", fontSize = 36.sp)
+                        Spacer(Modifier.height(10.dp))
+                        Text("Photos of you", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Spacer(Modifier.height(4.dp))
+                        Text("When people tag you in photos, they will appear here", color = Color(0xFF8E8E8E), fontSize = 12.sp)
+                    }
+                } else if (ps.isEmpty()) {
                     Spacer(Modifier.height(60.dp))
                     Column(
                         Modifier.fillMaxWidth(),
@@ -342,6 +406,31 @@ fun ProfileScreen(
                 }
             }
         }
+    }
+
+    if (songSheet) {
+        SongPickerSheet(
+            current = u.anthem,
+            onUse = { title, artist, url ->
+                songSheet = false
+                scope.launch {
+                    try {
+                        Fb.updateAnthem(title, artist, url)
+                        reload()
+                    } catch (_: Exception) { }
+                }
+            },
+            onClear = {
+                songSheet = false
+                scope.launch {
+                    try {
+                        Fb.updateAnthem("", "", "")
+                        reload()
+                    } catch (_: Exception) { }
+                }
+            },
+            onDismiss = { songSheet = false }
+        )
     }
 
     // ---- ☰ menu sheet (own) ----
@@ -404,6 +493,20 @@ fun ProfileScreen(
                     maxLines = 3,
                     modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    Modifier.fillMaxWidth().clickable { songSheet = true }
+                        .background(Color(0xFF232326), RoundedCornerShape(9.dp))
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("🎵", fontSize = 15.sp)
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        if (u.anthem.isBlank()) "Add music to profile" else u.anthem,
+                        color = Color.White, fontSize = 14.sp
+                    )
+                }
                 Spacer(Modifier.height(18.dp))
                 Button(
                     onClick = {
@@ -451,5 +554,132 @@ fun Stat(count: Long, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(count.toString(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         Text(label, color = Color.White, fontSize = 13.sp)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SongPickerSheet(
+    current: String,
+    onUse: (String, String, String) -> Unit,
+    onClear: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var q by remember { mutableStateOf("") }
+    var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
+    var searching by remember { mutableStateOf(false) }
+    var playingUrl by remember { mutableStateOf<String?>(null) }
+    var player by remember { mutableStateOf<android.media.MediaPlayer?>(null) }
+
+    LaunchedEffect(q) {
+        if (q.isBlank()) { songs = emptyList(); return@LaunchedEffect }
+        searching = true
+        val query = q
+        kotlinx.coroutines.delay(300)
+        songs = try { Fb.itunesSearch(query) } catch (_: Exception) { emptyList() }
+        searching = false
+    }
+
+    ModalBottomSheet(onDismissRequest = {
+        try { player?.stop(); player?.release() } catch (_: Exception) { }
+        onDismiss()
+    }, containerColor = Color(0xFF1C1C1E)) {
+        Column(Modifier.padding(horizontal = 18.dp).height(520.dp)) {
+            Text("Add music to profile", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = q,
+                onValueChange = { q = it },
+                placeholder = { Text("Search songs", color = Color(0xFF8E8E8E)) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    cursorColor = Color(0xFF0095F6),
+                    focusedBorderColor = Color(0xFF3A3A3C),
+                    unfocusedBorderColor = Color(0xFF3A3A3C)
+                ),
+                singleLine = true,
+                shape = RoundedCornerShape(11.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(10.dp))
+            if (searching) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Text("Searching…", color = Color(0xFF8E8E8E), fontSize = 13.sp)
+                }
+            }
+            if (current.isNotBlank()) {
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("🎵", fontSize = 15.sp)
+                    Spacer(Modifier.width(8.dp))
+                    Text(current, color = Color.White, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                    Text(
+                        "Remove",
+                        color = Color(0xFFED4956), fontWeight = FontWeight.Bold, fontSize = 13.sp,
+                        modifier = Modifier.clickable {
+                            try { player?.stop(); player?.release() } catch (_: Exception) { }
+                            onClear()
+                        }.padding(6.dp)
+                    )
+                }
+            }
+            androidx.compose.foundation.lazy.LazyColumn(Modifier.weight(1f)) {
+                items(songs.size) { i ->
+                    val song = songs[i]
+                    Row(
+                        Modifier.fillMaxWidth().clickable {
+                            try {
+                                player?.stop(); player?.release()
+                                val p = android.media.MediaPlayer()
+                                p.setDataSource(song.previewUrl)
+                                p.prepare()
+                                p.start()
+                                player = p
+                                playingUrl = song.previewUrl
+                            } catch (_: Exception) { }
+                        }.padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AsyncImage(
+                            model = song.artwork,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.size(44.dp).background(Color(0xFF333333))
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(song.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
+                            Text(song.artist, color = Color(0xFF8E8E8E), fontSize = 12.sp, maxLines = 1)
+                        }
+                        Text(
+                            if (playingUrl == song.previewUrl) "♪" else "▶",
+                            color = Color(0xFF0095F6), fontSize = 15.sp
+                        )
+                    }
+                }
+            }
+            Button(
+                onClick = {
+                    val p = playingUrl
+                    if (p != null) {
+                        val song = songs.firstOrNull { it.previewUrl == p }
+                        if (song != null) {
+                            try { player?.stop(); player?.release() } catch (_: Exception) { }
+                            onUse(song.title, song.artist, song.previewUrl)
+                        }
+                    }
+                },
+                enabled = playingUrl != null,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0095F6)),
+                modifier = Modifier.fillMaxWidth().height(44.dp),
+                shape = RoundedCornerShape(9.dp)
+            ) { Text("Use this song", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp) }
+            Spacer(Modifier.height(24.dp))
+        }
     }
 }

@@ -36,6 +36,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -51,12 +52,21 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
 
     var tab by remember { mutableStateOf("feed") }
     var profileUsername by remember { mutableStateOf(initialMe.username) }
+    var connKind by remember { mutableStateOf("followers") }
+    var postFor by remember { mutableStateOf<Post?>(null) }
     val stack = remember { mutableStateListOf<Route>() }
 
     fun goProfile(username: String) {
         stack.add(Route(tab, profileUsername))
         profileUsername = username
         tab = "profile"
+    }
+
+    fun goConnections(username: String, kind: String) {
+        stack.add(Route(tab, profileUsername))
+        connKind = kind
+        profileUsername = username
+        tab = "connections"
     }
     fun goBack() {
         if (stack.isNotEmpty()) {
@@ -104,7 +114,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
     var chatWith by remember { mutableStateOf<VUser?>(null) }
     var bigAvatar by remember { mutableStateOf<String?>(null) }
 
-    val overlayActive = commentsFor != null || chatWith != null || openStory != null || bigAvatar != null
+    val overlayActive = commentsFor != null || chatWith != null || openStory != null || bigAvatar != null || postFor != null
     BackHandler(enabled = overlayActive) {
         when {
             bigAvatar != null -> bigAvatar = null
@@ -133,7 +143,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         onOpenNotifications = { tab = "notifications" },
                         onOpenMessages = { tab = "messages" }
                     )
-                    "search" -> SearchScreen(onProfile = { goProfile(it) })
+                    "search" -> ExploreScreen(onProfile = { goProfile(it) }, onPost = { postFor = it })
                     "create" -> CreateScreen(
                         me = me,
                         onPosted = {
@@ -148,7 +158,15 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         },
                         onAvatarChanged = { u -> me = u }
                     )
-                    "notifications" -> NotificationsScreen(onProfile = { goProfile(it) })
+                    "notifications" -> NotificationsScreen(me = me, onProfile = { goProfile(it) })
+                    "connections" -> ConnectionsScreen(
+                        username = profileUsername,
+                        kind = connKind,
+                        me = me,
+                        onBack = { goBack() },
+                        onProfile = { goProfile(it) },
+                        onChat = { chatWith = it }
+                    )
                     "profile" -> ProfileScreen(
                         username = profileUsername,
                         me = me,
@@ -157,7 +175,8 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         onChat = { chatWith = it },
                         onAddStory = { tab = "create" },
                         onLogout = onLogout,
-                        onAvatarChanged = { u -> me = u }
+                        onAvatarChanged = { u -> me = u },
+                        onConnections = { uname, kind -> goConnections(uname, kind) }
                     )
                 }
             }
@@ -185,7 +204,16 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                 )
                 NavigationBarItem(
                     selected = tab == "profile", onClick = { tab = "profile" },
-                    icon = { Icon(Icons.Filled.Person, null) },
+                    icon = {
+                        Box(Modifier.size(26.dp)) {
+                            coil.compose.AsyncImage(
+                                model = me.avatar ?: "https://ui-avatars.com/api/?background=262626&color=fff&name=U",
+                                contentDescription = null,
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize().clip(androidx.compose.foundation.shape.CircleShape)
+                            )
+                        }
+                    },
                     colors = navColors()
                 )
             }
@@ -217,6 +245,15 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
         }
         bigAvatar?.let { url ->
             BigAvatar(url = url, onDismiss = { bigAvatar = null })
+        }
+        postFor?.let { p ->
+            PostModal(
+                post = p,
+                onLike = { like(it) },
+                onComments = { cp -> commentsFor = cp },
+                onProfile = { uname -> postFor = null; goProfile(uname) },
+                onClose = { postFor = null }
+            )
         }
     }
 }

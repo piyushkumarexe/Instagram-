@@ -80,6 +80,7 @@ fun MessagesScreen(onChat: (VUser) -> Unit, onProfile: (String) -> Unit) {
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun ChatScreen(
     other: VUser,
@@ -90,6 +91,7 @@ fun ChatScreen(
     var msgs by remember { mutableStateOf<List<VMsg>?>(null) }
     var text by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
+    var emojiOpen by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
@@ -155,11 +157,34 @@ fun ChatScreen(
             }
         }
 
+        if (emojiOpen) {
+            val emojis = listOf(
+                "😀","😃","😄","😁","😆","🤣","😊","😇","😉","😍","🥰","😘","😋","😜","🤪","🤨","🤓","😎","🥳","😏","😔","😭","🥺","😤","😱","🤯","😳","🥵","😡","🤬",
+                "👍","👎","👌","✌️","🤞","🤟","🤘","👏","🙌","🤝","🙏","💪","👋","🤙","👀","🔥","✨","⭐","💔","❤️","🧡","💛","💚","💙","💜","🖤","🎉","🎁","🏆","🎯",
+                "🍕","🍔","🍟","🌮","🍜","🍣","🍩","🍪","🎂","🍰","☕","🍵","🧋","🍺","🍷","🥂","🎮","🎸","🎤","🎧","📸","⚽","🏏","🚗","✈️","🌈","☀️","🌙","🌊","🐶"
+            )
+            Column(Modifier.fillMaxWidth().background(Color(0xFF111111)).padding(horizontal = 8.dp, vertical = 6.dp)) {
+                androidx.compose.foundation.layout.FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    emojis.forEach { e ->
+                        Text(e, fontSize = 25.sp, modifier = Modifier
+                            .clickable { text += e }
+                            .padding(3.dp))
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+            }
+        }
+
         // input
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Text("😊", fontSize = 24.sp, modifier = Modifier
+                .clickable { emojiOpen = !emojiOpen }
+                .padding(6.dp))
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
