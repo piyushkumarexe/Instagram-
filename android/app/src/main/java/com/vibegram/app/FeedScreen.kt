@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -35,7 +36,9 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Text
@@ -272,6 +275,7 @@ fun fmtCount(n: Long): String = when {
 }
 
 @Composable
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 fun PostCard(
     post: Post,
     onLike: (Post) -> Unit,
@@ -286,8 +290,11 @@ fun PostCard(
     var savedLoc by remember(post.id) { mutableStateOf(post.savedByMe) }
     var editOpen by remember { mutableStateOf(false) }
     var editTxt by remember { mutableStateOf(post.caption) }
+    var likedByOpen by remember { mutableStateOf(false) }
+    var likedByList by remember { mutableStateOf<List<VUser>>(emptyList()) }
     val cardScope = rememberCoroutineScope()
     val cardCtx = androidx.compose.ui.platform.LocalContext.current
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val myId = Fb.uid
     val liked = myId != null && post.likes.contains(myId)
 
@@ -392,7 +399,6 @@ fun PostCard(
         Box(
             Modifier.fillMaxWidth().aspectRatio(1f).background(Color(0xFF111111))
                 .pointerInput(post.id) {
-                    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
                     detectTapGestures(
                         onDoubleTap = {
                             haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
