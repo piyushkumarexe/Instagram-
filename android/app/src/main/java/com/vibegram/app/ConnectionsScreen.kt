@@ -52,6 +52,7 @@ fun ConnectionsScreen(
     var list by remember { mutableStateOf<List<VUser>?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
     var myFollowingIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var followOverrides by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var busyId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val locked = isPrivate && !isFollowing && userId != me.id
@@ -162,7 +163,7 @@ fun ConnectionsScreen(
                 LazyColumn(Modifier.fillMaxSize()) {
                     items(l) { u ->
                         val isMe = u.id == me.id
-                        var following by remember(u.id) { mutableStateOf(myFollowingIds.contains(u.id)) }
+                        val following = followOverrides[u.id] ?: myFollowingIds.contains(u.id)
                         Row(
                             Modifier.fillMaxWidth().clickable { onProfile(u.username) }
                                 .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -186,12 +187,14 @@ fun ConnectionsScreen(
                                         if (busyId == u.id) return@Button
                                         busyId = u.id
                                         val want = !following
+                                        followOverrides = followOverrides + (u.id to want) // optimistic
                                         scope.launch {
                                             try {
                                                 val ok = Fb.follow(u, want)
-                                                if (ok) following = want else following = false
+                                                if (!ok) followOverrides = followOverrides + (u.id to false)
                                                 myFollowingIds = if (want) myFollowingIds + u.id else myFollowingIds - u.id
                                             } catch (_: Exception) {
+                                                followOverrides = followOverrides + (u.id to !want)
                                             } finally { busyId = null }
                                         }
                                     },

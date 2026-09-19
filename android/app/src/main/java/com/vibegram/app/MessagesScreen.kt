@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -78,6 +79,11 @@ fun MessagesScreen(me: VUser, onChat: (VUser) -> Unit, onProfile: (String) -> Un
 
     LaunchedEffect(Unit) {
         threads = try { Fb.threads() } catch (_: Exception) { emptyList() }
+        while (true) {
+            kotlinx.coroutines.delay(5000)
+            val t = try { Fb.threads() } catch (_: Exception) { null }
+            if (t != null) threads = t
+        }
     }
 
     Column(Modifier.fillMaxSize().background(Color.Black).statusBarsPadding()) {
@@ -185,7 +191,13 @@ fun MessagesScreen(me: VUser, onChat: (VUser) -> Unit, onProfile: (String) -> Un
                                 AvatarView(url = fu.avatar, size = 46, border = false, name = fu.username)
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(fu.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(fu.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                        if (fu.verified) {
+                                            Spacer(Modifier.width(4.dp))
+                                            VerifiedBadge(14)
+                                        }
+                                    }
                                     Text(fu.name, color = Color(0xFF8E8E8E), fontSize = 13.sp)
                                 }
                                 Text("Message", color = Color(0xFF0095F6), fontWeight = FontWeight.Bold, fontSize = 12.sp)
@@ -315,8 +327,13 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
             AvatarView(url = other.avatar, size = 32, border = false, name = other.username)
             Spacer(Modifier.width(10.dp))
             Column {
-                Text(other.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp,
-                    modifier = Modifier.clickable { onProfile(other.username) })
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { onProfile(other.username) }) {
+                    Text(other.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    if (other.verified) {
+                        Spacer(Modifier.width(4.dp))
+                        VerifiedBadge(15)
+                    }
+                }
                 Text(
                     if (System.currentTimeMillis() - other.lastActive < 300_000) "Active now" else "",
                     color = Color(0xFF31D158), fontSize = 11.sp
@@ -350,20 +367,31 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
                         ) {
                             Box(
                                 Modifier
-                                    .background(
-                                        if (m.fromMe) Color(0xFF3797F0) else Color(0xFF262626),
-                                        RoundedCornerShape(18.dp)
+                                    .widthIn(max = 290.dp)
+                                    .then(
+                                        if (m.fromMe) Modifier.background(
+                                            androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                                listOf(Color(0xFF0095F6), Color(0xFF3797F0))
+                                            ),
+                                            RoundedCornerShape(20.dp)
+                                        ) else Modifier.background(Color(0xFF262626), RoundedCornerShape(20.dp))
                                     )
-                                    .padding(horizontal = 13.dp, vertical = 9.dp)
+                                    .padding(horizontal = 14.dp, vertical = 10.dp)
                             ) {
-                                Text(m.text, color = Color.White, fontSize = 15.sp)
+                                Text(m.text, color = Color.White, fontSize = 15.sp, lineHeight = 20.sp)
                             }
-                            if (m.fromMe) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
+                                if (m.fromMe) {
+                                    Text(
+                                        if (m.read) "✓✓ " else "✓ ",
+                                        color = if (m.read) Color(0xFF31D158) else Color(0xFF8E8E8E),
+                                        fontSize = 10.sp
+                                    )
+                                }
                                 Text(
-                                    if (m.read) "✓✓" else "✓",
-                                    color = if (m.read) Color(0xFF31D158) else Color(0xFF8E8E8E),
-                                    fontSize = 10.sp,
-                                    modifier = Modifier.padding(top = 1.dp, end = 2.dp)
+                                    java.text.SimpleDateFormat("h:mm a", java.util.Locale.US).format(java.util.Date(m.at)),
+                                    color = Color(0xFF7A7A7A), fontSize = 10.sp,
+                                    modifier = Modifier.padding(top = 2.dp, end = 2.dp)
                                 )
                             }
                             if (m.reaction != null) {

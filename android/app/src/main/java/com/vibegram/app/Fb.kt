@@ -414,20 +414,41 @@ object Fb {
     // ---------- dms ----------
     fun pairId(a: String, b: String) = listOf(a, b).sorted().joinToString("__")
 
+    private suspend fun parseThreadDoc(d: com.google.firebase.firestore.DocumentSnapshot, idv: String): ThreadInfo? {
+        @Suppress("UNCHECKED_CAST")
+        val uids = (d.get("uids") as? List<String>) ?: return null
+        val other = uids.firstOrNull { it != idv } ?: return null
+        val ud = db.collection("users").document(other).get().await()
+        val u = ud.toVUser() ?: VUser(other, "unknown", "Unknown", null, "", 0, 0, 0, false, false)
+        val myField = if (uids.firstOrNull() == idv) "unreadA" else "unreadB"
+        return ThreadInfo(u, d.getString("lastText") ?: "", d.getTimestamp("lastAt")?.toDate()?.time ?: 0L, (d.getLong(myField) ?: 0L).toInt())
+    }
+
     suspend fun threads(): List<ThreadInfo> {
         val idv = uid ?: return emptyList()
-        val snap = db.collection("dms").whereArrayContains("uids", idv).limit(50).fresh()
-        val out = mutableListOf<ThreadInfo>()
-        for (d in snap.documents) {
-            @Suppress("UNCHECKED_CAST")
-            val uids = (d.get("uids") as? List<String>) ?: continue
-            val other = uids.firstOrNull { it != idv } ?: continue
-            val ud = db.collection("users").document(other).get().await()
-            val u = ud.toVUser() ?: VUser(other, "unknown", "Unknown", null, "", 0, 0, 0, false, false)
-            val myField = if (uids.firstOrNull() == idv) "unreadA" else "unreadB"
-            out.add(ThreadInfo(u, d.getString("lastText") ?: "", d.getTimestamp("lastAt")?.toDate()?.time ?: 0L, (d.getLong(myField) ?: 0L).toInt()))
+        val out = LinkedHashMap<String, ThreadInfo>()
+        // 1) primary: array-contains query with SERVER -> DEFAULT -> CACHE fallback
+        try {
+            val q = db.collection("dms").whereArrayContains("uids", idv).limit(50)
+            val snap = try { q.get(com.google.firebase.firestore.Source.SERVER).await() } catch (_: Exception) {
+                try { q.get().await() } catch (_: Exception) { q.get(com.google.firebase.firestore.Source.CACHE).await() }
+            }
+            for (d in snap.documents) {
+                try { parseThreadDoc(d, idv)?.let { out.put(it.user.id, it) } } catch (_: Exception) { }
+            }
+        } catch (_: Exception) { }
+        // 2) belt & suspenders: direct pair-doc lookup for everyone I follow / who follows me
+        val contacts = HashSet<String>()
+        try { db.collection("follows").whereEqualTo("followerId", idv).limit(100).fresh().documents.forEach { d -> d.getString("followingId")?.let { contacts.add(it) } } } catch (_: Exception) { }
+        try { db.collection("follows").whereEqualTo("followingId", idv).limit(100).fresh().documents.forEach { d -> d.getString("followerId")?.let { contacts.add(it) } } } catch (_: Exception) { }
+        for (c in contacts) {
+            if (out.containsKey(c)) continue
+            try {
+                val d = db.collection("dms").document(pairId(idv, c)).get().await()
+                if (d.exists()) parseThreadDoc(d, idv)?.let { out.put(it.user.id, it) }
+            } catch (_: Exception) { }
         }
-        return out.sortedByDescending { it.lastAt }
+        return out.values.sortedByDescending { it.lastAt }
     }
 
     suspend fun messages(otherId: String): List<VMsg> {

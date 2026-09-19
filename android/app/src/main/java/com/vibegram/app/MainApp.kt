@@ -167,15 +167,17 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
     var bigAvatar by remember { mutableStateOf<String?>(null) }
 
     val overlayActive = commentsFor != null || chatWith != null || openStory != null || bigAvatar != null || postFor != null
-    BackHandler(enabled = overlayActive) {
+    BackHandler(enabled = true) {
         when {
             bigAvatar != null -> bigAvatar = null
             openStory != null -> openStory = null
             commentsFor != null -> commentsFor = null
             chatWith != null -> chatWith = null
+            postFor != null -> postFor = null
+            stack.isNotEmpty() -> goBack()
+            tab != "home" -> tab = "home"
         }
     }
-    BackHandler(enabled = !overlayActive && stack.isNotEmpty()) { goBack() }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         Column(Modifier.fillMaxSize()) {
