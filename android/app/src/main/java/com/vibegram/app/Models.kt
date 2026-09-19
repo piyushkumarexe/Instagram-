@@ -30,7 +30,8 @@ data class Post(
     val createdAt: Long,
     val likes: List<String>,
     val likesCount: Long,
-    val commentsCount: Long
+    val commentsCount: Long,
+    val savedByMe: Boolean = false
 )
 
 data class VComment(
