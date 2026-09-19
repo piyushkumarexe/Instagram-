@@ -352,7 +352,7 @@ fun ProfileScreen(
                 // ---- IG profile tabs (grid / reels / reposted / tagged) ----
                 Row(Modifier.fillMaxWidth()) {
                     listOf(
-                        Triple("grid", androidx.compose.material.icons.Icons.Filled.GridView, "Grid"),
+                        Triple("grid", androidx.compose.material.icons.Icons.Filled.Apps, "Grid"),
                         Triple("reels", androidx.compose.material.icons.Icons.Outlined.SmartDisplay, "Reels"),
                         Triple("reposted", androidx.compose.material.icons.Icons.Outlined.Repeat, "Reposts"),
                         Triple("tagged", androidx.compose.material.icons.Icons.Outlined.PersonPin, "Tagged")

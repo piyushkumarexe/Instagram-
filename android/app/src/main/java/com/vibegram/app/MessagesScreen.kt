@@ -224,6 +224,7 @@ private fun NewChatSheet(onPick: (VUser) -> Unit, onDismiss: () -> Unit) {
 }
 
 // IG-style chat screen (messages list + emoji picker + send)
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () -> Unit) {
     var msgs by remember { mutableStateOf<List<VMsg>?>(null) }

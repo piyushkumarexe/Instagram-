@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Send
+import androidx.compose.material.icons.outlined.OndemandVideo
 import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
@@ -221,7 +222,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                 )
                 NavigationBarItem(
                     selected = tab == "reels", onClick = { tab = "reels" },
-                    icon = { Icon(if (tab == "reels") Icons.Filled.SmartDisplay else Icons.Outlined.SmartDisplay, null) },
+                    icon = { Icon(if (tab == "reels") Icons.Filled.SmartDisplay else Icons.Outlined.OndemandVideo, null) },
                     colors = navColors()
                 )
                 NavigationBarItem(
