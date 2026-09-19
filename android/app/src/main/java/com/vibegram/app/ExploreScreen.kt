@@ -46,6 +46,7 @@ fun ExploreScreen(onProfile: (String) -> Unit, onPost: (Post) -> Unit) {
     var users by remember { mutableStateOf<List<VUser>?>(null) }
     var posts by remember { mutableStateOf<List<Post>?>(null) }
     var searching by remember { mutableStateOf(false) }
+    var err by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         posts = try { Fb.explorePosts() } catch (_: Exception) { emptyList() }
@@ -55,7 +56,8 @@ fun ExploreScreen(onProfile: (String) -> Unit, onPost: (Post) -> Unit) {
         searching = true
         val query = q
         kotlinx.coroutines.delay(250)
-        users = try { Fb.searchUsers(query) } catch (_: Exception) { emptyList() }
+        err = null
+        users = try { Fb.searchUsers(query) } catch (e: Exception) { err = e.message ?: "Search failed"; emptyList() }
         searching = false
     }
 
@@ -93,6 +95,9 @@ fun ExploreScreen(onProfile: (String) -> Unit, onPost: (Post) -> Unit) {
             if (ul != null) {
                 if (ul.isEmpty()) {
                     Text("No results found", color = Color(0xFF8E8E8E), fontSize = 13.sp, modifier = Modifier.padding(20.dp))
+                    err?.let {
+                        Text(it, color = Color(0xFFFF5A6E), fontSize = 12.sp, modifier = Modifier.padding(horizontal = 20.dp))
+                    }
                 } else {
                     LazyColumn(Modifier.fillMaxSize()) {
                         items(ul) { u ->

@@ -15,6 +15,13 @@ import kotlin.random.Random
 
 const val WEB_CLIENT_ID = "861201865526-kqnu0docnn7sd6co04j29fo0rotnaroc.apps.googleusercontent.com"
 
+// List-style reads MUST hit the server first: Firestore get() otherwise serves a
+// locally-cached (possibly empty/stale) result forever and never re-syncs the query.
+// SERVER first -> fresh data always when online; CACHE fallback keeps it working offline.
+suspend fun Query.fresh(): com.google.firebase.firestore.QuerySnapshot =
+    try { get(com.google.firebase.firestore.Source.SERVER).await() }
+    catch (_: Exception) { get(com.google.firebase.firestore.Source.CACHE).await() }
+
 object Fb {
     val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
     val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
@@ -131,7 +138,7 @@ object Fb {
         try {
             val snap = db.collection("usernames")
                 .orderBy(FieldPath.documentId())
-                .startAt(clean).endAt(clean + "\uf8ff").limit(12).get().await()
+                .startAt(clean).endAt(clean + "\uf8ff").limit(12).fresh()
             for (d in snap.documents) {
                 val uidv = d.getString("uid") ?: continue
                 val u = db.collection("users").document(uidv).get().await().toVUser() ?: continue
@@ -156,12 +163,12 @@ object Fb {
     suspend fun feed(limit: Long = 12, before: Long? = null): List<Post> {
         var q = db.collection("posts").orderBy("createdAt", Query.Direction.DESCENDING)
         if (before != null) q = q.startAfter(java.util.Date(before))
-        val snap = q.limit(limit).get().await()
+        val snap = q.limit(limit).fresh()
         return snap.documents.mapNotNull { it.toPost() }
     }
 
     suspend fun userPosts(username: String): List<Post> {
-        val snap = db.collection("posts").whereEqualTo("username", username).limit(60).get().await()
+        val snap = db.collection("posts").whereEqualTo("username", username).limit(60).fresh()
         return snap.documents.mapNotNull { it.toPost() }.sortedByDescending { it.createdAt }
     }
 
@@ -178,7 +185,7 @@ object Fb {
 
     suspend fun comments(postId: String): List<VComment> {
         val snap = db.collection("posts").document(postId).collection("comments")
-            .orderBy("createdAt", Query.Direction.ASCENDING).limit(100).get().await()
+            .orderBy("createdAt", Query.Direction.ASCENDING).limit(100).fresh()
         return snap.documents.mapNotNull { it.toComment() }
     }
 
@@ -272,7 +279,7 @@ object Fb {
     // ---------- notifications ----------
     suspend fun notifications(): List<NotifRow> {
         val idv = uid ?: return emptyList()
-        val snap = db.collection("notifications").whereEqualTo("userId", idv).limit(40).get().await()
+        val snap = db.collection("notifications").whereEqualTo("userId", idv).limit(40).fresh()
         val docs = snap.documents.sortedByDescending { it.getTimestamp("createdAt")?.toDate()?.time ?: 0L }
         val out = mutableListOf<NotifRow>()
         for (d in docs) {
@@ -292,7 +299,7 @@ object Fb {
     suspend fun stories(): Map<VUser, List<Story>> {
         val cutoff = System.currentTimeMillis() - 24L * 3600 * 1000
         val snap = db.collection("stories")
-            .orderBy("createdAt", Query.Direction.DESCENDING).limit(60).get().await()
+            .orderBy("createdAt", Query.Direction.DESCENDING).limit(60).fresh()
         val groups = LinkedHashMap<String, MutableList<Story>>()
         val users = LinkedHashMap<String, VUser>()
         for (d in snap.documents) {
@@ -409,7 +416,7 @@ object Fb {
 
     suspend fun threads(): List<ThreadInfo> {
         val idv = uid ?: return emptyList()
-        val snap = db.collection("dms").whereArrayContains("uids", idv).limit(50).get().await()
+        val snap = db.collection("dms").whereArrayContains("uids", idv).limit(50).fresh()
         val out = mutableListOf<ThreadInfo>()
         for (d in snap.documents) {
             @Suppress("UNCHECKED_CAST")
@@ -427,7 +434,7 @@ object Fb {
         val idv = uid ?: return emptyList()
         val pid = pairId(idv, otherId)
         val snap = db.collection("dms").document(pid).collection("messages")
-            .orderBy("createdAt", Query.Direction.ASCENDING).limit(200).get().await()
+            .orderBy("createdAt", Query.Direction.ASCENDING).limit(200).fresh()
         return snap.documents.mapNotNull { d ->
             val at = d.getTimestamp("createdAt")?.toDate()?.time ?: return@mapNotNull null
             VMsg(d.id, d.getString("text") ?: "", d.getString("from") == idv, at, d.getString("from") ?: "", d.getString("reaction"), d.getBoolean("read") ?: false)
@@ -500,7 +507,7 @@ object Fb {
 
     suspend fun unreadDmCount(): Int {
         val idv = uid ?: return 0
-        val snap = db.collection("dms").whereArrayContains("uids", idv).limit(50).get().await()
+        val snap = db.collection("dms").whereArrayContains("uids", idv).limit(50).fresh()
         var n = 0
         for (d in snap.documents) {
             val myField = if ((d.get("uids") as? List<String>)?.firstOrNull() == idv) "unreadA" else "unreadB"
@@ -521,13 +528,13 @@ object Fb {
 
     suspend fun unreadNotifCount(): Int {
         val idv = uid ?: return 0
-        val snap = db.collection("notifications").whereEqualTo("userId", idv).whereEqualTo("read", false).limit(30).get().await()
+        val snap = db.collection("notifications").whereEqualTo("userId", idv).whereEqualTo("read", false).limit(30).fresh()
         return snap.size()
     }
 
     suspend fun markNotifsRead() {
         val idv = uid ?: return
-        val snap = db.collection("notifications").whereEqualTo("userId", idv).whereEqualTo("read", false).limit(30).get().await()
+        val snap = db.collection("notifications").whereEqualTo("userId", idv).whereEqualTo("read", false).limit(30).fresh()
         for (d in snap.documents) d.reference.update("read", true).await()
     }
 
@@ -554,7 +561,7 @@ object Fb {
 
     suspend fun repostedPosts(): List<Post> {
         val idv = uid ?: return emptyList()
-        val snap = db.collection("posts").whereArrayContains("repostedBy", idv).limit(30).get().await()
+        val snap = db.collection("posts").whereArrayContains("repostedBy", idv).limit(30).fresh()
         return snap.documents.mapNotNull { it.toPost() }.sortedByDescending { it.createdAt }
     }
 
@@ -597,7 +604,7 @@ object Fb {
 
     suspend fun deletePost(postId: String) {
         try {
-            val cs = db.collection("posts").document(postId).collection("comments").limit(100).get().await()
+            val cs = db.collection("posts").document(postId).collection("comments").limit(100).fresh()
             for (c in cs.documents) c.reference.delete().await()
         } catch (_: Exception) { }
         db.collection("posts").document(postId).delete().await()
@@ -606,7 +613,7 @@ object Fb {
     suspend fun suggestions(): List<VUser> {
         val idv = uid ?: return emptyList()
         val mine = followingOf(idv).map { it.id }.toSet()
-        val snap = db.collection("users").limit(25).get().await()
+        val snap = db.collection("users").limit(25).fresh()
         val out = mutableListOf<VUser>()
         for (d in snap.documents) {
             if (d.id == idv || mine.contains(d.id)) continue
@@ -664,7 +671,7 @@ object Fb {
 
     suspend fun listRequests(): List<Pair<String, VUser>> {
         val idv = uid ?: return emptyList()
-        val snap = db.collection("requests").whereEqualTo("toId", idv).limit(30).get().await()
+        val snap = db.collection("requests").whereEqualTo("toId", idv).limit(30).fresh()
         val out = mutableListOf<Pair<String, VUser>>()
         for (d in snap.documents) {
             val fid = d.getString("fromId") ?: continue
@@ -709,20 +716,20 @@ object Fb {
     }
 
     suspend fun followersOf(targetUid: String): List<VUser> {
-        val snap = db.collection("follows").whereEqualTo("followingId", targetUid).limit(100).get().await()
+        val snap = db.collection("follows").whereEqualTo("followingId", targetUid).limit(100).fresh()
         val ids = snap.documents.mapNotNull { it.getString("followerId") }.filter { it != targetUid }
         return ids.take(30).mapNotNull { id -> try { db.collection("users").document(id).get().await().toVUser() } catch (_: Exception) { null } }
     }
 
     suspend fun followingOf(targetUid: String): List<VUser> {
-        val snap = db.collection("follows").whereEqualTo("followerId", targetUid).limit(100).get().await()
+        val snap = db.collection("follows").whereEqualTo("followerId", targetUid).limit(100).fresh()
         val ids = snap.documents.mapNotNull { it.getString("followingId") }.filter { it != targetUid }
         return ids.take(30).mapNotNull { id -> try { db.collection("users").document(id).get().await().toVUser() } catch (_: Exception) { null } }
     }
 
     suspend fun explorePosts(): List<Post> {
         val snap = db.collection("posts")
-            .orderBy("createdAt", Query.Direction.DESCENDING).limit(48).get().await()
+            .orderBy("createdAt", Query.Direction.DESCENDING).limit(48).fresh()
         return snap.documents.mapNotNull { it.toPost() }
     }
 
