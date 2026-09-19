@@ -30,9 +30,11 @@ import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.Text
 import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.PlayArrowBorder
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -494,7 +496,7 @@ fun CommentsPanel(
                                     Text(c.text, color = Color.White, fontSize = 13.sp)
                                     Row {
                                         Text(
-                                            FeedScreenKt.postTimeAgo(c.createdAt),
+                                            postTimeAgo(c.createdAt),
                                             color = Color(0xFF8E8E8E), fontSize = 11.sp
                                         )
                                         Spacer(Modifier.width(10.dp))

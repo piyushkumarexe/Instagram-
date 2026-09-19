@@ -100,10 +100,11 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
             feedLoadingMore = true
             scope.launch {
                 try {
-                    val last = posts.lastOrNull()?.createdAt
+                    val cur = posts ?: return@launch
+                    val last = cur.lastOrNull()?.createdAt
                     if (last != null) {
                         val more = Fb.feed(before = last)
-                        if (more.isEmpty()) feedEnd = true else posts = posts + more
+                        if (more.isEmpty()) feedEnd = true else posts = cur + more
                     }
                 } catch (_: Exception) {
                 } finally { feedLoadingMore = false }
