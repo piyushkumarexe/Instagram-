@@ -208,7 +208,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         onAvatarChanged = { u -> me = u },
                         onConnections = { uname, kind -> goConnections(uname, kind) },
                         onSettings = { pushTabRoute("settings") },
-                        hasStory = storyGroups.any { it.first.id == me.id }
+                        hasStory = storyGroups.keys.any { it.id == me.id }
                     )
                 }
             }

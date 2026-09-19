@@ -332,7 +332,7 @@ fun PostCard(
                 cardScope.launch { try { Fb.toggleSave(post.id) } catch (_: Exception) { } }
             }) {
                 Icon(
-                    if (savedLoc) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                    if (savedLoc) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
                     null, tint = Color.White, modifier = Modifier.size(24.dp)
                 )
             }

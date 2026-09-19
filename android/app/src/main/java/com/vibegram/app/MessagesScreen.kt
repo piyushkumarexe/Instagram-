@@ -10,12 +10,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.CircularProgressIndicator
@@ -32,6 +34,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -211,6 +219,133 @@ private fun NewChatSheet(onPick: (VUser) -> Unit, onDismiss: () -> Unit) {
                 }
             }
             Spacer(Modifier.height(20.dp))
+        }
+    }
+}
+
+// IG-style chat screen (messages list + emoji picker + send)
+@Composable
+fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () -> Unit) {
+    var msgs by remember { mutableStateOf<List<VMsg>?>(null) }
+    var text by remember { mutableStateOf("") }
+    var sending by remember { mutableStateOf(false) }
+    var emojiOpen by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(other.id) {
+        msgs = try { Fb.messages(other.id) } catch (_: Exception) { emptyList() }
+    }
+    LaunchedEffect(msgs?.size) {
+        val n = msgs?.size ?: 0
+        if (n > 0) listState.animateScrollToItem(n - 1)
+    }
+
+    Column(
+        Modifier.fillMaxSize().background(Color.Black)
+            .navigationBarsPadding().imePadding().statusBarsPadding()
+    ) {
+        Row(
+            Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White, modifier = Modifier.size(24.dp))
+            }
+            AvatarView(url = other.avatar, size = 32, border = false, name = other.username)
+            Spacer(Modifier.width(10.dp))
+            Text(other.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp,
+                modifier = Modifier.clickable { onProfile(other.username) })
+        }
+
+        Box(Modifier.weight(1f)) {
+            val list = msgs
+            if (list == null) {
+                LoadingBox()
+            } else if (list.isEmpty()) {
+                Column(
+                    Modifier.fillMaxSize().padding(30.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    AvatarView(url = other.avatar, size = 72, border = false, name = other.username)
+                    Spacer(Modifier.height(10.dp))
+                    Text(other.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(other.username + " · VibeGram", color = Color(0xFF8E8E8E), fontSize = 13.sp)
+                }
+            } else {
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp)) {
+                    items(list) { m ->
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                            horizontalArrangement = if (m.fromMe) Arrangement.End else Arrangement.Start
+                        ) {
+                            Box(
+                                Modifier
+                                    .background(
+                                        if (m.fromMe) Color(0xFF3797F0) else Color(0xFF262626),
+                                        RoundedCornerShape(18.dp)
+                                    )
+                                    .padding(horizontal = 13.dp, vertical = 9.dp)
+                            ) {
+                                Text(m.text, color = Color.White, fontSize = 15.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (emojiOpen) {
+            val emojis = listOf(
+                "😀","😃","😄","😁","😆","🤣","😊","😇","😉","😍","🥰","😘","😋","😜","🤪","🤨","🤓","😎","🥳","😏","😔","😭","🥺","😤","😱","🤯","😳","🥵","😡","🤬",
+                "👍","👎","👌","✌️","🤞","🤟","🤘","👏","🙌","🤝","🙏","💪","👋","🤙","👀","🔥","✨","⭐","💔","❤️","🧡","💛","💚","💙","💜","🖤","🎉","🎁","🏆","🎯",
+                "🍕","🍔","🍟","🌮","🍜","🍣","🍩","🍪","🎂","🍰","☕","🍵","🧋","🍺","🍷","🥂","🎮","🎸","🎤","🎧","📸","⚽","🏏","🚗","✈️","🌈","☀️","🌙","🌊","🐶"
+            )
+            Column(Modifier.fillMaxWidth().background(Color(0xFF111111)).padding(horizontal = 8.dp, vertical = 6.dp)) {
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    emojis.forEach { e ->
+                        Text(e, fontSize = 25.sp, modifier = Modifier.clickable { text += e }.padding(3.dp))
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+            }
+        }
+
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("😊", fontSize = 24.sp, modifier = Modifier.clickable { emojiOpen = !emojiOpen }.padding(6.dp))
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                placeholder = { Text("Message…", color = Color(0xFF8E8E8E)) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    cursorColor = Color(0xFF0095F6)
+                ),
+                maxLines = 4,
+                shape = RoundedCornerShape(22.dp),
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(8.dp))
+            IconButton(onClick = {
+                val t = text.trim()
+                if (t.isEmpty() || sending) return@IconButton
+                sending = true
+                text = ""
+                scope.launch {
+                    try {
+                        Fb.sendDm(other.id, t)
+                        msgs = Fb.messages(other.id)
+                    } catch (_: Exception) {
+                    } finally { sending = false }
+                }
+            }) {
+                Icon(Icons.Filled.Send, null, tint = Color(0xFF0095F6), modifier = Modifier.size(26.dp))
+            }
         }
     }
 }
