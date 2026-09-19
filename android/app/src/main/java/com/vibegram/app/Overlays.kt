@@ -74,7 +74,7 @@ fun PostModal(
                 modifier = Modifier.clickable { onProfile(post.username) })
             if (post.verified) {
                 Spacer(Modifier.width(4.dp))
-                Text("✓", color = Color(0xFF1D9BF0), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                VerifiedBadge(15)
             }
         }
 
@@ -184,9 +184,9 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
         }
 
         // media
-        AsyncImage(
-            model = story.media,
-            contentDescription = null,
+        DataImage(
+            url = story.media,
+            circle = false,
             contentScale = ContentScale.Fit,
             modifier = Modifier.fillMaxSize()
         )
@@ -264,9 +264,9 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
 @Composable
 fun BigAvatar(url: String, onDismiss: () -> Unit) {
     Box(Modifier.fillMaxSize().background(Color(0xEE000000)).clickable { onDismiss() }, Alignment.Center) {
-        AsyncImage(
-            model = url,
-            contentDescription = null,
+        DataImage(
+            url = url,
+            fallbackLetter = "",
             contentScale = ContentScale.Fit,
             modifier = Modifier.size(320.dp)
         )

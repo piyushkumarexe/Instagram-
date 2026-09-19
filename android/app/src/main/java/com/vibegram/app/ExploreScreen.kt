@@ -108,7 +108,7 @@ fun ExploreScreen(onProfile: (String) -> Unit, onPost: (Post) -> Unit) {
                                         Text(u.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                         if (u.verified) {
                                             Spacer(Modifier.width(4.dp))
-                                            Text("✓", color = Color(0xFF1D9BF0), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                            VerifiedBadge(14)
                                         }
                                     }
                                     Text(u.name, color = Color(0xFF8E8E8E), fontSize = 13.sp)
@@ -139,10 +139,10 @@ fun ExploreScreen(onProfile: (String) -> Unit, onPost: (Post) -> Unit) {
                                         .background(Color(0xFF101010))
                                         .clickable { onPost(p) }
                                 ) {
-                                    AsyncImage(
-                                        model = p.media,
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
+                                    DataImage(
+                                        url = p.media,
+                                        fallbackLetter = p.username.take(1).uppercase(),
+                                        circle = false,
                                         modifier = Modifier.fillMaxSize()
                                     )
                                     if (p.likesCount > 0) {

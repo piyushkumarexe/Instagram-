@@ -162,14 +162,14 @@ fun ProfileScreen(
             Text(u.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
             if (u.verified) {
                 Spacer(Modifier.width(5.dp))
-                Box(
-                    Modifier.size(17.dp).background(Color(0xFF1D9BF0), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) { Text("✓", color = Color.White, fontWeight = FontWeight.Black, fontSize = 11.sp) }
+                VerifiedBadge(18)
             }
             if (u.isPrivate) {
-                Spacer(Modifier.width(6.dp))
-                Text("🔒", fontSize = 13.sp)
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    androidx.compose.material.icons.Icons.Outlined.Lock, null,
+                    tint = Color(0xFFC7C7C7), modifier = Modifier.size(15.dp)
+                )
             }
             Box(Modifier.weight(1f))
             if (isOwn) {
@@ -241,7 +241,7 @@ fun ProfileScreen(
                         Text(u.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         if (u.verified) {
                             Spacer(Modifier.width(5.dp))
-                            Text("✓", color = Color(0xFF1D9BF0), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            VerifiedBadge(14)
                         }
                     }
                     if (u.bio.isNotBlank()) {
@@ -429,10 +429,10 @@ fun ProfileScreen(
                                         Modifier.weight(1f).aspectRatio(1f).padding(0.5.dp)
                                             .background(Color(0xFF101010))
                                     ) {
-                                        AsyncImage(
-                                            model = p.media,
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop,
+                                        DataImage(
+                                            url = p.media,
+                                            fallbackLetter = p.username.take(1).uppercase(),
+                                            circle = false,
                                             modifier = Modifier.fillMaxSize()
                                         )
                                         if (p.isVideo) {

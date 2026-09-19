@@ -142,11 +142,10 @@ fun SearchScreen(onProfile: (String) -> Unit) {
                                     )
                                 }
                             } else {
-                                AsyncImage(
-                                    model = r.avatar,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.size(46.dp).clip(CircleShape).background(Color(0xFF262626))
+                                DataImage(
+                                    url = r.avatar,
+                                    fallbackLetter = r.username.take(1).uppercase(),
+                                    modifier = Modifier.size(46.dp)
                                 )
                             }
                             Spacer(Modifier.width(12.dp))
@@ -190,7 +189,7 @@ fun SearchScreen(onProfile: (String) -> Unit) {
                                         Text(u.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                         if (u.verified) {
                                             Spacer(Modifier.width(4.dp))
-                                            Text("✓", color = Color(0xFF1D9BF0), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                            VerifiedBadge(14)
                                         }
                                     }
                                     Text(

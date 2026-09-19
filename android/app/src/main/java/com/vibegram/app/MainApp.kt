@@ -238,26 +238,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                 NavigationBarItem(
                     selected = tab == "profile", onClick = { tab = "profile" },
                     icon = {
-                        Box(Modifier.size(26.dp)) {
-                            if (me.avatar.isNullOrBlank()) {
-                                Box(
-                                    Modifier.fillMaxSize().background(Color(0xFF262626), androidx.compose.foundation.shape.CircleShape),
-                                    Alignment.Center
-                                ) {
-                                    Text(
-                                        me.username.take(1).uppercase(),
-                                        color = Color(0xFFBBBBBB), fontWeight = FontWeight.Bold, fontSize = 12.sp
-                                    )
-                                }
-                            } else {
-                                coil.compose.AsyncImage(
-                                    model = me.avatar,
-                                    contentDescription = null,
-                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize().clip(androidx.compose.foundation.shape.CircleShape)
-                                )
-                            }
-                        }
+                        AvatarView(url = me.avatar, size = 26, border = false, name = me.username)
                     },
                     colors = navColors()
                 )
@@ -301,6 +282,15 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
             )
         }
     }
+}
+
+@Composable
+fun VerifiedBadge(sizeDp: Int = 14) {
+    Icon(
+        androidx.compose.material.icons.Icons.Filled.Verified, null,
+        tint = Color(0xFF0095F6),
+        modifier = Modifier.size(sizeDp.dp)
+    )
 }
 
 @Composable

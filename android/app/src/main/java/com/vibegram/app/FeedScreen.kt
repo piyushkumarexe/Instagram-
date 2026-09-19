@@ -181,11 +181,10 @@ fun AvatarView(url: String?, size: Int, border: Boolean, gradientRing: Boolean =
                 )
             }
         } else {
-            AsyncImage(
-                model = url,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.size(sz.dp).clip(CircleShape).background(Color(0xFF262626))
+            DataImage(
+                url = url,
+                fallbackLetter = if (name.isNotBlank()) name.take(1).uppercase() else "",
+                modifier = Modifier.size(sz.dp).clip(CircleShape)
             )
         }
     }
@@ -243,7 +242,7 @@ fun PostCard(
                     Text(post.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     if (post.verified) {
                         Spacer(Modifier.width(4.dp))
-                        Text("✓", color = Color(0xFF1D9BF0), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        VerifiedBadge(15)
                     }
                 }
             }
@@ -277,10 +276,10 @@ fun PostCard(
                     )
                 }
         ) {
-            AsyncImage(
-                model = post.media,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
+            DataImage(
+                url = post.media,
+                fallbackLetter = post.username.take(1).uppercase(),
+                circle = false,
                 modifier = Modifier.fillMaxSize()
             )
             if (post.isVideo) {

@@ -122,7 +122,7 @@ fun ConnectionsScreen(
                                 Text(u.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                 if (u.verified) {
                                     Spacer(Modifier.width(4.dp))
-                                    Text("✓", color = Color(0xFF1D9BF0), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    VerifiedBadge(14)
                                 }
                             }
                             Text(u.name, color = Color(0xFF8E8E8E), fontSize = 13.sp)

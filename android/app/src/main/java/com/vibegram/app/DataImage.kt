@@ -1,0 +1,114 @@
+package com.vibegram.app
+
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+/**
+ * Renders media/avatars reliably:
+ *  - "data:image/...;base64,..." -> manual Base64 decode + BitmapFactory (never fails silently)
+ *  - http(s) urls -> Coil AsyncImage
+ *  - null/blank/undecodable -> initial-letter fallback box
+ */
+@Composable
+fun DataImage(
+    url: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop,
+    fallbackLetter: String = "",
+    circle: Boolean = true
+) {
+    if (url.isNullOrBlank()) {
+        if (fallbackLetter.isNotBlank()) {
+            Box(
+                modifier.background(Color(0xFF262626)).clip(if (circle) androidx.compose.foundation.shape.CircleShape else androidx.compose.foundation.shape.RoundedCornerShape(4.dpSafe())),
+                Alignment.Center
+            ) {
+                Text(
+                    fallbackLetter.take(1).uppercase(),
+                    color = Color(0xFFBBBBBB),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
+        }
+        return
+    }
+
+    if (url.startsWith("data:image")) {
+        var bmp by remember(url) { mutableStateOf<Bitmap?>(null) }
+        var failed by remember(url) { mutableStateOf(false) }
+        LaunchedEffect(url) {
+            val decoded = withContext(Dispatchers.IO) {
+                try {
+                    val b64 = url.substringAfter("base64,", "")
+                    if (b64.isEmpty()) null
+                    else {
+                        val bytes = Base64.decode(b64, Base64.DEFAULT)
+                        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
+                        var sample = 1
+                        while (opts.outWidth / sample > 1600) sample *= 2
+                        val o2 = BitmapFactory.Options().apply { inSampleSize = sample }
+                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, o2)
+                    }
+                } catch (_: Exception) { null }
+            }
+            if (decoded != null) bmp = decoded else failed = true
+        }
+        val b = bmp
+        if (b != null) {
+            Image(
+                bitmap = b.asImageBitmap(),
+                contentDescription = null,
+                contentScale = contentScale,
+                modifier = modifier
+            )
+        } else if (failed) {
+            Box(
+                modifier.background(Color(0xFF262626)).clip(if (circle) androidx.compose.foundation.shape.CircleShape else androidx.compose.foundation.shape.RoundedCornerShape(4.dpSafe())),
+                Alignment.Center
+            ) {
+                Text(
+                    fallbackLetter.take(1).uppercase().ifBlank { "•" },
+                    color = Color(0xFFBBBBBB), fontWeight = FontWeight.Bold, fontSize = 16.sp
+                )
+            }
+        } else {
+            Box(modifier.background(Color(0xFF262626)))
+        }
+        return
+    }
+
+    // http(s)
+    AsyncImage(
+        model = url,
+        contentDescription = null,
+        contentScale = contentScale,
+        modifier = modifier
+    )
+}
+
+private fun Int.dpSafe() = androidx.compose.ui.unit.Dp(this.toFloat())
