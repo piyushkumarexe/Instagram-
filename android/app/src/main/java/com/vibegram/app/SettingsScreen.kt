@@ -263,6 +263,16 @@ fun SettingsScreen(
                     .clickable { Fb.logout(); onLogout() }
                     .padding(horizontal = 16.dp, vertical = 14.dp)
             )
+            Spacer(Modifier.height(20.dp))
+            // build version (proof of which APK you're running)
+            val vname = try {
+                ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName
+            } catch (_: Exception) { "?" }
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("VibeGram v$vname", color = Color(0xFF6E6E6E), fontSize = 12.sp)
+                Spacer(Modifier.height(3.dp))
+                Text("Made by Piyush", color = Color(0xFF555555), fontSize = 11.sp)
+            }
             Spacer(Modifier.height(24.dp))
         }
     }
