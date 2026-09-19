@@ -333,17 +333,6 @@ object Fb {
             SetOptions.merge()
         ).await()
     }
-}
-
-fun Bitmap.toDataUrl(max: Int = 1080, quality: Int = 82): String {
-    val scale = minOf(1f, max.toFloat() / maxOf(width, height).toFloat())
-    val w = (width * scale).toInt().coerceAtLeast(1)
-    val h = (height * scale).toInt().coerceAtLeast(1)
-    val b = Bitmap.createScaledBitmap(this, w, h, true)
-    val bos = ByteArrayOutputStream()
-    b.compress(Bitmap.CompressFormat.JPEG, quality, bos)
-    return "data:image/jpeg;base64," + Base64.encodeToString(bos.toByteArray(), Base64.NO_WRAP)
-
     // ---------- v5.4 full parity ----------
     val VERIFIED_IDS = setOf("bot-aarav", "bot-priya", "bot-rohan", "bot-ishani", "bot-karan")
 
@@ -432,4 +421,16 @@ fun Bitmap.toDataUrl(max: Int = 1080, quality: Int = 82): String {
             emptyList()
         }
     }
+
 }
+
+fun Bitmap.toDataUrl(max: Int = 1080, quality: Int = 82): String {
+    val scale = minOf(1f, max.toFloat() / maxOf(width, height).toFloat())
+    val w = (width * scale).toInt().coerceAtLeast(1)
+    val h = (height * scale).toInt().coerceAtLeast(1)
+    val b = Bitmap.createScaledBitmap(this, w, h, true)
+    val bos = ByteArrayOutputStream()
+    b.compress(Bitmap.CompressFormat.JPEG, quality, bos)
+    return "data:image/jpeg;base64," + Base64.encodeToString(bos.toByteArray(), Base64.NO_WRAP)
+}
+
