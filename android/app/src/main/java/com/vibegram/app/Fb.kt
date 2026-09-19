@@ -267,10 +267,11 @@ object Fb {
             var visible = true
             if (anyClose) {
                 val cf = try { db.collection("users").document(k).get().await().get("closeFriends") as? List<String> ?: emptyList() } catch (_: Exception) { emptyList<String>() }
-                visible = cf.contains(uid)
+                visible = cf.contains(com.google.firebase.Firebase.auth.currentUser?.uid ?: "")
             }
             if (visible && u.isPrivate) {
-                visible = try { db.collection("follows").document("${idv}_$k").get().await().exists() } catch (_: Exception) { false }
+                val myId = uid ?: ""
+                visible = myId.isNotEmpty() && try { db.collection("follows").document("${myId}_$k").get().await().exists() } catch (_: Exception) { false }
             }
             if (visible) out[u] = v
         }
