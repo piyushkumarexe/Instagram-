@@ -24,6 +24,13 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        try {
+            val fdb = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            fdb.firestoreSettings = com.google.firebase.firestore.FirebaseFirestoreSettings.Builder()
+                .setPersistenceEnabled(true)
+                .setCacheSizeBytes(com.google.firebase.firestore.FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
+                .build()
+        } catch (_: Exception) { }
         setContent { VibeGramRoot() }
     }
 }

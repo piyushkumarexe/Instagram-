@@ -77,21 +77,19 @@ fun ReelsScreen(
                     .background(Color(0xFF0A0A0A))
                     .clickable { }
             ) {
-                // media center placeholder (dataURL video preview)
+                // media
+                VideoPlayer(media = post.media, modifier = Modifier.fillMaxSize())
                 Column(
-                    Modifier.align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    Modifier.align(Alignment.BottomStart).padding(start = 14.dp, bottom = 60.dp)
                 ) {
-                    Text("▶", color = Color.White, fontSize = 54.sp)
-                    Spacer(Modifier.height(12.dp))
                     Text(post.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp,
                         modifier = Modifier.clickable { onProfile(post.username) })
                     if (post.caption.isNotBlank()) {
                         Spacer(Modifier.height(6.dp))
                         Text(
                             post.caption,
-                            color = Color(0xFFCCCCCC), fontSize = 13.sp,
-                            modifier = Modifier.padding(horizontal = 40.dp)
+                            color = Color(0xFFEDEDED), fontSize = 13.sp,
+                            modifier = Modifier.padding(end = 70.dp)
                         )
                     }
                 }

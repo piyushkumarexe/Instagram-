@@ -130,14 +130,34 @@ fun MessagesScreen(me: VUser, onChat: (VUser) -> Unit, onProfile: (String) -> Un
                         ) {
                             AvatarView(url = t.user.avatar, size = 56, border = false, name = t.user.username)
                             Spacer(Modifier.width(12.dp))
-                            Column {
-                                Text(t.user.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Column(Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        t.user.username,
+                                        color = Color.White,
+                                        fontWeight = if (t.unread > 0) FontWeight.Black else FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
+                                    if (System.currentTimeMillis() - t.user.lastActive < 300_000) {
+                                        Spacer(Modifier.width(6.dp))
+                                        Box(Modifier.size(7.dp).background(Color(0xFF31D158), CircleShape))
+                                    }
+                                }
                                 Text(
                                     t.lastText.ifBlank { "Say hi 👋" } + (if (t.lastAt > 0) " · " + timeAgo(t.lastAt) else ""),
-                                    color = Color(0xFF8E8E8E),
+                                    color = if (t.unread > 0) Color.White else Color(0xFF8E8E8E),
+                                    fontWeight = if (t.unread > 0) FontWeight.Bold else FontWeight.Normal,
                                     fontSize = 13.sp,
                                     maxLines = 1
                                 )
+                            }
+                            if (t.unread > 0) {
+                                Box(
+                                    Modifier.size(22.dp).background(Color(0xFF0095F6), CircleShape),
+                                    Alignment.Center
+                                ) {
+                                    Text(t.unread.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
@@ -243,6 +263,7 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
 
     LaunchedEffect(other.id) {
         msgs = try { Fb.messages(other.id) } catch (_: Exception) { emptyList() }
+        try { Fb.markThreadRead(other.id) } catch (_: Exception) { }
     }
     LaunchedEffect(msgs?.size) {
         val n = msgs?.size ?: 0
@@ -262,8 +283,14 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
             }
             AvatarView(url = other.avatar, size = 32, border = false, name = other.username)
             Spacer(Modifier.width(10.dp))
-            Text(other.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp,
-                modifier = Modifier.clickable { onProfile(other.username) })
+            Column {
+                Text(other.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp,
+                    modifier = Modifier.clickable { onProfile(other.username) })
+                Text(
+                    if (System.currentTimeMillis() - other.lastActive < 300_000) "Active now" else "",
+                    color = Color(0xFF31D158), fontSize = 11.sp
+                )
+            }
         }
 
         Box(Modifier.weight(1f)) {
@@ -299,6 +326,14 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
                                     .padding(horizontal = 13.dp, vertical = 9.dp)
                             ) {
                                 Text(m.text, color = Color.White, fontSize = 15.sp)
+                            }
+                            if (m.fromMe) {
+                                Text(
+                                    if (m.read) "✓✓" else "✓",
+                                    color = if (m.read) Color(0xFF31D158) else Color(0xFF8E8E8E),
+                                    fontSize = 10.sp,
+                                    modifier = Modifier.padding(top = 1.dp, end = 2.dp)
+                                )
                             }
                             if (m.reaction != null) {
                                 Text(m.reaction!!, fontSize = 12.sp, modifier = Modifier.padding(top = 1.dp))

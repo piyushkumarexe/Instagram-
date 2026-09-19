@@ -30,7 +30,9 @@ import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.Text
 import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.PlayArrowBorder
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -80,6 +82,13 @@ fun PostModal(
             }
         }
 
+        if (post.isVideo) {
+            var pm by remember(post.id) { mutableStateOf(false) }
+            if (pm) VideoPlayer(media = post.media, muted = true, modifier = Modifier.fillMaxWidth().aspectRatio(1f))
+            else Box(Modifier.fillMaxWidth().aspectRatio(1f).androidxTapPlay { pm = true }, Alignment.Center) {
+                Icon(Icons.Filled.PlayArrow, null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(64.dp))
+            }
+        } else {
         AsyncImage(
             model = post.media,
             contentDescription = null,
@@ -92,6 +101,7 @@ fun PostModal(
                     })
                 }
         )
+        }
 
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
@@ -242,14 +252,15 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
         }
 
         // media
-        DataImage(
-            url = story.media,
-            circle = false,
-            contentScale = ContentScale.Fit,
-            modifier = Modifier.fillMaxSize()
-        )
         if (story.isVideo) {
-            Text("▶ video stories play in next update", color = Color.White, fontSize = 12.sp, modifier = Modifier.align(Alignment.Center))
+            VideoPlayer(media = story.media, modifier = Modifier.fillMaxSize())
+        } else {
+            DataImage(
+                url = story.media,
+                circle = false,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize()
+            )
         }
 
         // text overlay (draggable in composer; static here)
@@ -432,11 +443,13 @@ fun CommentsPanel(
     var list by remember { mutableStateOf<List<VComment>?>(null) }
     var text by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
+    var replyTo by remember { mutableStateOf<VComment?>(null) }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(post.id) {
-        list = try { Fb.comments(post.id) } catch (_: Exception) { emptyList() }
+    fun load() {
+        scope.launch { list = try { Fb.comments(post.id) } catch (_: Exception) { emptyList() } }
     }
+    LaunchedEffect(post.id) { load() }
 
     Column(Modifier.fillMaxSize().background(Color(0x88000000)).clickable { onDismiss() }) {
         Spacer(Modifier.weight(0.45f))
@@ -479,11 +492,24 @@ fun CommentsPanel(
                                 Column(Modifier.weight(1f).clickable { onProfile(c.username) }) {
                                     Text(c.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                     Text(c.text, color = Color.White, fontSize = 13.sp)
-                                    if (cliked) {
+                                    Row {
                                         Text(
-                                            (c.likesCount).toString() + if (c.likesCount == 1L) " like" else " likes",
+                                            FeedScreenKt.postTimeAgo(c.createdAt),
                                             color = Color(0xFF8E8E8E), fontSize = 11.sp
                                         )
+                                        Spacer(Modifier.width(10.dp))
+                                        Text(
+                                            "Reply",
+                                            color = Color(0xFF8E8E8E), fontWeight = FontWeight.Bold, fontSize = 11.sp,
+                                            modifier = Modifier.clickable { replyTo = c }
+                                        )
+                                        if (cliked) {
+                                            Spacer(Modifier.width(10.dp))
+                                            Text(
+                                                c.likesCount.toString() + if (c.likesCount == 1L) " like" else " likes",
+                                                color = Color(0xFF8E8E8E), fontSize = 11.sp
+                                            )
+                                        }
                                     }
                                 }
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -514,10 +540,17 @@ fun CommentsPanel(
                 Modifier.fillMaxWidth().padding(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                replyTo?.let { rt ->
+                    Text(
+                        "Replying to @" + rt.username + "  ✕",
+                        color = Color(0xFF0095F6), fontSize = 11.sp,
+                        modifier = Modifier.clickable { replyTo = null }.padding(end = 6.dp)
+                    )
+                }
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    placeholder = { Text("Add a comment…", color = Color(0xFF8E8E8E)) },
+                    placeholder = { Text(if (replyTo == null) "Add a comment…" else "Reply to @" + replyTo!!.username + "…", color = Color(0xFF8E8E8E)) },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
@@ -541,8 +574,9 @@ fun CommentsPanel(
                             text = ""
                             scope.launch {
                                 try {
-                                    Fb.addComment(post, t)
-                                    list = Fb.comments(post.id)
+                                    Fb.addComment(post, t, replyTo)
+                                    replyTo = null
+                                    load()
                                 } catch (_: Exception) {
                                 } finally { sending = false }
                             }
@@ -553,3 +587,7 @@ fun CommentsPanel(
         }
     }
 }
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+private fun Modifier.androidxTapPlay(onClick: () -> Unit): Modifier =
+    this.then(Modifier.clickable { onClick() })

@@ -26,6 +26,10 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import android.util.LruCache
+
+private val bmpCache = object : LruCache<String, Bitmap>(60) { }
+private val failedCache = HashSet<String>()
 
 /**
  * Renders media/avatars reliably:
@@ -61,9 +65,20 @@ fun DataImage(
     }
 
     if (url.startsWith("data:image")) {
+        val cached = bmpCache.get(url)
+        if (cached != null) {
+            Image(
+                bitmap = cached.asImageBitmap(),
+                contentDescription = null,
+                contentScale = contentScale,
+                modifier = modifier
+            )
+            return
+        }
         var bmp by remember(url) { mutableStateOf<Bitmap?>(null) }
-        var failed by remember(url) { mutableStateOf(false) }
+        var failed by remember(url) { mutableStateOf(failedCache.contains(url)) }
         LaunchedEffect(url) {
+            if (failed) return@LaunchedEffect
             val decoded = withContext(Dispatchers.IO) {
                 try {
                     val b64 = url.substringAfter("base64,", "")
@@ -79,7 +94,13 @@ fun DataImage(
                     }
                 } catch (_: Exception) { null }
             }
-            if (decoded != null) bmp = decoded else failed = true
+            if (decoded != null) {
+                bmpCache.put(url, decoded)
+                bmp = decoded
+            } else {
+                failed = true
+                failedCache.add(url)
+            }
         }
         val b = bmp
         if (b != null) {

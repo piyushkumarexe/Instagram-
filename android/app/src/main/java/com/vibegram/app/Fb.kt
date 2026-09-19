@@ -97,9 +97,10 @@ object Fb {
     }
 
     // ---------- feed / posts ----------
-    suspend fun feed(): List<Post> {
-        val snap = db.collection("posts")
-            .orderBy("createdAt", Query.Direction.DESCENDING).limit(30).get().await()
+    suspend fun feed(limit: Long = 12, before: Long? = null): List<Post> {
+        var q = db.collection("posts").orderBy("createdAt", Query.Direction.DESCENDING)
+        if (before != null) q = q.startAfter(java.util.Date(before))
+        val snap = q.limit(limit).get().await()
         return snap.documents.mapNotNull { it.toPost() }
     }
 
@@ -125,19 +126,23 @@ object Fb {
         return snap.documents.mapNotNull { it.toComment() }
     }
 
-    suspend fun addComment(p: Post, text: String) {
+        suspend fun addComment(p: Post, text: String, parent: VComment? = null) {
         val idv = uid ?: return
         val meDoc = db.collection("users").document(idv).get().await()
         val c = hashMapOf<String, Any?>(
             "userId" to idv,
             "username" to (meDoc.getString("username") ?: ""),
             "avatar" to (meDoc.getString("avatar") ?: ""),
-            "text" to text.take(1000),
+            "text" to (if (parent != null) "@" + parent.username + " " else "") + text.take(1000),
             "createdAt" to FieldValue.serverTimestamp()
         )
+        if (parent != null) {
+            c["parentId"] = parent.id
+            c["parentUsername"] = parent.username
+        }
         db.collection("posts").document(p.id).collection("comments").add(c).await()
         db.collection("posts").document(p.id).update("commentsCount", FieldValue.increment(1)).await()
-        pushNotify(p.userId, "comment", p.id, p.media)
+        if (p.userId != idv) pushNotify(p.userId, "comment", p.id, p.media)
     }
 
     suspend fun createPost(bmp: Bitmap, caption: String) {
@@ -356,7 +361,8 @@ object Fb {
             val other = uids.firstOrNull { it != idv } ?: continue
             val ud = db.collection("users").document(other).get().await()
             val u = ud.toVUser() ?: VUser(other, "unknown", "Unknown", null, "", 0, 0, 0, false, false)
-            out.add(ThreadInfo(u, d.getString("lastText") ?: "", d.getTimestamp("lastAt")?.toDate()?.time ?: 0L))
+            val myField = if (uids.firstOrNull() == idv) "unreadA" else "unreadB"
+            out.add(ThreadInfo(u, d.getString("lastText") ?: "", d.getTimestamp("lastAt")?.toDate()?.time ?: 0L, (d.getLong(myField) ?: 0L).toInt()))
         }
         return out.sortedByDescending { it.lastAt }
     }
@@ -368,7 +374,7 @@ object Fb {
             .orderBy("createdAt", Query.Direction.ASCENDING).limit(200).get().await()
         return snap.documents.mapNotNull { d ->
             val at = d.getTimestamp("createdAt")?.toDate()?.time ?: return@mapNotNull null
-            VMsg(d.id, d.getString("text") ?: "", d.getString("from") == idv, at, d.getString("from") ?: "", d.getString("reaction"))
+            VMsg(d.id, d.getString("text") ?: "", d.getString("from") == idv, at, d.getString("from") ?: "", d.getString("reaction"), d.getBoolean("read") ?: false)
         }
     }
 
@@ -429,6 +435,71 @@ object Fb {
             }
         }
         return !liked
+    }
+
+    suspend fun touchPresence() {
+        val idv = uid ?: return
+        try { db.collection("users").document(idv).update("lastActive", System.currentTimeMillis()).await() } catch (_: Exception) { }
+    }
+
+    suspend fun unreadDmCount(): Int {
+        val idv = uid ?: return 0
+        val snap = db.collection("dms").whereArrayContains("uids", idv).limit(50).get().await()
+        var n = 0
+        for (d in snap.documents) {
+            val myField = if ((d.get("uids") as? List<String>)?.firstOrNull() == idv) "unreadA" else "unreadB"
+            n += (d.getLong(myField) ?: 0L).toInt()
+        }
+        return n
+    }
+
+    suspend fun markThreadRead(otherId: String) {
+        val idv = uid ?: return
+        val pid = pairId(idv, otherId)
+        val myField = if (pid.split("__")[0] == idv) "unreadA" else "unreadB"
+        db.collection("dms").document(pid).set(
+            hashMapOf<String, Any?>(myField to 0, "uids" to listOf(idv, otherId).sorted()),
+            SetOptions.merge()
+        ).await()
+    }
+
+    suspend fun unreadNotifCount(): Int {
+        val idv = uid ?: return 0
+        val snap = db.collection("notifications").whereEqualTo("userId", idv).whereEqualTo("read", false).limit(30).get().await()
+        return snap.size()
+    }
+
+    suspend fun markNotifsRead() {
+        val idv = uid ?: return
+        val snap = db.collection("notifications").whereEqualTo("userId", idv).whereEqualTo("read", false).limit(30).get().await()
+        for (d in snap.documents) d.reference.update("read", true).await()
+    }
+
+    suspend fun likedBy(postId: String): List<VUser> {
+        val likes = db.collection("posts").document(postId).get().await().get("likes") as? List<String> ?: emptyList()
+        return likes.take(50).mapNotNull { id ->
+            try { db.collection("users").document(id).get().await().toVUser() } catch (_: Exception) { null }
+        }
+    }
+
+    suspend fun repost(post: Post, on: Boolean): Boolean? {
+        val idv = uid ?: return null
+        val ref = db.collection("posts").document(post.id)
+        if (on) {
+            ref.update("repostedBy", FieldValue.arrayUnion(idv)).await()
+            if (post.userId != idv) {
+                db.collection("notifications").document().set(
+                    hashMapOf<String, Any?>("userId" to post.userId, "actorId" to idv, "type" to "repost", "postId" to post.id, "read" to false, "createdAt" to FieldValue.serverTimestamp())
+                ).await()
+            }
+        } else ref.update("repostedBy", FieldValue.arrayRemove(idv)).await()
+        return on
+    }
+
+    suspend fun repostedPosts(): List<Post> {
+        val idv = uid ?: return emptyList()
+        val snap = db.collection("posts").whereArrayContains("repostedBy", idv).limit(30).get().await()
+        return snap.documents.mapNotNull { it.toPost() }.sortedByDescending { it.createdAt }
     }
 
     suspend fun getPostById(postId: String): Post? {

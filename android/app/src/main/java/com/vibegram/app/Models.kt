@@ -15,7 +15,8 @@ data class VUser(
     val isPrivate: Boolean,
     val anthem: String = "",
     val anthemArtist: String = "",
-    val link: String = ""
+    val link: String = "",
+    val lastActive: Long = 0
 )
 
 data class Post(
@@ -32,7 +33,8 @@ data class Post(
     val likes: List<String>,
     val likesCount: Long,
     val commentsCount: Long,
-    val savedByMe: Boolean = false
+    val savedByMe: Boolean = false,
+    val repostedByMe: Boolean = false
 )
 
 data class VComment(
@@ -55,9 +57,9 @@ data class VNotif(
 
 data class NotifRow(val notif: VNotif, val actor: VUser?)
 
-data class ThreadInfo(val user: VUser, val lastText: String, val lastAt: Long)
+data class ThreadInfo(val user: VUser, val lastText: String, val lastAt: Long, val unread: Int = 0)
 
-data class VMsg(val id: String, val text: String, val fromMe: Boolean, val at: Long, val fromId: String = "", val reaction: String? = null)
+data class VMsg(val id: String, val text: String, val fromMe: Boolean, val at: Long, val fromId: String = "", val reaction: String? = null, val read: Boolean = false)
 
 data class Story(
     val id: String,
@@ -92,7 +94,8 @@ fun DocumentSnapshot.toVUser(): VUser? {
         isPrivate = getBoolean("isPrivate") ?: false,
         anthem = getString("anthem") ?: "",
         anthemArtist = getString("anthemArtist") ?: "",
-        link = getString("link") ?: ""
+        link = getString("link") ?: "",
+        lastActive = getLong("lastActive") ?: 0L
     )
 }
 
@@ -115,7 +118,8 @@ fun DocumentSnapshot.toPost(): Post? {
         likes = likes,
         likesCount = getLong("likesCount") ?: 0L,
         commentsCount = getLong("commentsCount") ?: 0L,
-        savedByMe = ((get("savedBy") as? List<*>)?.contains(Fb.uid) == true)
+        savedByMe = ((get("savedBy") as? List<*>)?.contains(Fb.uid) == true),
+        repostedByMe = ((get("repostedBy") as? List<*>)?.contains(Fb.uid) == true)
     )
 }
 

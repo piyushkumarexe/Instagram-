@@ -42,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -73,8 +74,26 @@ fun FeedScreen(
     onOpenNotifications: () -> Unit,
     onOpenCreate: () -> Unit,
     onStoryPicked: (Uri) -> Unit,
-    onDelete: (Post) -> Unit
+    onDelete: (Post) -> Unit,
+    onLoadMore: () -> Unit = {},
+    loadingMore: Boolean = false,
+    scrollTick: Int = 0,
+    unreadNotifs: Int = 0
 ) {
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    androidx.compose.runtime.LaunchedEffect(scrollTick) {
+        if (scrollTick > 0) listState.animateScrollToItem(0)
+    }
+    val shouldLoadMore by remember {
+        androidx.compose.runtime.derivedStateOf {
+            val li = listState.layoutInfo
+            val last = li.visibleItemsInfo.lastOrNull()?.index ?: 0
+            li.totalItemsCount > 0 && last >= li.totalItemsCount - 3
+        }
+    }
+    androidx.compose.runtime.LaunchedEffect(shouldLoadMore) {
+        if (shouldLoadMore) onLoadMore()
+    }
     var refreshing by remember { mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(posts) { refreshing = false }
     val storyPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -98,7 +117,15 @@ fun FeedScreen(
                 Text("VibeGram", color = Color.White, fontSize = 27.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive)
             }
             IconButton(onClick = onOpenNotifications) {
-                Icon(Icons.Filled.FavoriteBorder, null, tint = Color.White, modifier = Modifier.size(25.dp))
+                Box {
+                    Icon(Icons.Filled.FavoriteBorder, null, tint = Color.White, modifier = Modifier.size(25.dp))
+                    if (unreadNotifs > 0) {
+                        Box(
+                            Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-1).dp)
+                                .size(9.dp).background(Color(0xFFED4956), CircleShape)
+                        )
+                    }
+                }
             }
         }
 
@@ -109,7 +136,7 @@ fun FeedScreen(
         } else if (posts.isEmpty()) {
             EmptyBox("No posts yet — follow people or share your first photo!", "📸")
         } else {
-            LazyColumn(Modifier.fillMaxSize()) {
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                 // stories bar
                 item {
                     StoryBar(
@@ -129,6 +156,13 @@ fun FeedScreen(
                         onDelete = onDelete
                     )
                 }
+                if (loadingMore) {
+                    item {
+                        Box(Modifier.fillMaxWidth().padding(14.dp), Alignment.Center) {
+                            CircularProgressIndicator(Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
+                        }
+                    }
+                }
             }
         }
     }
@@ -142,6 +176,10 @@ fun StoryBar(
     onAddStory: () -> Unit,
     onOpenStory: (VUser) -> Unit
 ) {
+    val prefs = androidx.compose.ui.platform.LocalContext.current.getSharedPreferences("vibegram", 0)
+    val seenTick = remember { mutableStateOf(0) }
+    fun isSeen(u: VUser, sts: List<Story>): Boolean =
+        sts.isNotEmpty() && sts.all { prefs.getBoolean("seen_" + it.id, false) }
     val ownGroup = groups.firstOrNull { it.first.id == me.id }
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 10.dp),
@@ -168,11 +206,12 @@ fun StoryBar(
             Text("Your story", color = Color.White, fontSize = 11.sp)
         }
         groups.filter { it.first.id != me.id }.take(8).forEach { (user, stories) ->
+            val seen = isSeen(user, stories)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.clickable { onOpenStory(user) }
             ) {
-                AvatarView(url = user.avatar, size = 60, border = true, gradientRing = true, name = user.username)
+                AvatarView(url = user.avatar, size = 60, border = true, gradientRing = !seen, showRing = !seen, name = user.username)
                 Spacer(Modifier.height(4.dp))
                 Text(
                     user.username.take(9),
@@ -287,6 +326,40 @@ fun PostCard(
                             }
                         )
                     }
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text(if (post.repostedByMe) "Undo repost" else "Repost", color = Color.White) },
+                        onClick = {
+                            menu = false
+                            cardScope.launch { try { Fb.repost(post, !post.repostedByMe) } catch (_: Exception) { } }
+                        }
+                    )
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text("Save image", color = Color.White) },
+                        onClick = {
+                            menu = false
+                            cardScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                try {
+                                    val b64 = post.media.substringAfter("base64,", "")
+                                    if (b64.isNotEmpty()) {
+                                        val bytes = android.util.Base64.decode(b64, android.util.Base64.DEFAULT)
+                                        val bmpSave = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                                        if (bmpSave != null) {
+                                            val vals = android.content.ContentValues().apply {
+                                                put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, "vibegram_" + post.id + ".jpg")
+                                                put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                                                put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/VibeGram")
+                                            }
+                                            val uri = cardCtx.contentResolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, vals)
+                                            if (uri != null) cardCtx.contentResolver.openOutputStream(uri)?.use { bmpSave.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) }
+                                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                android.widget.Toast.makeText(cardCtx, "Saved to gallery", android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
+                                } catch (_: Exception) { }
+                            }
+                        }
+                    )
                     if (post.userId == Fb.uid) {
                         androidx.compose.material3.DropdownMenuItem(
                             text = { Text("Edit caption", color = Color.White) },
@@ -319,24 +392,42 @@ fun PostCard(
         Box(
             Modifier.fillMaxWidth().aspectRatio(1f).background(Color(0xFF111111))
                 .pointerInput(post.id) {
+                    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
                     detectTapGestures(
                         onDoubleTap = {
+                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                             if (!liked) onLike(post)
                             showHeart = true
                         }
                     )
                 }
         ) {
-            DataImage(
-                url = post.media,
-                fallbackLetter = post.username.take(1).uppercase(),
-                circle = false,
-                modifier = Modifier.fillMaxSize()
-            )
             if (post.isVideo) {
-                Box(Modifier.fillMaxSize(), Alignment.Center) {
-                    Icon(Icons.Filled.PlayArrow, null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(64.dp))
+                var playVideo by remember(post.id) { mutableStateOf(false) }
+                if (playVideo) {
+                    VideoPlayer(media = post.media, muted = true, modifier = Modifier.fillMaxSize())
+                } else {
+                    DataImage(
+                        url = post.media,
+                        fallbackLetter = post.username.take(1).uppercase(),
+                        circle = false,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    Box(Modifier.fillMaxSize(), Alignment.Center) {
+                        Icon(
+                            Icons.Filled.PlayArrow, null,
+                            tint = Color.White.copy(alpha = 0.9f),
+                            modifier = Modifier.size(64.dp).androidxClickableTap { playVideo = true }
+                        )
+                    }
                 }
+            } else {
+                DataImage(
+                    url = post.media,
+                    fallbackLetter = post.username.take(1).uppercase(),
+                    circle = false,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
             if (showHeart) {
                 Box(Modifier.fillMaxSize(), Alignment.Center) {
@@ -400,6 +491,37 @@ fun PostCard(
             }
         }
 
+        if (likedByOpen) {
+            androidx.compose.material3.ModalBottomSheet(onDismissRequest = { likedByOpen = false }, containerColor = Color(0xFF1C1C1E)) {
+                Column(Modifier.padding(horizontal = 16.dp).height(400.dp)) {
+                    Text("Likes", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    Spacer(Modifier.height(10.dp))
+                    if (likedByList.isEmpty()) Text("No likes yet", color = Color(0xFF8E8E8E), fontSize = 13.sp)
+                    LazyColumn(Modifier.weight(1f)) {
+                        items(likedByList.size) { i ->
+                            val lu = likedByList[i]
+                            Row(
+                                Modifier.fillMaxWidth().androidxClickableTap { onProfile(lu.username) }
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AvatarView(url = lu.avatar, size = 42, border = false, name = lu.username)
+                                Spacer(Modifier.width(12.dp))
+                                Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(lu.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                        if (lu.verified) { Spacer(Modifier.width(4.dp)); VerifiedBadge(14) }
+                                    }
+                                    Text(lu.name, color = Color(0xFF8E8E8E), fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(20.dp))
+                }
+            }
+        }
+
         if (editOpen) {
             androidx.compose.material3.AlertDialog(
                 onDismissRequest = { editOpen = false },
@@ -438,8 +560,12 @@ fun PostCard(
                 Row {
                     Text(post.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     Spacer(Modifier.width(6.dp))
-                    Text(post.caption, color = Color.White, fontSize = 13.sp)
+                    HashtagText(post.caption)
                 }
+            }
+            if (post.createdAt > 0) {
+                Spacer(Modifier.height(3.dp))
+                Text(postTimeAgo(post.createdAt), color = Color(0xFF8E8E8E), fontSize = 11.sp)
             }
             if (post.commentsCount > 0) {
                 Spacer(Modifier.height(4.dp))
@@ -451,5 +577,40 @@ fun PostCard(
                 )
             }
         }
+    }
+}
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+private fun Modifier.androidxClickableTap(onClick: () -> Unit): Modifier =
+    this.then(Modifier.clickable { onClick() })
+
+// IG caption style: hashtags/mentions blue
+@Composable
+fun HashtagText(text: String, fontSizeSp: Int = 13) {
+    val spans = androidx.compose.ui.text.buildAnnotatedString {
+        append(text)
+        text.split(" ").forEach { w ->
+            val start = text.indexOf(w)
+            if (w.startsWith("#") || w.startsWith("@")) {
+                addStyle(
+                    androidx.compose.ui.text.SpanStyle(color = Color(0xFF5B9BD5), fontWeight = FontWeight.Bold),
+                    start,
+                    start + w.length
+                )
+            }
+        }
+    }
+    Text(spans, color = Color.White, fontSize = fontSizeSp.sp)
+}
+
+fun postTimeAgo(ms: Long): String {
+    if (ms <= 0) return ""
+    val m = (System.currentTimeMillis() - ms) / 60000
+    return when {
+        m < 1 -> "just now"
+        m < 60 -> m.toString() + "m"
+        m < 60 * 24 -> (m / 60).toString() + "h"
+        m < 60 * 24 * 7 -> (m / 60 / 24).toString() + "d"
+        else -> (m / 60 / 24 / 7).toString() + "w"
     }
 }

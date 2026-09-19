@@ -65,6 +65,7 @@ fun SettingsScreen(
     onLogout: () -> Unit,
     onPrivacyChanged: (VUser) -> Unit
 ) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     var priv by remember { mutableStateOf(me.isPrivate) }
     var q by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
@@ -160,6 +161,26 @@ fun SettingsScreen(
                         }
                     }
                 }
+            }
+
+            SectionLabel("More")
+            SettingsRow(
+                icon = { Text("📤", fontSize = 19.sp) },
+                title = "Share VibeGram"
+            ) {
+                val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(android.content.Intent.EXTRA_TEXT, "VibeGram — a native Instagram-style app. Made by Piyush!")
+                }
+                ctx.startActivity(android.content.Intent.createChooser(send, "Share VibeGram"))
+            }
+            SettingsRow(
+                icon = { Text("🔗", fontSize = 19.sp) },
+                title = "Copy profile link"
+            ) {
+                val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("profile", "vibegram://user/" + me.username))
+                android.widget.Toast.makeText(ctx, "Link copied", android.widget.Toast.LENGTH_SHORT).show()
             }
 
             SectionLabel("How you use Instagram")

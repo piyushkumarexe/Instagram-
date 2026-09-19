@@ -399,11 +399,47 @@ fun ProfileScreen(
 
                 // ---- posts grid ----
                 if (ptab == "reposted") {
-                    Spacer(Modifier.height(60.dp))
-                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("🔁", fontSize = 36.sp)
-                        Spacer(Modifier.height(10.dp))
-                        Text("No reposts yet", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    var reposts by remember { mutableStateOf<List<Post>?>(null) }
+                    LaunchedEffect(Unit) {
+                        reposts = try { Fb.repostedPosts() } catch (_: Exception) { emptyList() }
+                    }
+                    val rl = reposts
+                    if (rl == null) {
+                        Box(Modifier.fillMaxWidth().padding(40.dp), Alignment.Center) {
+                            CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp)
+                        }
+                    } else if (rl.isEmpty()) {
+                        Spacer(Modifier.height(60.dp))
+                        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("🔁", fontSize = 36.sp)
+                            Spacer(Modifier.height(10.dp))
+                            Text("No reposts yet", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        }
+                    } else {
+                        val rrows = rl.chunked(3)
+                        Column {
+                            for (row in rrows) {
+                                Row(Modifier.fillMaxWidth()) {
+                                    for (p in row) {
+                                        Box(
+                                            Modifier.weight(1f).aspectRatio(1f).padding(0.5.dp)
+                                                .background(Color(0xFF101010))
+                                                .clickable { onOpenPost(p) }
+                                        ) {
+                                            DataImage(
+                                                url = p.media,
+                                                fallbackLetter = p.username.take(1).uppercase(),
+                                                circle = false,
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        }
+                                    }
+                                    repeat(3 - row.size) {
+                                        Box(Modifier.weight(1f).aspectRatio(1f).background(Color.Black))
+                                    }
+                                }
+                            }
+                        }
                     }
                 } else if (ptab == "reels") {
                     Spacer(Modifier.height(60.dp))

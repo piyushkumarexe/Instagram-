@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -59,6 +60,9 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
     var connKind by remember { mutableStateOf("followers") }
     var postFor by remember { mutableStateOf<Post?>(null) }
     var storyUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var unreadDms by remember { mutableStateOf(0) }
+    var unreadNotifs by remember { mutableStateOf(0) }
+    var scrollTick by remember { mutableStateOf(0) }
     val stack = remember { mutableStateListOf<Route>() }
 
     fun goProfile(username: String) {
@@ -88,13 +92,35 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
 
     // feed state (hoisted — survives tab switches)
     var posts by remember { mutableStateOf<List<Post>?>(null) }
+    var feedLoadingMore by remember { mutableStateOf(false) }
+    var feedEnd by remember { mutableStateOf(false) }
     var feedErr by remember { mutableStateOf<String?>(null) }
+    val loadMoreFeed: () -> Unit = {
+        if (!feedLoadingMore && !feedEnd) {
+            feedLoadingMore = true
+            scope.launch {
+                try {
+                    val last = posts.lastOrNull()?.createdAt
+                    if (last != null) {
+                        val more = Fb.feed(before = last)
+                        if (more.isEmpty()) feedEnd = true else posts = posts + more
+                    }
+                } catch (_: Exception) {
+                } finally { feedLoadingMore = false }
+            }
+        }
+    }
     val loadFeed: () -> Unit = {
         scope.launch {
             try { posts = Fb.feed(); feedErr = null } catch (e: Exception) { feedErr = e.message }
         }
     }
-    LaunchedEffect(Unit) { loadFeed() }
+    LaunchedEffect(Unit) {
+        loadFeed()
+        Fb.touchPresence()
+        unreadDms = try { Fb.unreadDmCount() } catch (_: Exception) { 0 }
+        unreadNotifs = try { Fb.unreadNotifCount() } catch (_: Exception) { 0 }
+    }
 
     fun like(post: Post) {
         val list = posts ?: return
@@ -153,6 +179,10 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         onOpenNotifications = { tab = "notifications" },
                         onOpenCreate = { tab = "create" },
                         onStoryPicked = { uri -> storyUri = uri; pushTabRoute("storyCompose") },
+                        onLoadMore = { loadMoreFeed() },
+                        loadingMore = feedLoadingMore,
+                        scrollTick = scrollTick,
+                        unreadNotifs = unreadNotifs,
                         onDelete = { p ->
                             scope.launch {
                                 try { Fb.deletePost(p.id) } catch (_: Exception) { }
@@ -257,18 +287,37 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
 
             NavigationBar(containerColor = Color.Black, contentColor = Color.White, tonalElevation = 0.dp) {
                 NavigationBarItem(
-                    selected = tab == "feed", onClick = { tab = "feed" },
+                    selected = tab == "feed",
+                    onClick = { if (tab == "feed") scrollTick++ else tab = "feed" },
                     icon = { Icon(if (tab == "feed") Icons.Filled.Home else Icons.Outlined.Home, null) },
                     colors = navColors()
                 )
                 NavigationBarItem(
-                    selected = tab == "reels", onClick = { tab = "reels" },
+                    selected = tab == "reels",
+                    onClick = {
+                        scope.launch { try { Fb.touchPresence() } catch (_: Exception) { } }
+                        tab = "reels"
+                    },
                     icon = { Icon(Icons.Filled.SmartDisplay, null) },
                     colors = navColors()
                 )
                 NavigationBarItem(
-                    selected = tab == "messages", onClick = { tab = "messages" },
-                    icon = { Icon(if (tab == "messages") Icons.Filled.Send else Icons.Outlined.Send, null) },
+                    selected = tab == "messages",
+                    onClick = { tab = "messages" },
+                    icon = {
+                        Box {
+                            Icon(if (tab == "messages") Icons.Filled.Send else Icons.Outlined.Send, null)
+                            if (unreadDms > 0) {
+                                Box(
+                                    Modifier.align(Alignment.TopEnd).offset(x = 3.dp, y = (-2).dp)
+                                        .size(17.dp).background(Color(0xFFED4956), androidx.compose.foundation.shape.CircleShape),
+                                    Alignment.Center
+                                ) {
+                                    Text(unreadDms.toString(), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    },
                     colors = navColors()
                 )
                 NavigationBarItem(
