@@ -30,7 +30,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.SmartDisplay
+import androidx.compose.material.icons.outlined.PersonPin
+import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.PersonAddAlt1
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -352,10 +356,10 @@ fun ProfileScreen(
                 // ---- IG profile tabs (grid / reels / reposted / tagged) ----
                 Row(Modifier.fillMaxWidth()) {
                     listOf(
-                        Triple("grid", androidx.compose.material.icons.Icons.Filled.Apps, "Grid"),
-                        Triple("reels", androidx.compose.material.icons.Icons.Outlined.SmartDisplay, "Reels"),
-                        Triple("reposted", androidx.compose.material.icons.Icons.Outlined.Repeat, "Reposts"),
-                        Triple("tagged", androidx.compose.material.icons.Icons.Outlined.PersonPin, "Tagged")
+                        Triple("grid", Icons.Filled.Apps, "Grid"),
+                        Triple("reels", Icons.Filled.SmartDisplay, "Reels"),
+                        Triple("reposted", Icons.Outlined.Repeat, "Reposts"),
+                        Triple("tagged", Icons.Outlined.PersonPin, "Tagged")
                     ).forEach { (key, ic, _) ->
                         Column(
                             Modifier.weight(1f).clickable { ptab = key },
