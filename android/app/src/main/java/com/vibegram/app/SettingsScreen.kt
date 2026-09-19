@@ -68,6 +68,19 @@ fun SettingsScreen(
     var priv by remember { mutableStateOf(me.isPrivate) }
     var q by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+    val isOwner = Fb.auth.currentUser?.email == "piyushpk811@gmail.com"
+    var vq by remember { mutableStateOf("") }
+    var vresults by remember { mutableStateOf<List<VUser>>(emptyList()) }
+    var vsearching by remember { mutableStateOf(false) }
+
+    LaunchedEffect(vq) {
+        if (!isOwner || vq.isBlank()) { vresults = emptyList(); vsearching = false; return@LaunchedEffect }
+        vsearching = true
+        val query = vq
+        kotlinx.coroutines.delay(250)
+        vresults = try { Fb.searchUsers(query) } catch (_: Exception) { emptyList() }
+        vsearching = false
+    }
 
     Column(Modifier.fillMaxSize().background(Color.Black).statusBarsPadding()) {
         Row(
@@ -92,6 +105,63 @@ fun SettingsScreen(
         )
 
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            if (isOwner) {
+                SectionLabel("Verification (admin)")
+                OutlinedTextField(
+                    value = vq,
+                    onValueChange = { vq = it },
+                    placeholder = { Text("Search username to verify", color = Color(0xFF8E8E8E)) },
+                    colors = OutlinedTextFieldDefaultsColors(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp).height(50.dp)
+                )
+                if (vsearching) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Text("Searching…", color = Color(0xFF8E8E8E), fontSize = 13.sp)
+                    }
+                }
+                vresults.forEach { u ->
+                    var vstate by remember(u.id) { mutableStateOf(u.verified) }
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AvatarView(url = u.avatar, size = 40, border = false, name = u.username)
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(u.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                if (vstate) {
+                                    Spacer(Modifier.width(4.dp))
+                                    VerifiedBadge(14)
+                                }
+                            }
+                            Text(u.name, color = Color(0xFF8E8E8E), fontSize = 12.sp)
+                        }
+                        Button(
+                            onClick = {
+                                val nv = !vstate
+                                vstate = nv
+                                scope.launch { try { Fb.setUserVerified(u.username, nv) } catch (_: Exception) { vstate = !nv } }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (vstate) Color(0xFF262626) else Color(0xFF0095F6)
+                            ),
+                            modifier = Modifier.height(32.dp),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                if (vstate) "Verified ✓" else "Verify",
+                                color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+            }
+
             SectionLabel("How you use Instagram")
             if (q.isBlank() || "saved".contains(q, true)) {
                 SettingsRow(icon = { Icon(Icons.Filled.BookmarkBorder, null, tint = Color.White, modifier = Modifier.size(24.dp)) }, title = "Saved") { onOpenSaved() }

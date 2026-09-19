@@ -237,6 +237,10 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         onConnections = { uname, kind -> goConnections(uname, kind) },
                         onSettings = { pushTabRoute("settings") },
                         onDiscover = { pushTabRoute("discover") },
+                        onOpenOwnStory = {
+                            storyGroups.entries.firstOrNull { it.key.id == me.id }?.let { openStory = it.key }
+                        },
+                        onOpenPost = { postFor = it },
                         hasStory = storyGroups.keys.any { it.id == me.id }
                     )
                 }

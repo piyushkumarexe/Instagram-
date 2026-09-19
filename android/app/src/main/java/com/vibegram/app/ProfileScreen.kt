@@ -81,6 +81,8 @@ fun ProfileScreen(
     onConnections: (String, String) -> Unit,
     onSettings: () -> Unit = {},
     onDiscover: () -> Unit = {},
+    onOpenOwnStory: () -> Unit = {},
+    onOpenPost: (Post) -> Unit = {},
     hasStory: Boolean = false
 ) {
     val ctx = LocalContext.current
@@ -209,7 +211,10 @@ fun ProfileScreen(
                                 Box(
                                     Modifier
                                         .matchParentSize()
-                                        .clickable { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+                                        .clickable {
+                                            if (hasStory) onOpenOwnStory()
+                                            else picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                        }
                                 ) { }
                             }
                         }
@@ -431,6 +436,7 @@ fun ProfileScreen(
                                     Box(
                                         Modifier.weight(1f).aspectRatio(1f).padding(0.5.dp)
                                             .background(Color(0xFF101010))
+                                            .clickable { onOpenPost(p) }
                                     ) {
                                         DataImage(
                                             url = p.media,

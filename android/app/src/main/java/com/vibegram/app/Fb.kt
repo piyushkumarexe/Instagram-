@@ -267,7 +267,7 @@ object Fb {
             var visible = true
             if (anyClose) {
                 val cf = try { db.collection("users").document(k).get().await().get("closeFriends") as? List<String> ?: emptyList() } catch (_: Exception) { emptyList<String>() }
-                visible = cf.contains(com.google.firebase.Firebase.auth.currentUser?.uid ?: "")
+                visible = cf.contains(Fb.auth.currentUser?.uid ?: "")
             }
             if (visible && u.isPrivate) {
                 val myId = uid ?: ""
@@ -425,6 +425,12 @@ object Fb {
         return db.collection("users").document(idv).get().await().get("closeFriends") as? List<String> ?: emptyList()
     }
 
+    suspend fun setUserVerified(username: String, v: Boolean) {
+        val uidv = db.collection("usernames").document(username.lowercase().trim()).get().await()
+            .getString("uid") ?: return
+        db.collection("users").document(uidv).update("verified", v).await()
+    }
+
     suspend fun toggleSave(postId: String): Boolean? {
         val idv = uid ?: return null
         val ref = db.collection("users").document(idv)
@@ -526,7 +532,7 @@ object Fb {
     suspend fun itunesSearch(term: String): List<Song> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         try {
             val u = java.net.URL("https://itunes.apple.com/search?term=" +
-                java.net.URLEncoder.encode(term, "UTF-8") + "&limit=25")
+                java.net.URLEncoder.encode(term, "UTF-8") + "&media=music&entity=song&limit=25")
             val conn = u.openConnection() as java.net.HttpURLConnection
             conn.connectTimeout = 8000
             conn.readTimeout = 8000
