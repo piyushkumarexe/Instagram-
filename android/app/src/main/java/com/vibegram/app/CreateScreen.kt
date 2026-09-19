@@ -65,11 +65,11 @@ fun CreateScreen(
         scope.launch {
             try {
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                                ctx.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-                                var sample = 1
-                                while (bounds.outWidth / (sample * 2) >= 1600 || bounds.outHeight / (sample * 2) >= 1600) sample *= 2
-                                val o2 = BitmapFactory.Options().apply { inSampleSize = sample }
-                                BitmapFactory.decodeStream(ctx.contentResolver.openInputStream(uri), null, o2)
+                ctx.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+                var sample = 1
+                while (bounds.outWidth / (sample * 2) >= 1600 || bounds.outHeight / (sample * 2) >= 1600) sample *= 2
+                val o2 = BitmapFactory.Options().apply { inSampleSize = sample }
+                val bmp = BitmapFactory.decodeStream(ctx.contentResolver.openInputStream(uri), null, o2)
                     ?: throw Exception("Could not read image")
                 Fb.addStory(bmp)
                 status = "Story added ✅"
@@ -127,9 +127,9 @@ fun CreateScreen(
                                 var sample = 1
                                 while (bounds.outWidth / (sample * 2) >= 1600 || bounds.outHeight / (sample * 2) >= 1600) sample *= 2
                                 val o2 = BitmapFactory.Options().apply { inSampleSize = sample }
-                                BitmapFactory.decodeStream(ctx.contentResolver.openInputStream(uri), null, o2)
+                                val bmp2 = BitmapFactory.decodeStream(ctx.contentResolver.openInputStream(uri), null, o2)
                                     ?: throw Exception("Could not read image")
-                                Fb.createPost(bmp, caption)
+                                Fb.createPost(bmp2, caption)
                                 status = "Posted ✅"
                                 postUri = null
                                 caption = ""

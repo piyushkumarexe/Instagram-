@@ -41,7 +41,9 @@ data class VComment(
     val username: String,
     val avatar: String?,
     val text: String,
-    val createdAt: Long
+    val createdAt: Long,
+    val likes: List<String> = emptyList(),
+    val likesCount: Long = 0
 )
 
 data class VNotif(

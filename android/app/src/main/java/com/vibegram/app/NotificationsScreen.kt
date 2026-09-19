@@ -2,6 +2,7 @@ package com.vibegram.app
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -138,7 +140,7 @@ fun NotificationsScreen(me: VUser, onProfile: (String) -> Unit, onOpenPost: (Str
                                 Box(
                                     Modifier.size(44.dp).background(Color(0xFF262626))
                                         .clickable { if (thumb != null) onOpenPost(thumb) }
-                                ) { Text("\U0001F5BC", fontSize = 18.sp, modifier = Modifier.align(Alignment.Center)) }
+                                ) { Text("🖼", fontSize = 18.sp, modifier = Modifier.align(Alignment.Center)) }
                             }
                         }
                     }

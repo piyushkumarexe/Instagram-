@@ -138,7 +138,7 @@ fun PostModal(
     }
 }
 
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
     var idx by remember { mutableStateOf(0) }
