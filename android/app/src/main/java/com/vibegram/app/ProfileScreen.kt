@@ -72,7 +72,9 @@ fun ProfileScreen(
     onAddStory: () -> Unit,
     onLogout: () -> Unit,
     onAvatarChanged: (VUser) -> Unit,
-    onConnections: (String, String) -> Unit
+    onConnections: (String, String) -> Unit,
+    onSettings: () -> Unit = {},
+    hasStory: Boolean = false
 ) {
     val ctx = LocalContext.current
     val isOwn = username.equals(me.username, ignoreCase = true)
@@ -88,6 +90,7 @@ fun ProfileScreen(
     var editSheet by remember { mutableStateOf(false) }
     var ptab by remember { mutableStateOf("grid") }
     var songSheet by remember { mutableStateOf(false) }
+    var followerSample by remember { mutableStateOf<List<VUser>>(emptyList()) }
 
     fun reload(done: () -> Unit = {}) {
         scope.launch {
@@ -97,7 +100,11 @@ fun ProfileScreen(
                 user = u
                 if (isOwn) onAvatarChanged(u)
                 posts = Fb.userPosts(u.username)
-                if (!isOwn) following = Fb.isFollowing(u.id)
+                if (!isOwn) {
+                    following = Fb.isFollowing(u.id)
+                    Fb.amRequesting(u.id)
+                    followerSample = try { Fb.followersOf(u.id) } catch (_: Exception) { emptyList() }
+                }
                 err = null
             } catch (e: Exception) {
                 err = e.message
@@ -161,7 +168,7 @@ fun ProfileScreen(
             }
             Box(Modifier.weight(1f))
             if (isOwn) {
-                IconButton(onClick = { menuSheet = true }) {
+                IconButton(onClick = { onSettings() }) {
                     Icon(Icons.Filled.Menu, null, tint = Color.White, modifier = Modifier.size(24.dp))
                 }
             }
@@ -184,17 +191,20 @@ fun ProfileScreen(
                                 CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp)
                             }
                         } else {
-                            AsyncImage(
-                                model = u.avatar
-                                    ?: "https://ui-avatars.com/api/?background=262626&color=fff&bold=true&name=${u.username.take(1)}",
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(86.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF262626))
-                                    .clickable { if (isOwn) picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+                            AvatarView(
+                                url = u.avatar,
+                                size = 84,
+                                border = false,
+                                name = u.username,
+                                showRing = isOwn && hasStory
                             )
+                            if (isOwn) {
+                                Box(
+                                    Modifier
+                                        .matchParentSize()
+                                        .clickable { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+                                ) { }
+                            }
                         }
                         if (isOwn) {
                             Box(
@@ -301,36 +311,57 @@ fun ProfileScreen(
                             Text(
                                 when (following) {
                                     null -> "…"
-                                    true -> "Following"
-                                    false -> "Follow"
+                                    true -> "Following ▾"
+                                    false -> if (Fb.amRequestingSync(u.id)) "Requested" else "Follow"
                                 },
                                 color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp
                             )
                         }
-                        Button(
-                            onClick = { onChat(u) },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF262626)),
-                            modifier = Modifier.weight(1f).height(40.dp),
-                            shape = RoundedCornerShape(9.dp)
-                        ) { Text("Message", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
+                        Box(
+                            Modifier.size(40.dp).background(Color(0xFF262626), RoundedCornerShape(9.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Outlined.PersonAddAlt1, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                }
+
+                // social proof (IG "Followed by ...")
+                if (!isOwn && following == false && followerSample.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row {
+                            followerSample.take(2).forEach { f ->
+                                Box(Modifier.padding(end = 4.dp)) {
+                                    AvatarView(url = f.avatar, size = 22, border = false, name = f.username)
+                                }
+                            }
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "Followed by " + followerSample.first().username +
+                                (if (followerSample.size > 1) " and " + (u.followersCount - 1) + " others" else ""),
+                            color = Color.White, fontSize = 12.sp
+                        )
                     }
                 }
 
                 Spacer(Modifier.height(10.dp))
 
-                // ---- IG profile tabs (grid / reels / tagged) ----
+                // ---- IG profile tabs (grid / reels / reposted / tagged) ----
                 Row(Modifier.fillMaxWidth()) {
                     listOf(
-                        "grid" to "▦",
-                        "reels" to "▶",
-                        "tagged" to "👤"
-                    ).forEach { (key, ic) ->
+                        Triple("grid", androidx.compose.material.icons.Icons.Filled.GridView, "Grid"),
+                        Triple("reels", androidx.compose.material.icons.Icons.Outlined.SmartDisplay, "Reels"),
+                        Triple("reposted", androidx.compose.material.icons.Icons.Outlined.Repeat, "Reposts"),
+                        Triple("tagged", androidx.compose.material.icons.Icons.Outlined.PersonPin, "Tagged")
+                    ).forEach { (key, ic, _) ->
                         Column(
                             Modifier.weight(1f).clickable { ptab = key },
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Spacer(Modifier.height(8.dp))
-                            Text(ic, fontSize = 18.sp, color = if (ptab == key) Color.White else Color(0xFF5A5A5A))
+                            Icon(ic, null, tint = if (ptab == key) Color.White else Color(0xFF5A5A5A), modifier = Modifier.size(24.dp))
                             Spacer(Modifier.height(7.dp))
                             Box(
                                 Modifier.fillMaxWidth(0.6f).height(1.5.dp)
@@ -341,7 +372,14 @@ fun ProfileScreen(
                 }
 
                 // ---- posts grid ----
-                if (ptab == "reels") {
+                if (ptab == "reposted") {
+                    Spacer(Modifier.height(60.dp))
+                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🔁", fontSize = 36.sp)
+                        Spacer(Modifier.height(10.dp))
+                        Text("No reposts yet", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+                } else if (ptab == "reels") {
                     Spacer(Modifier.height(60.dp))
                     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("▶", fontSize = 36.sp)

@@ -15,7 +15,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddBox
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Send
+import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.CircularProgressIndicator
@@ -67,6 +69,11 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
         connKind = kind
         profileUsername = username
         tab = "connections"
+    }
+
+    fun pushTabRoute(name: String) {
+        stack.add(Route(tab, profileUsername))
+        tab = name
     }
     fun goBack() {
         if (stack.isNotEmpty()) {
@@ -141,9 +148,14 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         onAddStory = { tab = "create" },
                         onOpenStory = { openStory = it },
                         onOpenNotifications = { tab = "notifications" },
-                        onOpenMessages = { tab = "messages" }
+                        onOpenCreate = { tab = "create" }
                     )
-                    "search" -> ExploreScreen(onProfile = { goProfile(it) }, onPost = { postFor = it })
+"search" -> ExploreScreen(onProfile = { goProfile(it) }, onPost = { postFor = it })
+                    "messages" -> MessagesScreen(
+                        me = me,
+                        onChat = { chatWith = it },
+                        onProfile = { goProfile(it) }
+                    )
                     "create" -> CreateScreen(
                         me = me,
                         onPosted = {
@@ -159,6 +171,24 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         onAvatarChanged = { u -> me = u }
                     )
                     "notifications" -> NotificationsScreen(me = me, onProfile = { goProfile(it) })
+                    "reels" -> ReelsScreen(
+                        me = me,
+                        onLike = { like(it) },
+                        onComments = { commentsFor = it },
+                        onProfile = { goProfile(it) }
+                    )
+                    "settings" -> SettingsScreen(
+                        me = me,
+                        onBack = { goBack() },
+                        onOpenSaved = { pushTabRoute("saved") },
+                        onOpenNotifications = { pushTabRoute("notifications") },
+                        onLogout = onLogout,
+                        onPrivacyChanged = { u -> me = u }
+                    )
+                    "saved" -> SavedScreen(
+                        onBack = { goBack() },
+                        onOpenPost = { postFor = it }
+                    )
                     "connections" -> ConnectionsScreen(
                         username = profileUsername,
                         kind = connKind,
@@ -176,7 +206,9 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         onAddStory = { tab = "create" },
                         onLogout = onLogout,
                         onAvatarChanged = { u -> me = u },
-                        onConnections = { uname, kind -> goConnections(uname, kind) }
+                        onConnections = { uname, kind -> goConnections(uname, kind) },
+                        onSettings = { pushTabRoute("settings") },
+                        hasStory = storyGroups.any { it.first.id == me.id }
                     )
                 }
             }
@@ -184,7 +216,17 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
             NavigationBar(containerColor = Color.Black, contentColor = Color.White, tonalElevation = 0.dp) {
                 NavigationBarItem(
                     selected = tab == "feed", onClick = { tab = "feed" },
-                    icon = { Icon(Icons.Filled.Home, null) },
+                    icon = { Icon(if (tab == "feed") Icons.Filled.Home else Icons.Outlined.Home, null) },
+                    colors = navColors()
+                )
+                NavigationBarItem(
+                    selected = tab == "reels", onClick = { tab = "reels" },
+                    icon = { Icon(if (tab == "reels") Icons.Filled.SmartDisplay else Icons.Outlined.SmartDisplay, null) },
+                    colors = navColors()
+                )
+                NavigationBarItem(
+                    selected = tab == "messages", onClick = { tab = "messages" },
+                    icon = { Icon(if (tab == "messages") Icons.Filled.Send else Icons.Outlined.Send, null) },
                     colors = navColors()
                 )
                 NavigationBarItem(
@@ -193,25 +235,27 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                     colors = navColors()
                 )
                 NavigationBarItem(
-                    selected = tab == "create", onClick = { tab = "create" },
-                    icon = { Icon(Icons.Filled.AddBox, null) },
-                    colors = navColors()
-                )
-                NavigationBarItem(
-                    selected = tab == "notifications", onClick = { tab = "notifications" },
-                    icon = { Icon(Icons.Filled.FavoriteBorder, null) },
-                    colors = navColors()
-                )
-                NavigationBarItem(
                     selected = tab == "profile", onClick = { tab = "profile" },
                     icon = {
                         Box(Modifier.size(26.dp)) {
-                            coil.compose.AsyncImage(
-                                model = me.avatar ?: "https://ui-avatars.com/api/?background=262626&color=fff&name=U",
-                                contentDescription = null,
-                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize().clip(androidx.compose.foundation.shape.CircleShape)
-                            )
+                            if (me.avatar.isNullOrBlank()) {
+                                Box(
+                                    Modifier.fillMaxSize().background(Color(0xFF262626), androidx.compose.foundation.shape.CircleShape),
+                                    Alignment.Center
+                                ) {
+                                    Text(
+                                        me.username.take(1).uppercase(),
+                                        color = Color(0xFFBBBBBB), fontWeight = FontWeight.Bold, fontSize = 12.sp
+                                    )
+                                }
+                            } else {
+                                coil.compose.AsyncImage(
+                                    model = me.avatar,
+                                    contentDescription = null,
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize().clip(androidx.compose.foundation.shape.CircleShape)
+                                )
+                            }
                         }
                     },
                     colors = navColors()
@@ -262,9 +306,9 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
 private fun navColors() = NavigationBarItemDefaults.colors(
     selectedIconColor = Color.White,
     selectedTextColor = Color.White,
-    unselectedIconColor = Color(0xFFB0B0B0),
-    unselectedTextColor = Color(0xFFB0B0B0),
-    indicatorColor = Color(0xFF1A1A1A)
+    unselectedIconColor = Color.White,
+    unselectedTextColor = Color.White,
+    indicatorColor = Color.Transparent
 )
 
 @Composable

@@ -22,6 +22,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.AddBox
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -64,7 +67,7 @@ fun FeedScreen(
     onAddStory: () -> Unit,
     onOpenStory: (VUser) -> Unit,
     onOpenNotifications: () -> Unit,
-    onOpenMessages: () -> Unit
+    onOpenCreate: () -> Unit
 ) {
     var refreshing by remember { mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(posts) { refreshing = false }
@@ -74,27 +77,19 @@ fun FeedScreen(
         modifier = Modifier.fillMaxSize().background(Color.Black)
     ) {
         Column(Modifier.fillMaxSize()) {
-        // top bar
+        // top bar (IG): + create | wordmark | notifications
         Row(
-            Modifier.fillMaxWidth().height(54.dp).background(Color.Black).padding(horizontal = 14.dp),
+            Modifier.fillMaxWidth().height(56.dp).background(Color.Black).padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                Modifier.size(30.dp).background(
-                    androidx.compose.ui.graphics.Brush.linearGradient(
-                        listOf(Color(0xFFF09433), Color(0xFFDC2743), Color(0xFFBC1888))
-                    ),
-                    RoundedCornerShape(8.dp)
-                )
-            )
-            Spacer(Modifier.width(8.dp))
-            Text("VibeGram", color = Color.White, fontSize = 26.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive)
-            Box(Modifier.weight(1f))
-            IconButton(onClick = onOpenNotifications) {
-                Icon(Icons.Filled.FavoriteBorder, null, tint = Color.White, modifier = Modifier.size(24.dp))
+            IconButton(onClick = onOpenCreate) {
+                Icon(Icons.Filled.AddBox, null, tint = Color.White, modifier = Modifier.size(27.dp))
             }
-            IconButton(onClick = onOpenMessages) {
-                Icon(Icons.Filled.Send, null, tint = Color.White, modifier = Modifier.size(22.dp))
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                Text("VibeGram", color = Color.White, fontSize = 27.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive)
+            }
+            IconButton(onClick = onOpenNotifications) {
+                Icon(Icons.Filled.FavoriteBorder, null, tint = Color.White, modifier = Modifier.size(25.dp))
             }
         }
 
@@ -143,7 +138,7 @@ fun StoryBar(
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onAddStory() }) {
             Box(contentAlignment = Alignment.BottomEnd) {
-                AvatarView(url = me.avatar, size = 60, border = false)
+                AvatarView(url = me.avatar, size = 60, border = false, name = me.username)
                 Box(
                     Modifier.size(22.dp).background(Color(0xFF0095F6), CircleShape).padding(2.dp),
                     contentAlignment = Alignment.Center
@@ -157,7 +152,7 @@ fun StoryBar(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.clickable { onOpenStory(user) }
             ) {
-                AvatarView(url = user.avatar, size = 60, border = true, gradientRing = true)
+                AvatarView(url = user.avatar, size = 60, border = true, gradientRing = true, name = user.username)
                 Spacer(Modifier.height(4.dp))
                 Text(
                     user.username.take(9),
@@ -170,8 +165,31 @@ fun StoryBar(
 }
 
 @Composable
-fun AvatarView(url: String?, size: Int, border: Boolean, gradientRing: Boolean = false) {
-    if (gradientRing) {
+fun AvatarView(url: String?, size: Int, border: Boolean, gradientRing: Boolean = false, name: String = "", showRing: Boolean = false) {
+    @Composable
+    fun inner(sz: Int) {
+        if (url.isNullOrBlank()) {
+            Box(
+                Modifier.size(sz.dp).background(Color(0xFF262626), CircleShape),
+                Alignment.Center
+            ) {
+                Text(
+                    if (name.isNotBlank()) name.take(1).uppercase() else "",
+                    color = Color(0xFFBBBBBB),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = (sz * 0.42).sp
+                )
+            }
+        } else {
+            AsyncImage(
+                model = url,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(sz.dp).clip(CircleShape).background(Color(0xFF262626))
+            )
+        }
+    }
+    if (gradientRing || showRing) {
         Box(
             Modifier.size((size + 6).dp).background(
                 androidx.compose.ui.graphics.Brush.linearGradient(
@@ -179,31 +197,19 @@ fun AvatarView(url: String?, size: Int, border: Boolean, gradientRing: Boolean =
                 ),
                 CircleShape
             ).padding(2.dp)
-        ) {
-            AsyncImage(
-                model = url ?: "https://ui-avatars.com/api/?background=333&color=fff&name=U",
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().clip(CircleShape).background(Color(0xFF222222))
-            )
-        }
+        ) { inner(size) }
     } else if (border) {
-        Box(Modifier.size((size + 4).dp).background(Color(0xFF444444), CircleShape).padding(2.dp)) {
-            AsyncImage(
-                model = url ?: "https://ui-avatars.com/api/?background=333&color=fff&name=U",
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().clip(CircleShape).background(Color(0xFF222222))
-            )
-        }
+        Box(Modifier.size((size + 4).dp).background(Color(0xFF444444), CircleShape).padding(2.dp)) { inner(size) }
     } else {
-        AsyncImage(
-            model = url ?: "https://ui-avatars.com/api/?background=333&color=fff&name=U",
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.size(size.dp).clip(CircleShape).background(Color(0xFF222222))
-        )
+        inner(size)
     }
+}
+
+// IG-style compact count: 43.6K / 1.6M
+fun fmtCount(n: Long): String = when {
+    n >= 1_000_000L -> String.format(java.util.Locale.US, "%.1fM", n / 1_000_000.0)
+    n >= 1_000L -> String.format(java.util.Locale.US, "%.1fK", n / 1_000.0)
+    else -> n.toString()
 }
 
 @Composable
@@ -217,6 +223,7 @@ fun PostCard(
     var showHeart by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var sharedNote by remember { mutableStateOf(false) }
+    var savedLoc by remember(post.id) { mutableStateOf(post.savedByMe) }
     val cardScope = rememberCoroutineScope()
     val myId = Fb.uid
     val liked = myId != null && post.likes.contains(myId)
@@ -318,6 +325,16 @@ fun PostCard(
                 }
             }) {
                 Icon(Icons.Filled.Send, null, tint = Color.White, modifier = Modifier.size(22.dp))
+            }
+            IconButton(onClick = {
+                val next = !savedLoc
+                savedLoc = next
+                cardScope.launch { try { Fb.toggleSave(post.id) } catch (_: Exception) { } }
+            }) {
+                Icon(
+                    if (savedLoc) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                    null, tint = Color.White, modifier = Modifier.size(24.dp)
+                )
             }
             Box(Modifier.weight(1f))
         }

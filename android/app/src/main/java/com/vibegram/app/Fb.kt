@@ -333,6 +333,31 @@ object Fb {
             SetOptions.merge()
         ).await()
     }
+    suspend fun toggleSave(postId: String): Boolean? {
+        val idv = uid ?: return null
+        val ref = db.collection("users").document(idv)
+        val cur = ref.get().await().get("saved") as? List<String> ?: emptyList()
+        val has = cur.contains(postId)
+        if (has) ref.update("saved", FieldValue.arrayRemove(postId)).await()
+        else ref.update("saved", FieldValue.arrayUnion(postId)).await()
+        return !has
+    }
+
+    suspend fun savedPosts(): List<Post> {
+        val idv = uid ?: return emptyList()
+        val saved = db.collection("users").document(idv).get().await().get("saved") as? List<String> ?: emptyList()
+        val out = mutableListOf<Post>()
+        for (id in saved.take(30)) {
+            try { db.collection("posts").document(id).get().await().toPost()?.let { out.add(it) } } catch (_: Exception) { }
+        }
+        return out
+    }
+
+    suspend fun setPrivateMe(v: Boolean) {
+        val idv = uid ?: return
+        db.collection("users").document(idv).update("isPrivate", v).await()
+    }
+
     // ---------- v5.4 full parity ----------
     val VERIFIED_IDS = setOf("bot-aarav", "bot-priya", "bot-rohan", "bot-ishani", "bot-karan")
 
@@ -368,9 +393,15 @@ object Fb {
         db.collection("requests").document(reqId).delete().await()
     }
 
+    // cached non-suspend check (best-effort)
+    @Volatile var lastRequestCheck: Pair<String, Boolean>? = null
+    fun amRequestingSync(targetId: String): Boolean = lastRequestCheck?.first == targetId && lastRequestCheck.second
+
     suspend fun amRequesting(targetId: String): Boolean {
         val idv = uid ?: return false
-        return try { db.collection("requests").document("${idv}__${targetId}").get().await().exists() } catch (_: Exception) { false }
+        val r = try { db.collection("requests").document("${idv}__${targetId}").get().await().exists() } catch (_: Exception) { false }
+        lastRequestCheck = targetId to r
+        return r
     }
 
     suspend fun followersOf(targetUid: String): List<VUser> {

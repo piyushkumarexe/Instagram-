@@ -94,7 +94,8 @@ fun DocumentSnapshot.toPost(): Post? {
         createdAt = getTimestamp("createdAt")?.toDate()?.time ?: 0L,
         likes = likes,
         likesCount = getLong("likesCount") ?: 0L,
-        commentsCount = getLong("commentsCount") ?: 0L
+        commentsCount = getLong("commentsCount") ?: 0L,
+        savedByMe = ((get("savedBy") as? List<*>)?.contains(Fb.uid) == true)
     )
 }
 
