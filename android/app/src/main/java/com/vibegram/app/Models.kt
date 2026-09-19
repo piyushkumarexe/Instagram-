@@ -56,7 +56,20 @@ data class ThreadInfo(val user: VUser, val lastText: String, val lastAt: Long)
 
 data class VMsg(val id: String, val text: String, val fromMe: Boolean, val at: Long)
 
-data class Story(val id: String, val media: String, val isVideo: Boolean, val at: Long)
+data class Story(
+    val id: String,
+    val media: String,
+    val isVideo: Boolean,
+    val at: Long,
+    val overlayText: String? = null,
+    val overlayFont: String? = null,
+    val overlayColor: Long? = null,
+    val overlayX: Float = 0.5f,
+    val overlayY: Float = 0.5f,
+    val musicTitle: String? = null,
+    val musicUrl: String? = null,
+    val closeOnly: Boolean = false
+)
 
 fun DocumentSnapshot.toVUser(): VUser? {
     if (!exists()) return null

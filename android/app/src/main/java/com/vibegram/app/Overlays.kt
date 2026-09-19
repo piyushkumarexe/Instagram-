@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -136,12 +138,35 @@ fun PostModal(
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
     var idx by remember { mutableStateOf(0) }
     var progress by remember { mutableStateOf(0f) }
     var reply by remember { mutableStateOf("") }
+    var player by remember { mutableStateOf<android.media.MediaPlayer?>(null) }
     val replyScope = rememberCoroutineScope()
+
+    // music playback for current story
+    androidx.compose.runtime.DisposableEffect(idx, stories.getOrNull(idx)?.musicUrl) {
+        val st = stories.getOrNull(idx)
+        var mp: android.media.MediaPlayer? = null
+        if (st?.musicUrl != null) {
+            try {
+                mp = android.media.MediaPlayer()
+                mp.setDataSource(st.musicUrl)
+                mp.prepare()
+                mp.isLooping = true
+                mp.start()
+            } catch (_: Exception) { mp = null }
+        }
+        onDispose {
+            try { mp?.stop(); mp?.release() } catch (_: Exception) { }
+        }
+    }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose { try { player?.stop(); player?.release() } catch (_: Exception) { } }
+    }
 
     LaunchedEffect(user.id) {
         while (idx < stories.size - 1) {
@@ -181,6 +206,24 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
             AvatarView(url = user.avatar, size = 32, border = false)
             Spacer(Modifier.width(9.dp))
             Text(user.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            val cur0 = stories.getOrNull(idx)
+            if (cur0?.musicTitle != null) {
+                Spacer(Modifier.width(10.dp))
+                Box(
+                    Modifier.background(Color(0x66000000), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("🎵", fontSize = 11.sp)
+                        Spacer(Modifier.width(4.dp))
+                        Text(cur0.musicTitle!!, color = Color.White, fontSize = 11.sp, maxLines = 1)
+                    }
+                }
+            }
+            if (stories.getOrNull(idx)?.closeOnly == true) {
+                Spacer(Modifier.width(8.dp))
+                Text("💚", fontSize = 12.sp)
+            }
         }
 
         // media
@@ -192,6 +235,30 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
         )
         if (story.isVideo) {
             Text("▶ video stories play in next update", color = Color.White, fontSize = 12.sp, modifier = Modifier.align(Alignment.Center))
+        }
+
+        // text overlay (draggable in composer; static here)
+        val cur1 = stories.getOrNull(idx)
+        if (cur1?.overlayText != null) {
+            val fam = when (cur1.overlayFont) {
+                "Typewriter" -> androidx.compose.ui.text.font.FontFamily.Monospace
+                "Serif" -> androidx.compose.ui.text.font.FontFamily.Serif
+                "Neon" -> androidx.compose.ui.text.font.FontFamily.Cursive
+                else -> androidx.compose.ui.text.font.FontFamily.SansSerif
+            }
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                Text(
+                    cur1.overlayText!!,
+                    color = Color(cur1.overlayColor ?: 0xFFFFFFFFL),
+                    fontFamily = fam,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    lineHeight = 32.sp,
+                    modifier = Modifier.fillMaxWidth(0.86f)
+                        .offset(x = maxWidth * cur1.overlayX - maxWidth * 0.43f, y = maxHeight * cur1.overlayY)
+                )
+            }
         }
 
         // tap zones

@@ -58,6 +58,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
     var profileUsername by remember { mutableStateOf(initialMe.username) }
     var connKind by remember { mutableStateOf("followers") }
     var postFor by remember { mutableStateOf<Post?>(null) }
+    var storyUri by remember { mutableStateOf<android.net.Uri?>(null) }
     val stack = remember { mutableStateListOf<Route>() }
 
     fun goProfile(username: String) {
@@ -150,7 +151,14 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         onAddStory = { tab = "create" },
                         onOpenStory = { openStory = it },
                         onOpenNotifications = { tab = "notifications" },
-                        onOpenCreate = { tab = "create" }
+                        onOpenCreate = { tab = "create" },
+                        onStoryPicked = { uri -> storyUri = uri; pushTabRoute("storyCompose") },
+                        onDelete = { p ->
+                            scope.launch {
+                                try { Fb.deletePost(p.id) } catch (_: Exception) { }
+                                loadFeed()
+                            }
+                        }
                     )
 "search" -> ExploreScreen(onProfile = { goProfile(it) }, onPost = { postFor = it })
                     "messages" -> MessagesScreen(
@@ -191,6 +199,24 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         onBack = { goBack() },
                         onOpenPost = { postFor = it }
                     )
+                    "storyCompose" -> storyUri?.let { uri ->
+                        StoryComposer(
+                            imageUri = uri,
+                            onPublished = {
+                                storyUri = null
+                                scope.launch { loadStories() }
+                                stack.clear()
+                                tab = "feed"
+                            },
+                            onCancel = { storyUri = null; goBack() }
+                        )
+                    }
+                    "discover" -> DiscoverScreen(
+                        me = me,
+                        onBack = { goBack() },
+                        onProfile = { goProfile(it) },
+                        onChat = { chatWith = it }
+                    )
                     "connections" -> ConnectionsScreen(
                         username = profileUsername,
                         kind = connKind,
@@ -210,6 +236,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         onAvatarChanged = { u -> me = u },
                         onConnections = { uname, kind -> goConnections(uname, kind) },
                         onSettings = { pushTabRoute("settings") },
+                        onDiscover = { pushTabRoute("discover") },
                         hasStory = storyGroups.keys.any { it.id == me.id }
                     )
                 }

@@ -1,5 +1,9 @@
 package com.vibegram.app
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -67,10 +71,15 @@ fun FeedScreen(
     onAddStory: () -> Unit,
     onOpenStory: (VUser) -> Unit,
     onOpenNotifications: () -> Unit,
-    onOpenCreate: () -> Unit
+    onOpenCreate: () -> Unit,
+    onStoryPicked: (Uri) -> Unit,
+    onDelete: (Post) -> Unit
 ) {
     var refreshing by remember { mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(posts) { refreshing = false }
+    val storyPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) onStoryPicked(uri)
+    }
     PullToRefreshBox(
         isRefreshing = refreshing,
         onRefresh = { refreshing = true; onRefresh() },
@@ -106,7 +115,7 @@ fun FeedScreen(
                     StoryBar(
                         me = me,
                         groups = storyGroups.toList(),
-                        onAddStory = onAddStory,
+                        onAddStory = { storyPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                         onOpenStory = onOpenStory
                     )
                 }
@@ -116,7 +125,8 @@ fun FeedScreen(
                         onLike = onLike,
                         onComments = { onComments(post) },
                         onProfile = onProfile,
-                        onAvatar = onOpenStory
+                        onAvatar = onOpenStory,
+                        onDelete = onDelete
                     )
                 }
             }
@@ -218,7 +228,8 @@ fun PostCard(
     onLike: (Post) -> Unit,
     onComments: () -> Unit,
     onProfile: (String) -> Unit,
-    onAvatar: (VUser) -> Unit
+    onAvatar: (VUser) -> Unit,
+    onDelete: (Post) -> Unit
 ) {
     var showHeart by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
@@ -261,6 +272,15 @@ fun PostCard(
                             }
                         }
                     )
+                    if (post.userId == Fb.uid) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Delete", color = Color(0xFFED4956)) },
+                            onClick = {
+                                menu = false
+                                cardScope.launch { onDelete(post) }
+                            }
+                        )
+                    }
                 }
             }
         }

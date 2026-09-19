@@ -245,11 +245,69 @@ object Fb {
                 )
                 groups[uidv] = mutableListOf()
             }
-            groups[uidv]?.add(Story(d.id, d.getString("media") ?: "", d.getString("mediaType") == "video", at))
+            groups[uidv]?.add(
+                Story(
+                    d.id, d.getString("media") ?: "", d.getString("mediaType") == "video", at,
+                    overlayText = d.getString("overlayText"),
+                    overlayFont = d.getString("overlayFont"),
+                    overlayColor = (d.getLong("overlayColor") ?: 0xFFFFFFFFL).takeIf { d.getString("overlayText") != null },
+                    overlayX = (d.getDouble("overlayX") ?: 0.5).toFloat(),
+                    overlayY = (d.getDouble("overlayY") ?: 0.5).toFloat(),
+                    musicTitle = d.getString("musicTitle"),
+                    musicUrl = d.getString("musicUrl"),
+                    closeOnly = d.getBoolean("closeOnly") ?: false
+                )
+            )
         }
         val out = LinkedHashMap<VUser, List<Story>>()
-        for ((k, v) in groups) users[k]?.let { out[it] = v }
+        for ((k, v) in groups) {
+            val u = users[k] ?: continue
+            if (k == uid) { out[u] = v; continue }
+            val anyClose = v.any { it.closeOnly }
+            var visible = true
+            if (anyClose) {
+                val cf = try { db.collection("users").document(k).get().await().get("closeFriends") as? List<String> ?: emptyList() } catch (_: Exception) { emptyList<String>() }
+                visible = cf.contains(uid)
+            }
+            if (visible && u.isPrivate) {
+                visible = try { db.collection("follows").document("${idv}_$k").get().await().exists() } catch (_: Exception) { false }
+            }
+            if (visible) out[u] = v
+        }
         return out
+    }
+
+    suspend fun addStoryFull(
+        media: String,
+        overlayText: String? = null,
+        overlayFont: String? = null,
+        overlayColor: Long? = null,
+        overlayX: Float = 0.5f,
+        overlayY: Float = 0.5f,
+        musicTitle: String? = null,
+        musicUrl: String? = null,
+        closeOnly: Boolean = false
+    ) {
+        val idv = uid ?: return
+        val meDoc = db.collection("users").document(idv).get().await()
+        db.collection("stories").add(
+            hashMapOf<String, Any?>(
+                "userId" to idv,
+                "username" to (meDoc.getString("username") ?: ""),
+                "avatar" to (meDoc.getString("avatar") ?: ""),
+                "media" to media,
+                "mediaType" to "image",
+                "overlayText" to overlayText,
+                "overlayFont" to overlayFont,
+                "overlayColor" to overlayColor,
+                "overlayX" to overlayX.toDouble(),
+                "overlayY" to overlayY.toDouble(),
+                "musicTitle" to musicTitle,
+                "musicUrl" to musicUrl,
+                "closeOnly" to closeOnly,
+                "createdAt" to FieldValue.serverTimestamp()
+            )
+        ).await()
     }
 
     suspend fun addStoryUrl(media: String) {
@@ -333,6 +391,39 @@ object Fb {
             SetOptions.merge()
         ).await()
     }
+    suspend fun deletePost(postId: String) {
+        try {
+            val cs = db.collection("posts").document(postId).collection("comments").limit(100).get().await()
+            for (c in cs.documents) c.reference.delete().await()
+        } catch (_: Exception) { }
+        db.collection("posts").document(postId).delete().await()
+    }
+
+    suspend fun suggestions(): List<VUser> {
+        val idv = uid ?: return emptyList()
+        val mine = followingOf(idv).map { it.id }.toSet()
+        val snap = db.collection("users").limit(25).get().await()
+        val out = mutableListOf<VUser>()
+        for (d in snap.documents) {
+            if (d.id == idv || mine.contains(d.id)) continue
+            d.toVUser()?.let { out.add(it) }
+            if (out.size >= 12) break
+        }
+        return out
+    }
+
+    suspend fun toggleCloseFriend(target: String, on: Boolean) {
+        val idv = uid ?: return
+        val ref = db.collection("users").document(idv)
+        if (on) ref.update("closeFriends", FieldValue.arrayUnion(target)).await()
+        else ref.update("closeFriends", FieldValue.arrayRemove(target)).await()
+    }
+
+    suspend fun closeFriendIds(): List<String> {
+        val idv = uid ?: return emptyList()
+        return db.collection("users").document(idv).get().await().get("closeFriends") as? List<String> ?: emptyList()
+    }
+
     suspend fun toggleSave(postId: String): Boolean? {
         val idv = uid ?: return null
         val ref = db.collection("users").document(idv)

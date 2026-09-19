@@ -80,6 +80,7 @@ fun ProfileScreen(
     onAvatarChanged: (VUser) -> Unit,
     onConnections: (String, String) -> Unit,
     onSettings: () -> Unit = {},
+    onDiscover: () -> Unit = {},
     hasStory: Boolean = false
 ) {
     val ctx = LocalContext.current
@@ -324,7 +325,8 @@ fun ProfileScreen(
                             )
                         }
                         Box(
-                            Modifier.size(40.dp).background(Color(0xFF262626), RoundedCornerShape(9.dp)),
+                            Modifier.size(40.dp).background(Color(0xFF262626), RoundedCornerShape(9.dp))
+                                .clickable { onDiscover() },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Outlined.PersonAddAlt1, null, tint = Color.White, modifier = Modifier.size(20.dp))
@@ -601,129 +603,3 @@ fun Stat(count: Long, label: String) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SongPickerSheet(
-    current: String,
-    onUse: (String, String, String) -> Unit,
-    onClear: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    var q by remember { mutableStateOf("") }
-    var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
-    var searching by remember { mutableStateOf(false) }
-    var playingUrl by remember { mutableStateOf<String?>(null) }
-    var player by remember { mutableStateOf<android.media.MediaPlayer?>(null) }
-
-    LaunchedEffect(q) {
-        if (q.isBlank()) { songs = emptyList(); return@LaunchedEffect }
-        searching = true
-        val query = q
-        kotlinx.coroutines.delay(300)
-        songs = try { Fb.itunesSearch(query) } catch (_: Exception) { emptyList() }
-        searching = false
-    }
-
-    ModalBottomSheet(onDismissRequest = {
-        try { player?.stop(); player?.release() } catch (_: Exception) { }
-        onDismiss()
-    }, containerColor = Color(0xFF1C1C1E)) {
-        Column(Modifier.padding(horizontal = 18.dp).height(520.dp)) {
-            Text("Add music to profile", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-            Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
-                value = q,
-                onValueChange = { q = it },
-                placeholder = { Text("Search songs", color = Color(0xFF8E8E8E)) },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = Color(0xFF0095F6),
-                    focusedBorderColor = Color(0xFF3A3A3C),
-                    unfocusedBorderColor = Color(0xFF3A3A3C)
-                ),
-                singleLine = true,
-                shape = RoundedCornerShape(11.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(10.dp))
-            if (searching) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
-                    Spacer(Modifier.width(10.dp))
-                    Text("Searching…", color = Color(0xFF8E8E8E), fontSize = 13.sp)
-                }
-            }
-            if (current.isNotBlank()) {
-                Row(
-                    Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("🎵", fontSize = 15.sp)
-                    Spacer(Modifier.width(8.dp))
-                    Text(current, color = Color.White, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                    Text(
-                        "Remove",
-                        color = Color(0xFFED4956), fontWeight = FontWeight.Bold, fontSize = 13.sp,
-                        modifier = Modifier.clickable {
-                            try { player?.stop(); player?.release() } catch (_: Exception) { }
-                            onClear()
-                        }.padding(6.dp)
-                    )
-                }
-            }
-            androidx.compose.foundation.lazy.LazyColumn(Modifier.weight(1f)) {
-                items(songs.size) { i ->
-                    val song = songs[i]
-                    Row(
-                        Modifier.fillMaxWidth().clickable {
-                            try {
-                                player?.stop(); player?.release()
-                                val p = android.media.MediaPlayer()
-                                p.setDataSource(song.previewUrl)
-                                p.prepare()
-                                p.start()
-                                player = p
-                                playingUrl = song.previewUrl
-                            } catch (_: Exception) { }
-                        }.padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        AsyncImage(
-                            model = song.artwork,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.size(44.dp).background(Color(0xFF333333))
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(song.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
-                            Text(song.artist, color = Color(0xFF8E8E8E), fontSize = 12.sp, maxLines = 1)
-                        }
-                        Text(
-                            if (playingUrl == song.previewUrl) "♪" else "▶",
-                            color = Color(0xFF0095F6), fontSize = 15.sp
-                        )
-                    }
-                }
-            }
-            Button(
-                onClick = {
-                    val p = playingUrl
-                    if (p != null) {
-                        val song = songs.firstOrNull { it.previewUrl == p }
-                        if (song != null) {
-                            try { player?.stop(); player?.release() } catch (_: Exception) { }
-                            onUse(song.title, song.artist, song.previewUrl)
-                        }
-                    }
-                },
-                enabled = playingUrl != null,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0095F6)),
-                modifier = Modifier.fillMaxWidth().height(44.dp),
-                shape = RoundedCornerShape(9.dp)
-            ) { Text("Use this song", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp) }
-            Spacer(Modifier.height(24.dp))
-        }
-    }
-}
