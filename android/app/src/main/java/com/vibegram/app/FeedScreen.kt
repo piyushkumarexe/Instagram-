@@ -142,22 +142,32 @@ fun StoryBar(
     onAddStory: () -> Unit,
     onOpenStory: (VUser) -> Unit
 ) {
+    val ownGroup = groups.firstOrNull { it.first.id == me.id }
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onAddStory() }) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.clickable {
+                if (ownGroup != null) onOpenStory(me) else onAddStory()
+            }
+        ) {
             Box(contentAlignment = Alignment.BottomEnd) {
-                AvatarView(url = me.avatar, size = 60, border = false, name = me.username)
-                Box(
-                    Modifier.size(22.dp).background(Color(0xFF0095F6), CircleShape).padding(2.dp),
-                    contentAlignment = Alignment.Center
-                ) { Text("+", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
+                if (ownGroup != null) {
+                    AvatarView(url = me.avatar, size = 60, border = true, gradientRing = true, name = me.username)
+                } else {
+                    AvatarView(url = me.avatar, size = 60, border = false, name = me.username)
+                    Box(
+                        Modifier.size(22.dp).background(Color(0xFF0095F6), CircleShape).padding(2.dp),
+                        contentAlignment = Alignment.Center
+                    ) { Text("+", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
+                }
             }
             Spacer(Modifier.height(4.dp))
             Text("Your story", color = Color.White, fontSize = 11.sp)
         }
-        groups.take(8).forEach { (user, stories) ->
+        groups.filter { it.first.id != me.id }.take(8).forEach { (user, stories) ->
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.clickable { onOpenStory(user) }
@@ -235,7 +245,10 @@ fun PostCard(
     var menu by remember { mutableStateOf(false) }
     var sharedNote by remember { mutableStateOf(false) }
     var savedLoc by remember(post.id) { mutableStateOf(post.savedByMe) }
+    var editOpen by remember { mutableStateOf(false) }
+    var editTxt by remember { mutableStateOf(post.caption) }
     val cardScope = rememberCoroutineScope()
+    val cardCtx = androidx.compose.ui.platform.LocalContext.current
     val myId = Fb.uid
     val liked = myId != null && post.likes.contains(myId)
 
@@ -263,6 +276,23 @@ fun PostCard(
                     Icon(Icons.Filled.MoreVert, null, tint = Color.White, modifier = Modifier.size(20.dp))
                 }
                 androidx.compose.material3.DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    if (post.caption.isNotBlank()) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Copy caption", color = Color.White) },
+                            onClick = {
+                                menu = false
+                                val cm = cardCtx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                cm.setPrimaryClip(android.content.ClipData.newPlainText("caption", post.caption))
+                                android.widget.Toast.makeText(cardCtx, "Caption copied", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+                    if (post.userId == Fb.uid) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Edit caption", color = Color.White) },
+                            onClick = { menu = false; editTxt = post.caption; editOpen = true }
+                        )
+                    }
                     androidx.compose.material3.DropdownMenuItem(
                         text = { Text("Add to story", color = Color.White) },
                         onClick = {
@@ -368,6 +398,31 @@ fun PostCard(
                 kotlinx.coroutines.delay(2500)
                 sharedNote = false
             }
+        }
+
+        if (editOpen) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { editOpen = false },
+                title = { Text("Edit caption", color = Color.White) },
+                text = {
+                    androidx.compose.material3.OutlinedTextField(
+                        value = editTxt,
+                        onValueChange = { editTxt = it },
+                        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White, unfocusedTextColor = Color.White, cursorColor = Color(0xFF0095F6)
+                        ),
+                        maxLines = 4
+                    )
+                },
+                confirmButton = {
+                    Text("Save", color = Color(0xFF0095F6), fontWeight = FontWeight.Bold, modifier = Modifier.clickable {
+                        editOpen = false
+                        cardScope.launch { try { Fb.updateCaption(post.id, editTxt) } catch (_: Exception) { } }
+                    }.padding(6.dp))
+                },
+                dismissButton = { Text("Cancel", color = Color(0xFF8E8E8E), modifier = Modifier.clickable { editOpen = false }.padding(6.dp)) },
+                containerColor = Color(0xFF1C1C1E)
+            )
         }
 
         // likes + caption

@@ -81,7 +81,15 @@ fun StoryComposer(
     var bmp by remember { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(imageUri) {
         bmp = withContext(Dispatchers.IO) {
-            try { ctx.contentResolver.openInputStream(imageUri)?.use { BitmapFactory.decodeStream(it) } } catch (_: Exception) { null }
+            try {
+                // downsample decode — full-size camera photos cause OOM crashes
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                ctx.contentResolver.openInputStream(imageUri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+                var sample = 1
+                while (bounds.outWidth / (sample * 2) >= 1440 || bounds.outHeight / (sample * 2) >= 1440) sample *= 2
+                val o2 = BitmapFactory.Options().apply { inSampleSize = sample }
+                ctx.contentResolver.openInputStream(imageUri)?.use { BitmapFactory.decodeStream(it, null, o2) }
+            } catch (_: Exception) { null }
         }
     }
 
@@ -101,7 +109,14 @@ fun StoryComposer(
         busy = true
         scope.launch {
             try {
-                val media = withContext(Dispatchers.IO) { b.toDataUrl(1080, 82) }
+                var maxW = 1080
+                var q = 82
+                var media = withContext(Dispatchers.IO) { b.toDataUrl(maxW, q) }
+                var guard = 0
+                while (media.length > 850_000 && guard < 4) {
+                    maxW -= 150; q -= 10; guard++
+                    media = withContext(Dispatchers.IO) { b.toDataUrl(maxW, q) }
+                }
                 Fb.addStoryFull(
                     media = media,
                     overlayText = text.takeIf { it.isNotBlank() },
@@ -114,7 +129,8 @@ fun StoryComposer(
                     closeOnly = closeOnly
                 )
                 onPublished()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(ctx, "Could not share story: " + (e.message ?: "try again"), android.widget.Toast.LENGTH_LONG).show()
                 busy = false
             }
         }

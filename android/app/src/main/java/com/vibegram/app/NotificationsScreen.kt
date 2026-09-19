@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 
 @Composable
-fun NotificationsScreen(me: VUser, onProfile: (String) -> Unit) {
+fun NotificationsScreen(me: VUser, onProfile: (String) -> Unit, onOpenPost: (String) -> Unit = { _ -> }) {
     var rows by remember { mutableStateOf<List<NotifRow>?>(null) }
     var reqs by remember { mutableStateOf<List<Pair<String, VUser>>?>(null) }
     val scope = rememberCoroutineScope()
@@ -122,13 +122,25 @@ fun NotificationsScreen(me: VUser, onProfile: (String) -> Unit) {
                             "follow" -> "started following you."
                             "follow_request" -> "requested to follow you."
                             "follow_accept" -> "accepted your follow request."
+                            "story_like" -> "liked your story."
                             else -> "interacted with you."
                         }
-                        Text(
-                            buildString { append(uname); append(" "); append(action) },
-                            color = Color.White,
-                            fontSize = 14.sp
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                buildString { append(uname); append(" "); append(action) },
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            if (row.notif.postId != null) {
+                                Spacer(Modifier.width(10.dp))
+                                val thumb = row.notif.postId
+                                Box(
+                                    Modifier.size(44.dp).background(Color(0xFF262626))
+                                        .clickable { if (thumb != null) onOpenPost(thumb) }
+                                ) { Text("\U0001F5BC", fontSize = 18.sp, modifier = Modifier.align(Alignment.Center)) }
+                            }
+                        }
                     }
                 }
             }

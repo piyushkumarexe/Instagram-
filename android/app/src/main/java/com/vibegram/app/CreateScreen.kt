@@ -64,7 +64,12 @@ fun CreateScreen(
         status = "Adding to your story…"
         scope.launch {
             try {
-                val bmp = BitmapFactory.decodeStream(ctx.contentResolver.openInputStream(uri))
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                                ctx.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+                                var sample = 1
+                                while (bounds.outWidth / (sample * 2) >= 1600 || bounds.outHeight / (sample * 2) >= 1600) sample *= 2
+                                val o2 = BitmapFactory.Options().apply { inSampleSize = sample }
+                                BitmapFactory.decodeStream(ctx.contentResolver.openInputStream(uri), null, o2)
                     ?: throw Exception("Could not read image")
                 Fb.addStory(bmp)
                 status = "Story added ✅"
@@ -117,7 +122,12 @@ fun CreateScreen(
                         status = "Sharing…"
                         scope.launch {
                             try {
-                                val bmp = BitmapFactory.decodeStream(ctx.contentResolver.openInputStream(uri))
+                                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                                ctx.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+                                var sample = 1
+                                while (bounds.outWidth / (sample * 2) >= 1600 || bounds.outHeight / (sample * 2) >= 1600) sample *= 2
+                                val o2 = BitmapFactory.Options().apply { inSampleSize = sample }
+                                BitmapFactory.decodeStream(ctx.contentResolver.openInputStream(uri), null, o2)
                                     ?: throw Exception("Could not read image")
                                 Fb.createPost(bmp, caption)
                                 status = "Posted ✅"

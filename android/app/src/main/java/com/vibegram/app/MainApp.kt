@@ -180,7 +180,16 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         },
                         onAvatarChanged = { u -> me = u }
                     )
-                    "notifications" -> NotificationsScreen(me = me, onProfile = { goProfile(it) })
+                    "notifications" -> NotificationsScreen(
+                        me = me,
+                        onProfile = { goProfile(it) },
+                        onOpenPost = { pid ->
+                            scope.launch {
+                                val p = try { Fb.getPostById(pid) } catch (_: Exception) { null }
+                                if (p != null) postFor = p
+                            }
+                        }
+                    )
                     "reels" -> ReelsScreen(
                         me = me,
                         onLike = { like(it) },

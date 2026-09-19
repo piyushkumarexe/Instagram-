@@ -254,6 +254,19 @@ fun ProfileScreen(
                     if (u.bio.isNotBlank()) {
                         Text(u.bio, color = Color.White, fontSize = 13.sp, lineHeight = 18.sp)
                     }
+                    if (u.link.isNotBlank()) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "🔗 " + u.link.removePrefix("https://").removePrefix("http://"),
+                            color = Color(0xFF5B9BD5), fontSize = 13.sp,
+                            modifier = Modifier.clickable {
+                                try {
+                                    val url = if (u.link.startsWith("http")) u.link else "https://" + u.link
+                                    ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+                                } catch (_: Exception) { }
+                            }
+                        )
+                    }
                     if (u.anthem.isNotBlank()) {
                         Spacer(Modifier.height(6.dp))
                         Row(
@@ -508,6 +521,7 @@ fun ProfileScreen(
     if (editSheet) {
         var ename by remember { mutableStateOf(u.name) }
         var ebio by remember { mutableStateOf(u.bio) }
+        var elink by remember { mutableStateOf(u.link) }
         var saving by remember { mutableStateOf(false) }
         ModalBottomSheet(
             onDismissRequest = { editSheet = false },
@@ -520,6 +534,21 @@ fun ProfileScreen(
                     value = ename,
                     onValueChange = { ename = it },
                     label = { Text("Name", color = Color(0xFF8E8E8E)) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = Color(0xFF0095F6),
+                        focusedBorderColor = Color(0xFF3A3A3C),
+                        unfocusedBorderColor = Color(0xFF3A3A3C)
+                    ),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = elink,
+                    onValueChange = { elink = it },
+                    label = { Text("Link", color = Color(0xFF8E8E8E)) },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
@@ -566,7 +595,7 @@ fun ProfileScreen(
                         saving = true
                         scope.launch {
                             try {
-                                Fb.updateProfile(ename, ebio)
+                                Fb.updateProfile(ename, ebio, elink)
                                 reload()
                                 editSheet = false
                             } catch (_: Exception) {

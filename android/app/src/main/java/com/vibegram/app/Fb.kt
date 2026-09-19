@@ -90,10 +90,10 @@ object Fb {
         db.collection("users").document(idv).update("avatar", bmp.toDataUrl(320, 85)).await()
     }
 
-    suspend fun updateProfile(name: String, bio: String) {
+    suspend fun updateProfile(name: String, bio: String, link: String = "") {
         val idv = uid ?: return
         db.collection("users").document(idv)
-            .update("name", name.trim(), "bio", bio.trim()).await()
+            .update("name", name.trim(), "bio", bio.trim(), "link", link.trim()).await()
     }
 
     // ---------- feed / posts ----------
@@ -255,7 +255,9 @@ object Fb {
                     overlayY = (d.getDouble("overlayY") ?: 0.5).toFloat(),
                     musicTitle = d.getString("musicTitle"),
                     musicUrl = d.getString("musicUrl"),
-                    closeOnly = d.getBoolean("closeOnly") ?: false
+                    closeOnly = d.getBoolean("closeOnly") ?: false,
+                    likes = d.get("likes") as? List<String> ?: emptyList(),
+                    viewsCount = d.getLong("viewsCount") ?: 0L
                 )
             )
         }
@@ -366,7 +368,7 @@ object Fb {
             .orderBy("createdAt", Query.Direction.ASCENDING).limit(200).get().await()
         return snap.documents.mapNotNull { d ->
             val at = d.getTimestamp("createdAt")?.toDate()?.time ?: return@mapNotNull null
-            VMsg(d.id, d.getString("text") ?: "", d.getString("from") == idv, at)
+            VMsg(d.id, d.getString("text") ?: "", d.getString("from") == idv, at, d.getString("from") ?: "", d.getString("reaction"))
         }
     }
 
@@ -392,6 +394,80 @@ object Fb {
             SetOptions.merge()
         ).await()
     }
+    suspend fun deleteStory(storyId: String) {
+        db.collection("stories").document(storyId).delete().await()
+    }
+
+    suspend fun viewStory(storyId: String) {
+        val idv = uid ?: return
+        val ref = db.collection("stories").document(storyId)
+        ref.update("views", FieldValue.arrayUnion(idv)).await()
+        try {
+            val v = ref.get().await().get("views") as? List<String> ?: emptyList()
+            ref.update("viewsCount", v.size.toLong()).await()
+        } catch (_: Exception) { }
+    }
+
+    suspend fun storyViewers(storyId: String): List<VUser> {
+        val views = db.collection("stories").document(storyId).get().await().get("views") as? List<String> ?: emptyList()
+        return views.take(50).mapNotNull { id ->
+            try { db.collection("users").document(id).get().await().toVUser() } catch (_: Exception) { null }
+        }
+    }
+
+    suspend fun likeStory(storyId: String, ownerId: String): Boolean? {
+        val idv = uid ?: return null
+        val ref = db.collection("stories").document(storyId)
+        val liked = (ref.get().await().get("likes") as? List<String> ?: emptyList()).contains(idv)
+        if (liked) ref.update("likes", FieldValue.arrayRemove(idv)).await()
+        else {
+            ref.update("likes", FieldValue.arrayUnion(idv)).await()
+            if (ownerId != idv) {
+                db.collection("notifications").document().set(
+                    hashMapOf<String, Any?>("userId" to ownerId, "actorId" to idv, "type" to "story_like", "postId" to null, "read" to false, "createdAt" to FieldValue.serverTimestamp())
+                ).await()
+            }
+        }
+        return !liked
+    }
+
+    suspend fun getPostById(postId: String): Post? {
+        return try { db.collection("posts").document(postId).get().await().toPost() } catch (_: Exception) { null }
+    }
+
+    suspend fun updateCaption(postId: String, caption: String) {
+        db.collection("posts").document(postId).update("caption", caption.trim().take(2200)).await()
+    }
+
+    suspend fun likeComment(postId: String, commentId: String): Boolean? {
+        val idv = uid ?: return null
+        val ref = db.collection("posts").document(postId).collection("comments").document(commentId)
+        val liked = (ref.get().await().get("likes") as? List<String> ?: emptyList()).contains(idv)
+        ref.update(
+            "likes", if (liked) FieldValue.arrayRemove(idv) else FieldValue.arrayUnion(idv),
+            "likesCount", FieldValue.increment(if (liked) -1 else 1)
+        ).await()
+        return !liked
+    }
+
+    suspend fun deleteComment(postId: String, commentId: String) {
+        db.collection("posts").document(postId).collection("comments").document(commentId).delete().await()
+    }
+
+    suspend fun reactToMessage(otherId: String, msgId: String, emoji: String?) {
+        val idv = uid ?: return
+        val pid = pairId(idv, otherId)
+        val ref = db.collection("dms").document(pid).collection("messages").document(msgId)
+        if (emoji == null) ref.update("reaction", FieldValue.delete()).await()
+        else ref.update("reaction", emoji).await()
+    }
+
+    suspend fun unsendMessage(otherId: String, msgId: String) {
+        val idv = uid ?: return
+        val pid = pairId(idv, otherId)
+        db.collection("dms").document(pid).collection("messages").document(msgId).delete().await()
+    }
+
     suspend fun deletePost(postId: String) {
         try {
             val cs = db.collection("posts").document(postId).collection("comments").limit(100).get().await()

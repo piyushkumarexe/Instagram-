@@ -2,6 +2,7 @@ package com.vibegram.app
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -224,6 +225,12 @@ private fun NewChatSheet(onPick: (VUser) -> Unit, onDismiss: () -> Unit) {
 }
 
 // IG-style chat screen (messages list + emoji picker + send)
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+private fun Modifier.androidxCombinedClickable(onLongClick: () -> Unit, onClick: () -> Unit): Modifier =
+    this.then(
+        Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+    )
+
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () -> Unit) {
@@ -277,9 +284,11 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
             } else {
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp)) {
                     items(list) { m ->
-                        Row(
-                            Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                            horizontalArrangement = if (m.fromMe) Arrangement.End else Arrangement.Start
+                        var menuFor by remember(m.id) { mutableStateOf(false) }
+                        Column(
+                            Modifier.fillMaxWidth().padding(vertical = 3.dp)
+                                .androidxCombinedClickable(onLongClick = { menuFor = true }, onClick = { }),
+                            horizontalAlignment = if (m.fromMe) Alignment.End else Alignment.Start
                         ) {
                             Box(
                                 Modifier
@@ -290,6 +299,27 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
                                     .padding(horizontal = 13.dp, vertical = 9.dp)
                             ) {
                                 Text(m.text, color = Color.White, fontSize = 15.sp)
+                            }
+                            if (m.reaction != null) {
+                                Text(m.reaction!!, fontSize = 12.sp, modifier = Modifier.padding(top = 1.dp))
+                            }
+                            androidx.compose.material3.DropdownMenu(expanded = menuFor, onDismissRequest = { menuFor = false }) {
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text("React ❤️") },
+                                    onClick = {
+                                        menuFor = false
+                                        scope.launch { try { Fb.reactToMessage(other.id, m.id, "❤️") ; msgs = Fb.messages(other.id) } catch (_: Exception) { } }
+                                    }
+                                )
+                                if (m.fromMe) {
+                                    androidx.compose.material3.DropdownMenuItem(
+                                        text = { Text("Unsend", color = Color(0xFFED4956)) },
+                                        onClick = {
+                                            menuFor = false
+                                            scope.launch { try { Fb.unsendMessage(other.id, m.id); msgs = Fb.messages(other.id) } catch (_: Exception) { } }
+                                        }
+                                    )
+                                }
                             }
                         }
                     }

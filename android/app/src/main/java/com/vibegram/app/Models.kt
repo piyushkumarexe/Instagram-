@@ -14,7 +14,8 @@ data class VUser(
     val verified: Boolean,
     val isPrivate: Boolean,
     val anthem: String = "",
-    val anthemArtist: String = ""
+    val anthemArtist: String = "",
+    val link: String = ""
 )
 
 data class Post(
@@ -54,7 +55,7 @@ data class NotifRow(val notif: VNotif, val actor: VUser?)
 
 data class ThreadInfo(val user: VUser, val lastText: String, val lastAt: Long)
 
-data class VMsg(val id: String, val text: String, val fromMe: Boolean, val at: Long)
+data class VMsg(val id: String, val text: String, val fromMe: Boolean, val at: Long, val fromId: String = "", val reaction: String? = null)
 
 data class Story(
     val id: String,
@@ -68,7 +69,9 @@ data class Story(
     val overlayY: Float = 0.5f,
     val musicTitle: String? = null,
     val musicUrl: String? = null,
-    val closeOnly: Boolean = false
+    val closeOnly: Boolean = false,
+    val likes: List<String> = emptyList(),
+    val viewsCount: Long = 0
 )
 
 fun DocumentSnapshot.toVUser(): VUser? {
@@ -86,7 +89,8 @@ fun DocumentSnapshot.toVUser(): VUser? {
         verified = (getBoolean("verified") ?: false) || Fb.VERIFIED_IDS.contains(id ?: ""),
         isPrivate = getBoolean("isPrivate") ?: false,
         anthem = getString("anthem") ?: "",
-        anthemArtist = getString("anthemArtist") ?: ""
+        anthemArtist = getString("anthemArtist") ?: "",
+        link = getString("link") ?: ""
     )
 }
 
@@ -121,7 +125,9 @@ fun DocumentSnapshot.toComment(): VComment? {
         username = getString("username") ?: "?",
         avatar = getString("avatar")?.takeIf { it.isNotBlank() },
         text = getString("text") ?: "",
-        createdAt = getTimestamp("createdAt")?.toDate()?.time ?: 0L
+        createdAt = getTimestamp("createdAt")?.toDate()?.time ?: 0L,
+        likes = get("likes") as? List<String> ?: emptyList(),
+        likesCount = getLong("likesCount") ?: 0L
     )
 }
 

@@ -146,6 +146,15 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
     var reply by remember { mutableStateOf("") }
     var player by remember { mutableStateOf<android.media.MediaPlayer?>(null) }
     val replyScope = rememberCoroutineScope()
+    val isOwn = user.id == Fb.uid
+    var viewersSheet by remember { mutableStateOf(false) }
+    var viewers by remember { mutableStateOf<List<VUser>>(emptyList()) }
+    var gone by remember { mutableStateOf(false) }
+
+    suspend fun openViewers() {
+        viewers = try { Fb.storyViewers(stories.getOrNull(idx)?.id ?: "") } catch (_: Exception) { emptyList() }
+        viewersSheet = true
+    }
 
     // music playback for current story
     androidx.compose.runtime.DisposableEffect(idx, stories.getOrNull(idx)?.musicUrl) {
@@ -168,6 +177,12 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
         onDispose { try { player?.stop(); player?.release() } catch (_: Exception) { } }
     }
 
+    LaunchedEffect(user.id, idx) {
+        val st0 = stories.getOrNull(idx)
+        if (st0 != null && !isOwn) {
+            try { Fb.viewStory(st0.id) } catch (_: Exception) { }
+        }
+    }
     LaunchedEffect(user.id) {
         while (idx < stories.size - 1) {
             for (i in 1..50) {
@@ -271,8 +286,42 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
             })
         }
 
+        // own story: viewers count + delete
+        if (isOwn && !gone) {
+            Row(
+                Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 18.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val stNow = stories.getOrNull(idx)
+                Text(
+                    (stNow?.viewsCount ?: 0L).toString() + " viewers",
+                    color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                    modifier = Modifier
+                        .androidxClickable { replyScope.launch { openViewers() } }
+                        .background(Color(0x33000000), RoundedCornerShape(18.dp))
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                )
+                Box(Modifier.weight(1f))
+                Text(
+                    "Delete",
+                    color = Color(0xFFFF5A6E), fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                    modifier = Modifier
+                        .androidxClickable {
+                            val stDel = stories.getOrNull(idx) ?: return@androidxClickable
+                            replyScope.launch {
+                                try { Fb.deleteStory(stDel.id) } catch (_: Exception) { }
+                                if (idx < stories.size - 1) { idx++; progress = 0f } else onClose()
+                            }
+                        }
+                        .background(Color(0x33000000), RoundedCornerShape(18.dp))
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                )
+            }
+        }
+
         // reply bar (not on own story)
-        if (user.id != Fb.uid) {
+        if (!isOwn && !gone) {
             Row(
                 Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 16.dp),
@@ -296,9 +345,9 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
                 Spacer(Modifier.width(10.dp))
                 Text("❤", fontSize = 24.sp, modifier = Modifier
                     .clickable {
-                        if (replyScope != null) { }
+                        val stLike = stories.getOrNull(idx) ?: return@clickable
                         replyScope.launch {
-                            try { Fb.sendDm(user.id, "❤️") } catch (_: Exception) { }
+                            try { Fb.likeStory(stLike.id, user.id) } catch (_: Exception) { }
                         }
                     }
                     .padding(8.dp))
@@ -326,7 +375,39 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
             modifier = Modifier.align(Alignment.TopEnd).padding(14.dp).clickable { onClose() }
         )
     }
+
+    if (viewersSheet) {
+        androidx.compose.material3.ModalBottomSheet(onDismissRequest = { viewersSheet = false }, containerColor = Color(0xFF1C1C1E)) {
+            Column(Modifier.padding(horizontal = 16.dp).height(430.dp)) {
+                Text("Viewers", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Spacer(Modifier.height(10.dp))
+                if (viewers.isEmpty()) {
+                    Text("No viewers yet", color = Color(0xFF8E8E8E), fontSize = 13.sp, modifier = Modifier.padding(10.dp))
+                }
+                androidx.compose.foundation.lazy.LazyColumn(Modifier.weight(1f)) {
+                    items(viewers.size) { i ->
+                        val v = viewers[i]
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AvatarView(url = v.avatar, size = 42, border = false, name = v.username)
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(v.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text(v.name, color = Color(0xFF8E8E8E), fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(20.dp))
+            }
+        }
+    }
 }
+
+private fun Modifier.androidxClickable(onClick: () -> Unit): Modifier =
+    this.then(Modifier.clickable { onClick() })
 
 @Composable
 fun BigAvatar(url: String, onDismiss: () -> Unit) {
@@ -378,20 +459,49 @@ fun CommentsPanel(
                 } else if (l.isEmpty()) {
                     EmptyBox("No comments yet. Say something nice!", "💬")
                 } else {
+                    val cScope = rememberCoroutineScope()
                     LazyColumn(Modifier.fillMaxSize()) {
                         items(l) { c ->
+                            var cliked by remember(c.id) { mutableStateOf(Fb.uid != null && c.likes.contains(Fb.uid)) }
+                            var cDel by remember(c.id) { mutableStateOf(false) }
+                            LaunchedEffect(cDel) {
+                                if (cDel) { try { Fb.deleteComment(post.id, c.id) } catch (_: Exception) { } }
+                            }
+                            if (cDel) return@items
                             Row(
                                 Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.Top
                             ) {
                                 Box(Modifier.clickable { onAvatar(c.avatar ?: "") }) {
-                                    AvatarView(url = c.avatar, size = 34, border = false)
+                                    AvatarView(url = c.avatar, size = 34, border = false, name = c.username)
                                 }
                                 Spacer(Modifier.width(10.dp))
-                                Column(Modifier.clickable { onProfile(c.username) }) {
-                                    Row {
-                                        Text(c.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                        Text("  " + c.text, color = Color.White, fontSize = 13.sp)
+                                Column(Modifier.weight(1f).clickable { onProfile(c.username) }) {
+                                    Text(c.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text(c.text, color = Color.White, fontSize = 13.sp)
+                                    if (cliked) {
+                                        Text(
+                                            (c.likesCount).toString() + if (c.likesCount == 1L) " like" else " likes",
+                                            color = Color(0xFF8E8E8E), fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        if (cliked) "❤️" else "🤍",
+                                        fontSize = 13.sp,
+                                        modifier = Modifier.clickable {
+                                            cliked = !cliked
+                                            cScope.launch {
+                                                try { Fb.likeComment(post.id, c.id) } catch (_: Exception) { }
+                                            }
+                                        }.padding(4.dp)
+                                    )
+                                    if (c.userId == Fb.uid) {
+                                        Text(
+                                            "✕", color = Color(0xFF8E8E8E), fontSize = 11.sp,
+                                            modifier = Modifier.clickable { cDel = true }.padding(4.dp)
+                                        )
                                     }
                                 }
                             }
