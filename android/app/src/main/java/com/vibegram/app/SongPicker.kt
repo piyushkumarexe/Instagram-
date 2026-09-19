@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.ime.imePadding
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -73,7 +75,7 @@ internal fun SongPickerSheet(
         try { player?.stop(); player?.release() } catch (_: Exception) { }
         onDismiss()
     }, containerColor = Color(0xFF1C1C1E)) {
-        Column(Modifier.padding(horizontal = 18.dp).height(520.dp).imePadding()) {
+        Column(Modifier.padding(horizontal = 18.dp).height(520.dp).windowInsetsPadding(WindowInsets.ime)) {
             Text("Add music", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
