@@ -67,6 +67,7 @@ fun SettingsScreen(
 ) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var priv by remember { mutableStateOf(me.isPrivate) }
+    var boosting by remember { mutableStateOf(false) }
     var q by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val isOwner = Fb.auth.currentUser?.email == "piyushpk811@gmail.com"
@@ -189,6 +190,25 @@ fun SettingsScreen(
             }
             if (q.isBlank() || "notifications".startsWith(q, true)) {
                 SettingsRow(icon = { Icon(Icons.Outlined.Notifications, null, tint = Color.White, modifier = Modifier.size(24.dp)) }, title = "Notifications") { onOpenNotifications() }
+            }
+            if (Fb.auth.currentUser?.email == "piyushpk811@gmail.com") {
+                SettingsRow(
+                    icon = { Icon(Icons.Outlined.PersonAddAlt1, null, tint = Color.White, modifier = Modifier.size(24.dp)) },
+                    title = if (boosting) "Adding followers…" else "Boost followers"
+                ) {
+                    if (!boosting) {
+                        boosting = true
+                        scope.launch {
+                            val n = try { Fb.botsFollowMe() } catch (_: Exception) { 0 }
+                            boosting = false
+                            android.widget.Toast.makeText(
+                                ctx,
+                                if (n > 0) "+$n followers added" else "All bots already follow you",
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                }
             }
 
             SectionLabel("Who can see your content")

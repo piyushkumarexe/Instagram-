@@ -41,6 +41,8 @@ fun ConnectionsScreen(
     userId: String,
     username: String,
     kind: String,
+    isPrivate: Boolean,
+    isFollowing: Boolean,
     me: VUser,
     onBack: () -> Unit,
     onProfile: (String) -> Unit,
@@ -52,8 +54,10 @@ fun ConnectionsScreen(
     var myFollowingIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var busyId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val locked = isPrivate && !isFollowing && userId != me.id
 
     fun load() {
+        if (locked) { list = emptyList(); return }
         scope.launch {
             list = null
             err = null
@@ -109,7 +113,20 @@ fun ConnectionsScreen(
             }
         }
 
-        if (err != null) {
+        if (locked) {
+            Column(
+                Modifier.fillMaxSize().padding(30.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
+            ) {
+                Text("🔒", fontSize = 34.sp)
+                Spacer(Modifier.height(10.dp))
+                Text("This account is private", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Spacer(Modifier.height(4.dp))
+                Text("Follow this account to see their " + (if (tab == "followers") "followers" else "following"),
+                    color = Color(0xFF8E8E8E), fontSize = 13.sp)
+            }
+        } else if (err != null) {
             Column(
                 Modifier.fillMaxSize().padding(30.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,

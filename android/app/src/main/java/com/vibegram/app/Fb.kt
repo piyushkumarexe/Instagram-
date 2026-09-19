@@ -730,7 +730,43 @@ object Fb {
     suspend fun explorePosts(): List<Post> {
         val snap = db.collection("posts")
             .orderBy("createdAt", Query.Direction.DESCENDING).limit(48).fresh()
-        return snap.documents.mapNotNull { it.toPost() }
+        val mine = uid ?: ""
+        // private accounts' posts stay out of Explore unless it's you or you follow them
+        val privateIds = try {
+            db.collection("users").whereEqualTo("isPrivate", true).limit(50).fresh()
+                .documents.map { it.id }.toSet()
+        } catch (_: Exception) { emptySet<String>() }
+        val followedIds = try {
+            db.collection("follows").whereEqualTo("followerId", mine).limit(100).fresh()
+                .documents.mapNotNull { it.getString("followingId") }.toSet()
+        } catch (_: Exception) { emptySet<String>() }
+        return snap.documents.mapNotNull { it.toPost() }.filter { p ->
+            p.userId == mine || !privateIds.contains(p.userId) || followedIds.contains(p.userId)
+        }
+    }
+
+    // admin boost: every bot account follows the signed-in user (bypasses private requests)
+    suspend fun botsFollowMe(): Int {
+        val idv = uid ?: return 0
+        var added = 0
+        for (bot in VERIFIED_IDS) {
+            if (bot == idv) continue
+            val key = "${bot}_$idv"
+            val exists = try { db.collection("follows").document(key).get().await().exists() } catch (_: Exception) { false }
+            if (exists) continue
+            try {
+                db.collection("follows").document(key)
+                    .set(hashMapOf("followerId" to bot, "followingId" to idv, "createdAt" to FieldValue.serverTimestamp()))
+                    .await()
+                db.collection("users").document(bot).update("followingCount", FieldValue.increment(1)).await()
+                db.collection("users").document(idv).update("followersCount", FieldValue.increment(1)).await()
+                db.collection("notifications").document().set(
+                    hashMapOf<String, Any?>("userId" to idv, "actorId" to bot, "type" to "follow", "postId" to null, "postThumb" to null, "read" to false, "createdAt" to FieldValue.serverTimestamp())
+                ).await()
+                added++
+            } catch (_: Exception) { }
+        }
+        return added
     }
 
     suspend fun updateAnthem(title: String, artist: String, url: String) {

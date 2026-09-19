@@ -59,6 +59,8 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
     var profileUsername by remember { mutableStateOf(initialMe.username) }
     var connKind by remember { mutableStateOf("followers") }
     var connUserId by remember { mutableStateOf("") }
+    var connIsPrivate by remember { mutableStateOf(false) }
+    var connIsFollowing by remember { mutableStateOf(false) }
     var postFor by remember { mutableStateOf<Post?>(null) }
     var storyUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var unreadDms by remember { mutableStateOf(0) }
@@ -72,10 +74,12 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
         tab = "profile"
     }
 
-    fun goConnections(username: String, kind: String, userId: String) {
+    fun goConnections(username: String, kind: String, userId: String, isPrivate: Boolean, isFollowing: Boolean) {
         stack.add(Route(tab, profileUsername))
         connKind = kind
         connUserId = userId
+        connIsPrivate = isPrivate
+        connIsFollowing = isFollowing
         profileUsername = username
         tab = "connections"
     }
@@ -278,6 +282,8 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         userId = connUserId,
                         username = profileUsername,
                         kind = connKind,
+                        isPrivate = connIsPrivate,
+                        isFollowing = connIsFollowing,
                         me = me,
                         onBack = { goBack() },
                         onProfile = { goProfile(it) },
@@ -292,7 +298,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         onAddStory = { tab = "create" },
                         onLogout = onLogout,
                         onAvatarChanged = { u -> me = u },
-                        onConnections = { uname, kind, uid2 -> goConnections(uname, kind, uid2) },
+                        onConnections = { uname, kind, uid2, priv, fol -> goConnections(uname, kind, uid2, priv, fol) },
                         onSettings = { pushTabRoute("settings") },
                         onDiscover = { pushTabRoute("discover") },
                         onOpenOwnStory = {

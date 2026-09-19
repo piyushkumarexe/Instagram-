@@ -68,6 +68,13 @@ fun MessagesScreen(me: VUser, onChat: (VUser) -> Unit, onProfile: (String) -> Un
     var threads by remember { mutableStateOf<List<ThreadInfo>?>(null) }
     var q by remember { mutableStateOf("") }
     var composeOpen by remember { mutableStateOf(false) }
+    var found by remember { mutableStateOf<List<VUser>>(emptyList()) }
+    LaunchedEffect(q) {
+        if (q.isBlank()) { found = emptyList(); return@LaunchedEffect }
+        val query = q
+        kotlinx.coroutines.delay(250)
+        found = try { Fb.searchUsers(query) } catch (_: Exception) { emptyList() }
+    }
 
     LaunchedEffect(Unit) {
         threads = try { Fb.threads() } catch (_: Exception) { emptyList() }
@@ -118,7 +125,7 @@ fun MessagesScreen(me: VUser, onChat: (VUser) -> Unit, onProfile: (String) -> Un
             val filtered = if (q.isBlank()) list else list.filter {
                 it.user.username.contains(q, true) || it.user.name.contains(q, true)
             }
-            if (filtered.isEmpty()) {
+            if (filtered.isEmpty() && found.isEmpty()) {
                 EmptyBox("No messages yet", "✉️")
             } else {
                 LazyColumn(Modifier.fillMaxSize()) {
@@ -158,6 +165,30 @@ fun MessagesScreen(me: VUser, onChat: (VUser) -> Unit, onProfile: (String) -> Un
                                 ) {
                                     Text(t.unread.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
+                            }
+                        }
+                    }
+                    if (found.isNotEmpty()) {
+                        item {
+                            Text(
+                                "People",
+                                color = Color(0xFF8E8E8E), fontWeight = FontWeight.Bold, fontSize = 13.sp,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                        items(found) { fu ->
+                            Row(
+                                Modifier.fillMaxWidth().clickable { onChat(fu) }
+                                    .padding(horizontal = 14.dp, vertical = 9.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AvatarView(url = fu.avatar, size = 46, border = false, name = fu.username)
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(fu.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text(fu.name, color = Color(0xFF8E8E8E), fontSize = 13.sp)
+                                }
+                                Text("Message", color = Color(0xFF0095F6), fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
                         }
                     }

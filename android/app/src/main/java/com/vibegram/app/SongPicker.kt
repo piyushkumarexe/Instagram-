@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.ime.imePadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -56,6 +57,7 @@ internal fun SongPickerSheet(
     var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
     var searching by remember { mutableStateOf(false) }
     var playingUrl by remember { mutableStateOf<String?>(null) }
+    var selectedUrl by remember { mutableStateOf<String?>(null) }
     var player by remember { mutableStateOf<android.media.MediaPlayer?>(null) }
 
     LaunchedEffect(q) {
@@ -71,7 +73,7 @@ internal fun SongPickerSheet(
         try { player?.stop(); player?.release() } catch (_: Exception) { }
         onDismiss()
     }, containerColor = Color(0xFF1C1C1E)) {
-        Column(Modifier.padding(horizontal = 18.dp).height(520.dp)) {
+        Column(Modifier.padding(horizontal = 18.dp).height(520.dp).imePadding()) {
             Text("Add music", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
@@ -102,6 +104,7 @@ internal fun SongPickerSheet(
                     val song = songs[i]
                     Row(
                         Modifier.fillMaxWidth().clickable {
+                            selectedUrl = song.previewUrl // one tap = selected (button unlocks)
                             try {
                                 player?.stop(); player?.release()
                                 val p = android.media.MediaPlayer()
@@ -122,7 +125,11 @@ internal fun SongPickerSheet(
                         )
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(song.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
+                            Text(
+                                song.title,
+                                color = if (selectedUrl == song.previewUrl) Color(0xFF0095F6) else Color.White,
+                                fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1
+                            )
                             Text(song.artist, color = Color(0xFF8E8E8E), fontSize = 12.sp, maxLines = 1)
                         }
                         Text(
@@ -146,7 +153,7 @@ internal fun SongPickerSheet(
                 }
                 Button(
                     onClick = {
-                        val p = playingUrl
+                        val p = selectedUrl
                         if (p != null) {
                             val song = songs.firstOrNull { it.previewUrl == p }
                             if (song != null) {
@@ -155,7 +162,7 @@ internal fun SongPickerSheet(
                             }
                         }
                     },
-                    enabled = playingUrl != null,
+                    enabled = selectedUrl != null,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0095F6)),
                     modifier = Modifier.weight(1f).height(44.dp),
                     shape = RoundedCornerShape(9.dp)

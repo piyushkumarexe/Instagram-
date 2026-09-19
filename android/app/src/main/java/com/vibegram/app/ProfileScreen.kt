@@ -78,7 +78,7 @@ fun ProfileScreen(
     onAddStory: () -> Unit,
     onLogout: () -> Unit,
     onAvatarChanged: (VUser) -> Unit,
-    onConnections: (String, String, String) -> Unit,
+    onConnections: (String, String, String, Boolean, Boolean) -> Unit,
     onSettings: () -> Unit = {},
     onDiscover: () -> Unit = {},
     onOpenOwnStory: () -> Unit = {},
@@ -238,10 +238,10 @@ fun ProfileScreen(
                     Spacer(Modifier.width(24.dp))
                     Row(Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceEvenly) {
                         Stat(ps.size.toLong(), "posts")
-                        Box(Modifier.clickable { onConnections(u.username, "followers", u.id) }) {
+                        Box(Modifier.clickable { onConnections(u.username, "followers", u.id, u.isPrivate, following == true) }) {
                             Stat(u.followersCount, "followers")
                         }
-                        Box(Modifier.clickable { onConnections(u.username, "following", u.id) }) {
+                        Box(Modifier.clickable { onConnections(u.username, "following", u.id, u.isPrivate, following == true) }) {
                             Stat(u.followingCount, "following")
                         }
                     }
@@ -327,6 +327,7 @@ fun ProfileScreen(
                                         val want = following != true
                                         val ok = Fb.follow(u, want)
                                         if (ok) following = want
+                                        reload() // refresh counts + Requested state instantly
                                     } catch (_: Exception) {
                                     } finally { busy = false }
                                 }
@@ -358,7 +359,7 @@ fun ProfileScreen(
                 }
 
                 // social proof (IG "Followed by ...")
-                if (!isOwn && following == false && followerSample.isNotEmpty()) {
+                if (!isOwn && following == false && followerSample.isNotEmpty() && !u.isPrivate) {
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Row {
@@ -403,7 +404,17 @@ fun ProfileScreen(
                 }
 
                 // ---- posts grid ----
-                if (ptab == "reposted") {
+                if (!isOwn && u.isPrivate && following != true) {
+                    // IG behaviour: private account content is hidden until they accept you
+                    Spacer(Modifier.height(60.dp))
+                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🔒", fontSize = 36.sp)
+                        Spacer(Modifier.height(10.dp))
+                        Text("This account is private", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Spacer(Modifier.height(4.dp))
+                        Text("Follow this account to see their photos and videos", color = Color(0xFF8E8E8E), fontSize = 12.sp)
+                    }
+                } else if (ptab == "reposted") {
                     var reposts by remember { mutableStateOf<List<Post>?>(null) }
                     LaunchedEffect(Unit) {
                         reposts = try { Fb.repostedPosts() } catch (_: Exception) { emptyList() }
