@@ -57,17 +57,35 @@ object Fb {
     fun logout() = auth.signOut()
 
     // ---------- users ----------
-    suspend fun me(retries: Int = 3): VUser? {
+    suspend fun me(retries: Int = 2): VUser? {
         val idv = uid ?: return null
+        // 1) instant local cache (works fully offline)
+        try {
+            val snap = db.collection("users").document(idv)
+                .get(com.google.firebase.firestore.Source.CACHE).await()
+            if (snap.exists()) snap.toVUser()?.let { return it }
+        } catch (_: Exception) { }
+        // 2) network retries
         repeat(retries) { attempt ->
             try {
-                return db.collection("users").document(idv).get().await().toVUser()
+                val snap = db.collection("users").document(idv)
+                    .get(com.google.firebase.firestore.Source.SERVER).await()
+                if (snap.exists()) snap.toVUser()?.let { return it }
+                return null
             } catch (_: Exception) {
                 if (attempt == retries - 1) return null
-                kotlinx.coroutines.delay(800L * (attempt + 1))
+                kotlinx.coroutines.delay(1000L * (attempt + 1))
             }
         }
         return null
+    }
+
+    // instant placeholder from the signed-in Google account (never blocks UI)
+    fun tempMe(): VUser {
+        val u = auth.currentUser
+        val name = u?.displayName ?: u?.email?.substringBefore("@") ?: "Me"
+        val uname = (u?.displayName ?: "user").replace(" ", "").lowercase() + (u?.uid?.takeLast(4) ?: "")
+        return VUser(u?.uid ?: "", uname, name, null, "", 0, 0, 0, false, false)
     }
 
     suspend fun userByUsername(uname: String): VUser? {

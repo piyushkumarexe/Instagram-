@@ -117,6 +117,14 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
         }
     }
     LaunchedEffect(Unit) {
+        // self-heal profile (in case we entered with temp data)
+        scope.launch {
+            val fresh = try { Fb.me(retries = 3) } catch (_: Exception) { null }
+            if (fresh != null && fresh.username != me.username) {
+                me = fresh
+                if (profileUsername.isEmpty() || profileUsername == "user") profileUsername = fresh.username
+            }
+        }
         loadFeed()
         Fb.touchPresence()
         unreadDms = try { Fb.unreadDmCount() } catch (_: Exception) { 0 }
