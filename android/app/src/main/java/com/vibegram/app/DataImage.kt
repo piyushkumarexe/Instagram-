@@ -7,6 +7,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,19 +39,21 @@ fun DataImage(
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
     fallbackLetter: String = "",
-    circle: Boolean = true
+    circle: Boolean = true,
+    fallbackSize: Int = 16
 ) {
+    val shape = if (circle) androidx.compose.foundation.shape.CircleShape else androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
     if (url.isNullOrBlank()) {
         if (fallbackLetter.isNotBlank()) {
             Box(
-                modifier.background(Color(0xFF262626)).clip(if (circle) androidx.compose.foundation.shape.CircleShape else androidx.compose.foundation.shape.RoundedCornerShape(4.dpSafe())),
+                modifier.background(Color(0xFF262626)).clip(shape),
                 Alignment.Center
             ) {
                 Text(
                     fallbackLetter.take(1).uppercase(),
                     color = Color(0xFFBBBBBB),
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    fontSize = fallbackSize.sp
                 )
             }
         }
@@ -88,12 +91,12 @@ fun DataImage(
             )
         } else if (failed) {
             Box(
-                modifier.background(Color(0xFF262626)).clip(if (circle) androidx.compose.foundation.shape.CircleShape else androidx.compose.foundation.shape.RoundedCornerShape(4.dpSafe())),
+                modifier.background(Color(0xFF262626)).clip(shape),
                 Alignment.Center
             ) {
                 Text(
                     fallbackLetter.take(1).uppercase().ifBlank { "•" },
-                    color = Color(0xFFBBBBBB), fontWeight = FontWeight.Bold, fontSize = 16.sp
+                    color = Color(0xFFBBBBBB), fontWeight = FontWeight.Bold, fontSize = fallbackSize.sp
                 )
             }
         } else {
@@ -111,4 +114,3 @@ fun DataImage(
     )
 }
 
-private fun Int.dpSafe() = androidx.compose.ui.unit.Dp(this.toFloat())

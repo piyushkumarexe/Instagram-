@@ -184,6 +184,7 @@ fun AvatarView(url: String?, size: Int, border: Boolean, gradientRing: Boolean =
             DataImage(
                 url = url,
                 fallbackLetter = if (name.isNotBlank()) name.take(1).uppercase() else "",
+                fallbackSize = (sz * 0.42).toInt().coerceAtLeast(10),
                 modifier = Modifier.size(sz.dp).clip(CircleShape)
             )
         }

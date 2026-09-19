@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.SmartDisplay
 import androidx.compose.material.icons.outlined.PersonPin
 import androidx.compose.material.icons.outlined.Repeat
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PersonAddAlt1
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -167,7 +168,7 @@ fun ProfileScreen(
             if (u.isPrivate) {
                 Spacer(Modifier.width(4.dp))
                 Icon(
-                    androidx.compose.material.icons.Icons.Outlined.Lock, null,
+                    Icons.Outlined.Lock, null,
                     tint = Color(0xFFC7C7C7), modifier = Modifier.size(15.dp)
                 )
             }

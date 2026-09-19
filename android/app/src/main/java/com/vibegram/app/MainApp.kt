@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.SmartDisplay
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.CircularProgressIndicator
@@ -287,7 +288,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
 @Composable
 fun VerifiedBadge(sizeDp: Int = 14) {
     Icon(
-        androidx.compose.material.icons.Icons.Filled.Verified, null,
+        Icons.Filled.Verified, null,
         tint = Color(0xFF0095F6),
         modifier = Modifier.size(sizeDp.dp)
     )
