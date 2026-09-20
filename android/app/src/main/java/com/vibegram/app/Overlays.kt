@@ -46,6 +46,9 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.awaitFirstDown
+import androidx.compose.ui.input.pointer.awaitPointerEventScope
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -284,9 +287,9 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
         Modifier.fillMaxSize().background(Color.Black).statusBarsPadding()
             .pointerInput(Unit) {
                 // v7.3: swipe down closes the story (IG)
-                androidx.compose.ui.input.pointer.awaitPointerEventScope {
+                awaitPointerEventScope {
                     while (true) {
-                        androidx.compose.ui.input.pointer.awaitFirstDown(requireUnconsumed = false)
+                        awaitFirstDown(requireUnconsumed = false)
                         var dy = 0f
                         while (true) {
                             val ev = awaitPointerEvent()
