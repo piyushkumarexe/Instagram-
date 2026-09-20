@@ -32,6 +32,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.filled.SmartDisplay
 import androidx.compose.material.icons.outlined.PersonPin
 import androidx.compose.material.icons.outlined.Repeat
@@ -199,7 +201,7 @@ fun ProfileScreen(
             Box(Modifier.weight(1f))
             IconButton(onClick = { listView = !listView }) {
                 Icon(
-                    if (listView) Icons.Filled.Apps else Icons.Filled.List,
+                    if (listView) Icons.Filled.Apps else Icons.Filled.ViewList,
                     null, tint = Color.White, modifier = Modifier.size(22.dp)
                 )
             }
@@ -222,7 +224,7 @@ fun ProfileScreen(
             } else {
                 Box {
                     IconButton(onClick = { otherMenu = true }) {
-                        Icon(androidx.compose.material.icons.filled.MoreVert, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                        Icon(Icons.Filled.MoreVert, null, tint = Color.White, modifier = Modifier.size(22.dp))
                     }
                     androidx.compose.material3.DropdownMenu(expanded = otherMenu, onDismissRequest = { otherMenu = false }) {
                         androidx.compose.material3.DropdownMenuItem(

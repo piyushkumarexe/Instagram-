@@ -300,8 +300,8 @@ fun ShareSheet(post: Post, onDismiss: () -> Unit) {
     var q by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val ctx = androidx.compose.ui.platform.LocalContext.current
-    LaunchedEffect(Unit) { targets = try { Fb.shareTargets() } catch (_: Exception) { emptyList() } }
-    LaunchedEffect(q) {
+    androidx.compose.runtime.LaunchedEffect(Unit) { targets = try { Fb.shareTargets() } catch (_: Exception) { emptyList() } }
+    androidx.compose.runtime.LaunchedEffect(q) {
         if (q.isBlank()) return@LaunchedEffect
         kotlinx.coroutines.delay(250)
         targets = try { Fb.searchUsers(q) } catch (_: Exception) { emptyList() }
