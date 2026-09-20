@@ -46,8 +46,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.awaitFirstDown
-import androidx.compose.ui.input.pointer.awaitPointerEventScope
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -574,7 +573,7 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
 }
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-private fun Modifier.androidxLongPress(onLongClick: () -> Unit, onClick: () -> Unit = {}): Modifier =
+private fun Modifier.androidxLongPress(onClick: () -> Unit = {}, onLongClick: () -> Unit): Modifier =
     this.then(Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick))
 
 private fun Modifier.androidxClickable(onClick: () -> Unit): Modifier =
