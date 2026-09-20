@@ -158,7 +158,7 @@ function PostDetailInner({ posts, byId, nameOf, you, onShare }: PostDetailProps)
               </button>
             </div>
             <div className="post__body" style={{ padding: '4px 6px 8px' }}>
-              <div className="post__likes">{likedByLine(post, [nameOf('u1')])}</div>
+              <div className="post__likes">{likedByLine(post, [nameOf(post.likedByUserId)])}</div>
               <div className="post__time">
                 {timeAgo(post.createdAt)} ago · {countComments(post).toLocaleString('en-US')} comments
               </div>

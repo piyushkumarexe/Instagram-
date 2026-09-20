@@ -143,6 +143,7 @@ export const POSTS: Post[] = CAPTIONS.map(([caption, location, tags], i) => {
     comments: makeComments(i),
     tags,
     likedByAvatars: [AVATARS[(i + 2) % AVATARS.length], AVATARS[(i + 5) % AVATARS.length], AVATARS[(i + 8) % AVATARS.length]],
+    likedByUserId: USERS[(i * 2 + 3) % USERS.length].id,
   }
 })
 

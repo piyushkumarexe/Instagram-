@@ -52,6 +52,7 @@ export function createdToPost(cp: CreatedPost, ownerId: string): Post {
     comments: [],
     tags: (cp.caption.match(/#[\w]+/g) ?? []).map((t) => t.slice(1)),
     likedByAvatars: [],
+    likedByUserId: 'u1',
   }
 }
 

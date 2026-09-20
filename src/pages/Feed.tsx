@@ -64,7 +64,7 @@ function FeedInner({
             author={author}
             you={you}
             nameOf={nameOf}
-            likedByName={post.likedByAvatars.length ? nameOf('u1') : 'someone'}
+            likedByName={nameOf(post.likedByUserId)}
             onLike={(on) => {
               dispatch({ type: 'toggleLike', postId: post.id })
               if (on) toast('Added to liked posts')

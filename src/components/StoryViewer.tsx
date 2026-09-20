@@ -45,25 +45,23 @@ export const StoryViewer = memo(function StoryViewer({
 
   const advance = useCallback(
     (dir: 1 | -1) => {
-      setSi((cur) => {
-        const g = groups[gi]
-        if (!g) return cur
-        if (dir === 1 && cur < g.stories.length - 1) return cur + 1
-        if (dir === -1 && cur > 0) return cur - 1
-        // spill over into the next tray
-        setGi((gcur) => {
-          const next = gcur + dir
-          if (next < 0 || next >= groups.length) {
-            onClose()
-            return gcur
-          }
-          setSi(dir === 1 ? 0 : groups[next].stories.length - 1)
-          return next
-        })
-        return cur
-      })
+      const tray = groups[gi]
+      if (!tray) return
+      const nextFrame = si + dir
+      if (nextFrame >= 0 && nextFrame < tray.stories.length) {
+        setSi(nextFrame)
+        return
+      }
+      // spill over into the next tray, or close at the ends
+      const nextTray = gi + dir
+      if (nextTray < 0 || nextTray >= groups.length) {
+        onClose()
+        return
+      }
+      setGi(nextTray)
+      setSi(dir === 1 ? 0 : groups[nextTray].stories.length - 1)
     },
-    [gi, groups, onClose],
+    [gi, groups, onClose, si],
   )
 
   // autoplay

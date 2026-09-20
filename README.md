@@ -7,7 +7,7 @@ uploads, theme) is persisted to `localStorage`, so a reload keeps your state.
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 36 unit + integration tests (vitest + jsdom)
+npm test           # 44 unit + integration tests (vitest + jsdom)
 npm run build      # tsc --noEmit && vite build
 npm run preview    # serve the production build
 ```
@@ -130,6 +130,8 @@ base64 LQIP, generates six procedural SVG "art" posts, and rewrites
 npm test
 ```
 
+- `StoryViewer.test.tsx` — tray playback, seen-marking, next/previous, closing at the ends,
+  replies, plus `groupStories` ordering.
 - `useLongPressZoom.test.tsx` — hold threshold, preview geometry, tap-to-open, `onTap` hand-off,
   scroll-drift cancel, release → close → unmount, Esc, pointercancel, pan, wheel-zoom clamping,
   keyboard open.

@@ -47,6 +47,8 @@ export interface Post {
   comments: Comment[]
   tags: string[]
   likedByAvatars: string[]
+  /** first liker, used for the "Liked by x and N others" line */
+  likedByUserId: string
 }
 
 export interface Story {
