@@ -179,9 +179,9 @@ fun StoryBar(
     onAddStory: () -> Unit,
     onOpenStory: (VUser) -> Unit
 ) {
-    val prefs = remember {
-        androidx.compose.ui.platform.LocalContext.current.getSharedPreferences("vibegram", 0)
-    }
+    // LocalContext.current is a @Composable read, so it must happen OUTSIDE remember{}
+    val storyCtx = androidx.compose.ui.platform.LocalContext.current
+    val prefs = remember { storyCtx.getSharedPreferences("vibegram", 0) }
     fun isSeen(u: VUser, sts: List<Story>): Boolean =
         sts.isNotEmpty() && sts.all { prefs.getBoolean("seen_" + it.id, false) }
     val ownGroup = groups.firstOrNull { it.first.id == me.id }
