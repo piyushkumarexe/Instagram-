@@ -58,6 +58,27 @@ fun CreateScreen(
     val postPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) postUri = uri
     }
+    val reelPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri == null || busy) return@rememberLauncherForActivityResult
+        busy = true
+        status = "Uploading reel…"
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val bytes = ctx.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    ?: throw Exception("Could not read video")
+                if (bytes.size > 700 * 1024) throw Exception("Reel too large for the demo backend (max 700 KB) — try a shorter clip")
+                val b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                Fb.createReel("data:video/mp4;base64," + b64, caption)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    status = "Reel shared ✅ — the reels algorithm now shows it to every account"
+                    caption = ""
+                    onPosted()
+                }
+            } catch (e: Exception) {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { status = e.message }
+            } finally { busy = false }
+        }
+    }
     val storyPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri == null || busy) return@rememberLauncherForActivityResult
         busy = true
@@ -193,6 +214,18 @@ fun CreateScreen(
             ) {
                 if (busy) CircularProgressIndicator(Modifier.height(20.dp), color = Color.White, strokeWidth = 2.dp)
                 else Text("Add to your story", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            }
+            Spacer(Modifier.height(10.dp))
+            Button(
+                onClick = {
+                    reelPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly))
+                },
+                enabled = !busy,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF262626)),
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("🎬 Share a reel (reaches everyone)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
         }
 

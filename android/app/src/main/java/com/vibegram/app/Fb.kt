@@ -284,10 +284,10 @@ object Fb {
         val out = mutableListOf<NotifRow>()
         for (d in docs) {
             val actorId = d.getString("actorId") ?: continue
-            val actor = try { db.collection("users").document(actorId).get().await().toVUser() } catch (_: Exception) { null }
+            val actor = try { userCached(actorId) } catch (_: Exception) { null }
             out.add(
                 NotifRow(
-                    notif = VNotif(d.id, d.getString("type") ?: "", d.getString("postId"), d.getTimestamp("createdAt")?.toDate()?.time ?: 0L),
+                    notif = VNotif(d.id, d.getString("type") ?: "", d.getString("postId"), d.getTimestamp("createdAt")?.toDate()?.time ?: 0L, d.getString("postThumb"), actorId),
                     actor = actor
                 )
             )
@@ -458,7 +458,11 @@ object Fb {
             .orderBy("createdAt", Query.Direction.ASCENDING).limit(200).fresh()
         return snap.documents.mapNotNull { d ->
             val at = d.getTimestamp("createdAt")?.toDate()?.time ?: return@mapNotNull null
-            VMsg(d.id, d.getString("text") ?: "", d.getString("from") == idv, at, d.getString("from") ?: "", d.getString("reaction"), d.getBoolean("read") ?: false)
+            VMsg(
+                d.id, d.getString("text") ?: "", d.getString("from") == idv, at,
+                d.getString("from") ?: "", d.getString("reaction"), d.getBoolean("read") ?: false,
+                d.getString("image"), d.getString("replyTo"), d.getString("replyName")
+            )
         }
     }
 
@@ -502,6 +506,115 @@ object Fb {
      * Who liked a post — resolves the stored uid list to profiles.
      * Capped and failure-tolerant: one bad doc must not blank the whole sheet.
      */
+    // ---- v7.2 APIs ----
+    /** in-memory user cache: cuts repeated Firestore doc reads (threads/notifs/likers) */
+    private val userCache = object : java.util.LinkedHashMap<String, Pair<Long, VUser>>(128, 0.75f, true) {
+        override fun removeEldestEntry(e: MutableMap.MutableEntry<String, Pair<Long, VUser>>?): Boolean = size > 200
+    }
+    suspend fun userCached(id: String): VUser? {
+        val now = System.currentTimeMillis()
+        userCache[id]?.let { if (now - it.first < 5 * 60_000) return it.second }
+        val u = try { db.collection("users").document(id).get().await().toVUser() } catch (_: Exception) { null }
+        if (u != null) userCache[id] = now to u
+        return u
+    }
+
+    /**
+     * REELS ALGORITHM (v7.2): every video post reaches EVERY account — the query is
+     * global (not follow-graph based). Ranking = engagement + freshness:
+     *   score = likes*2 + comments*4 - ageHours*0.35, newest 3 always surfaced first.
+     */
+    suspend fun reelsFeed(): List<Post> {
+        val snap = try {
+            db.collection("posts").whereEqualTo("mediaType", "video").limit(80).fresh()
+        } catch (_: Exception) { return emptyList() }
+        val all = snap.documents.mapNotNull { it.toPost() }
+        val now = System.currentTimeMillis()
+        val scored = all.sortedByDescending { p ->
+            p.likesCount * 2 + p.commentsCount * 4 - ((now - p.createdAt) / 3_600_000.0) * 0.35
+        }
+        val fresh = all.sortedByDescending { it.createdAt }.take(3)
+        return (fresh + scored.filter { p -> fresh.none { it.id == p.id } })
+    }
+
+    suspend fun hashtagPosts(tag: String): List<Post> =
+        explorePosts().filter { it.caption.contains("#" + tag, true) }
+
+    suspend fun taggedPostsOf(username: String): List<Post> =
+        explorePosts().filter { it.caption.contains("@" + username, true) && it.userId != uid }
+
+    /** rich DM: text and/or image, optional quoted reply */
+    suspend fun sendDmRich(otherId: String, text: String, image: String? = null, replyTo: String? = null, replyName: String? = null) {
+        val idv = uid ?: return
+        val pid = pairId(idv, otherId)
+        val fields = hashMapOf<String, Any?>(
+            "from" to idv, "to" to otherId, "text" to text.take(2000),
+            "createdAt" to FieldValue.serverTimestamp(), "read" to false
+        )
+        if (image != null) fields["image"] = image
+        if (replyTo != null) fields["replyTo"] = replyTo.take(300)
+        if (replyName != null) fields["replyName"] = replyName
+        db.collection("dms").document(pid).collection("messages").add(fields).await()
+        val myField = if (pid.split("__")[0] == idv) "unreadA" else "unreadB"
+        val otherField = if (myField == "unreadA") "unreadB" else "unreadA"
+        db.collection("dms").document(pid).set(
+            hashMapOf<String, Any?>(
+                "uids" to listOf(idv, otherId).sorted(),
+                "lastText" to (if (image != null) "📷 Photo" else text.take(2000)),
+                "lastAt" to FieldValue.serverTimestamp(),
+                otherField to FieldValue.increment(1)
+            ),
+            com.google.firebase.firestore.SetOptions.merge()
+        ).await()
+    }
+
+    /** upload a reel (small video as data-url; Firestore 1MB doc cap enforced by caller) */
+    suspend fun createReel(videoDataUrl: String, caption: String) {
+        val idv = uid ?: return
+        val meDoc = db.collection("users").document(idv).get().await()
+        val p = hashMapOf<String, Any?>(
+            "userId" to idv,
+            "username" to meDoc.getString("username"),
+            "name" to meDoc.getString("name"),
+            "avatar" to meDoc.getString("avatar"),
+            "userVerified" to (meDoc.getBoolean("verified") ?: false),
+            "media" to videoDataUrl,
+            "mediaType" to "video",
+            "caption" to caption,
+            "createdAt" to FieldValue.serverTimestamp(),
+            "likes" to emptyList<String>(),
+            "likesCount" to 0L,
+            "commentsCount" to 0L
+        )
+        db.collection("posts").add(p).await()
+        db.collection("users").document(idv).update("postsCount", FieldValue.increment(1)).await()
+    }
+
+    // ---- story highlights ----
+    suspend fun addHighlight(title: String, media: String) {
+        val idv = uid ?: return
+        db.collection("users").document(idv).collection("highlights").add(
+            hashMapOf<String, Any?>("title" to title.take(24), "media" to media, "createdAt" to FieldValue.serverTimestamp())
+        ).await()
+    }
+
+    data class Highlight(val id: String, val title: String, val media: String)
+
+    suspend fun highlightsOf(userId: String): List<Highlight> {
+        val snap = try {
+            db.collection("users").document(userId).collection("highlights")
+                .orderBy("createdAt", Query.Direction.DESCENDING).limit(12).fresh()
+        } catch (_: Exception) { return emptyList() }
+        return snap.documents.mapNotNull { d ->
+            Highlight(d.id, d.getString("title") ?: "Highlights", d.getString("media") ?: return@mapNotNull null)
+        }
+    }
+
+    suspend fun deleteHighlight(id: String) {
+        val idv = uid ?: return
+        db.collection("users").document(idv).collection("highlights").document(id).delete().await()
+    }
+
     // ---- v7.1 feature APIs (pin/archive/flags/block/mute/note/typing/share) ----
     suspend fun setPostField(postId: String, field: String, value: Any) {
         db.collection("posts").document(postId).update(field, value).await()

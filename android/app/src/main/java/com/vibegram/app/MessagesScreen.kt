@@ -1,5 +1,7 @@
 package com.vibegram.app
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -103,7 +105,7 @@ fun MessagesScreen(me: VUser, onChat: (VUser) -> Unit, onProfile: (String) -> Un
             }
             Box(Modifier.weight(1f)) {
                 IconButton(onClick = { composeOpen = true }, modifier = Modifier.align(Alignment.CenterEnd)) {
-                    Icon(Icons.Outlined.Edit, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                    Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_compose), null, tint = Color.White, modifier = Modifier.size(22.dp))
                 }
             }
         }
@@ -128,30 +130,26 @@ fun MessagesScreen(me: VUser, onChat: (VUser) -> Unit, onProfile: (String) -> Un
 
         Spacer(Modifier.height(6.dp))
 
-        // v7.1: Instagram Notes — your status bubble, tap to set
-        Row(
-            Modifier.fillMaxWidth().clickable { noteTxt = me.note; noteOpen = true }
-                .padding(horizontal = 14.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
+        // v7.2: IG-style NOTES TRAY — horizontal row of friends with note bubbles above
+        // their avatars; your tile is first and opens the note composer.
+        val trayUsers = (threads ?: emptyList()).map { it.user }.filter { it.id != me.id }.take(9)
+        androidx.compose.foundation.lazy.LazyRow(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp)
         ) {
-            Box {
-                AvatarView(url = me.avatar, size = 56, border = false, name = me.username)
-                if (me.note.isNotBlank()) {
-                    Box(
-                        Modifier.align(Alignment.TopCenter).offset(y = (-14).dp)
-                            .background(Color(0xFF262626), RoundedCornerShape(12.dp)),
-                        Alignment.Center
-                    ) {
-                        Text(me.note, color = Color.White, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp))
-                    }
-                }
+            item {
+                NoteTile(
+                    avatar = me.avatar, username = "Your note", note = me.note,
+                    placeholder = "Share a note…",
+                    onClick = { noteTxt = me.note; noteOpen = true }
+                )
             }
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text("Your note", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text(
-                    if (me.note.isBlank()) "Share a note" else "Tap to change",
-                    color = Color(0xFF8E8E8E), fontSize = 12.sp
+            items(trayUsers) { u ->
+                NoteTile(
+                    avatar = u.avatar, username = u.username, note = u.note,
+                    placeholder = null,
+                    onClick = { onChat(u) }
                 )
             }
         }
@@ -364,6 +362,39 @@ private fun NewChatSheet(onPick: (VUser) -> Unit, onDismiss: () -> Unit) {
     }
 }
 
+// one avatar + note bubble in the notes tray
+@Composable
+private fun NoteTile(avatar: String?, username: String, note: String, placeholder: String?, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable { onClick() }.width(74.dp)
+    ) {
+        Box(Modifier.height(34.dp), contentAlignment = Alignment.BottomCenter) {
+            if (note.isNotBlank()) {
+                Box(
+                    Modifier.background(Color(0xFF2A2A2C), RoundedCornerShape(14.dp))
+                        .padding(horizontal = 9.dp, vertical = 5.dp)
+                ) {
+                    Text(note, color = Color.White, fontSize = 10.sp, maxLines = 1)
+                }
+            } else if (placeholder != null) {
+                Box(
+                    Modifier.background(Color(0xFF2A2A2C), RoundedCornerShape(14.dp))
+                        .width(74.dp)
+                        .padding(horizontal = 6.dp, vertical = 5.dp),
+                    Alignment.Center
+                ) {
+                    Text(placeholder, color = Color(0xFFB0B0B0), fontSize = 9.sp, maxLines = 2)
+                }
+            }
+        }
+        Spacer(Modifier.height(5.dp))
+        AvatarView(url = avatar, size = 58, border = false, name = username)
+        Spacer(Modifier.height(4.dp))
+        Text(username, color = Color(0xFFB0B0B0), fontSize = 11.sp, maxLines = 1)
+    }
+}
+
 // IG-style chat screen (messages list + emoji picker + send)
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 private fun Modifier.androidxCombinedClickable(onLongClick: () -> Unit, onClick: () -> Unit): Modifier =
@@ -404,7 +435,22 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
     var sending by remember { mutableStateOf(false) }
     var emojiOpen by remember { mutableStateOf(false) }
     var otherTyping by remember { mutableStateOf(false) }
+    var replyToMsg by remember { mutableStateOf<VMsg?>(null) }
+    var pendingImage by remember { mutableStateOf<String?>(null) }
+    val chatCtx = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
+    val imgPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val bmp = chatCtx.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) }
+                if (bmp != null) {
+                    val data = bmp.toDataUrl(720, 72)
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { pendingImage = data }
+                }
+            } catch (_: Exception) { }
+        }
+    }
     val listState = rememberLazyListState()
 
     // v7.1: typing indicator — poll the thread doc's typing stamp
@@ -503,10 +549,26 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
                                     )
                                     .padding(horizontal = 14.dp, vertical = 10.dp)
                             ) {
-                                if (m.text.startsWith("post:")) {
-                                    SharedPostCard(postId = m.text.removePrefix("post:"), onOpen = onOpenPost)
-                                } else {
-                                    Text(m.text, color = Color.White, fontSize = 15.sp, lineHeight = 20.sp)
+                                Column {
+                                    if (m.replyTo != null) {
+                                        Column(
+                                            Modifier.background(Color(0x33000000), RoundedCornerShape(8.dp))
+                                                .padding(horizontal = 8.dp, vertical = 5.dp)
+                                        ) {
+                                            Text(m.replyName ?: "", color = Color(0xFF9ECBFF), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                            Text(m.replyTo!!, color = Color(0xFFCCCCCC), fontSize = 12.sp, maxLines = 2)
+                                        }
+                                        Spacer(Modifier.height(4.dp))
+                                    }
+                                    if (m.image != null) {
+                                        DataImage(url = m.image, circle = false, fallbackLetter = "📷", modifier = Modifier.widthIn(max = 220.dp).height(160.dp))
+                                        Spacer(Modifier.height(4.dp))
+                                    }
+                                    if (m.text.startsWith("post:")) {
+                                        SharedPostCard(postId = m.text.removePrefix("post:"), onOpen = onOpenPost)
+                                    } else if (m.text.isNotBlank()) {
+                                        Text(m.text, color = Color.White, fontSize = 15.sp, lineHeight = 20.sp)
+                                    }
                                 }
                             }
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
@@ -527,6 +589,18 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
                                 Text(m.reaction!!, fontSize = 12.sp, modifier = Modifier.padding(top = 1.dp))
                             }
                             androidx.compose.material3.DropdownMenu(expanded = menuFor, onDismissRequest = { menuFor = false }) {
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text("Copy") },
+                                    onClick = {
+                                        menuFor = false
+                                        val cm = chatCtx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                        cm.setPrimaryClip(android.content.ClipData.newPlainText("msg", m.text))
+                                    }
+                                )
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text("Reply") },
+                                    onClick = { menuFor = false; replyToMsg = m }
+                                )
                                 androidx.compose.material3.DropdownMenuItem(
                                     text = { Text("React ❤️") },
                                     onClick = {
@@ -566,11 +640,31 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
             }
         }
 
+        if (replyToMsg != null || pendingImage != null) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    pendingImage?.let { pi ->
+                        DataImage(url = pi, circle = false, modifier = Modifier.height(64.dp).width(64.dp))
+                    }
+                    replyToMsg?.let { rt ->
+                        Text(
+                            "Replying to " + (if (rt.fromMe) "yourself" else "@" + other.username) + ": " + rt.text.take(60),
+                            color = Color(0xFF9ECBFF), fontSize = 11.sp, maxLines = 1
+                        )
+                    }
+                }
+                Text("✕", color = Color(0xFF8E8E8E), modifier = Modifier.clickable { replyToMsg = null; pendingImage = null }.padding(8.dp))
+            }
+        }
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("😊", fontSize = 24.sp, modifier = Modifier.clickable { emojiOpen = !emojiOpen }.padding(6.dp))
+            Text("🖼", fontSize = 20.sp, modifier = Modifier.clickable { imgPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }.padding(6.dp))
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
@@ -587,12 +681,19 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
             Spacer(Modifier.width(8.dp))
             IconButton(onClick = {
                 val t = text.trim()
-                if (t.isEmpty() || sending) return@IconButton
+                if ((t.isEmpty() && pendingImage == null) || sending) return@IconButton
                 sending = true
                 text = ""
+                val img = pendingImage
+                val rt = replyToMsg
+                pendingImage = null
+                replyToMsg = null
                 scope.launch {
                     try {
-                        Fb.sendDm(other.id, t)
+                        Fb.sendDmRich(
+                            other.id, t, img,
+                            rt?.text, if (rt != null) (if (rt.fromMe) "You" else other.username) else null
+                        )
                         msgs = Fb.messages(other.id)
                     } catch (_: Exception) {
                     } finally { sending = false }

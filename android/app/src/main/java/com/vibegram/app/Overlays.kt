@@ -198,6 +198,7 @@ fun PostModal(
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
+    val svCtx = androidx.compose.ui.platform.LocalContext.current
     var idx by remember { mutableStateOf(0) }
     var progress by remember { mutableStateOf(0f) }
     var reply by remember { mutableStateOf("") }
@@ -394,6 +395,23 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 )
                 Box(Modifier.weight(1f))
+                Text(
+                    "Highlight",
+                    color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                    modifier = Modifier
+                        .androidxClickable {
+                            val stH = stories.getOrNull(idx) ?: return@androidxClickable
+                            replyScope.launch {
+                                try {
+                                    Fb.addHighlight("Story", stH.media)
+                                    android.widget.Toast.makeText(svCtx, "Added to highlights", android.widget.Toast.LENGTH_SHORT).show()
+                                } catch (_: Exception) { }
+                            }
+                        }
+                        .background(Color(0x33000000), RoundedCornerShape(18.dp))
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                )
+                Spacer(Modifier.width(10.dp))
                 Text(
                     "Delete",
                     color = Color(0xFFFF5A6E), fontWeight = FontWeight.Bold, fontSize = 14.sp,

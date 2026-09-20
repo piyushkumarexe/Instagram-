@@ -107,6 +107,8 @@ fun ProfileScreen(
     var archivedOpen by remember { mutableStateOf(false) }
     var songSheet by remember { mutableStateOf(false) }
     var followerSample by remember { mutableStateOf<List<VUser>>(emptyList()) }
+    var highlights by remember { mutableStateOf<List<Fb.Highlight>?>(null) }
+    var hlView by remember { mutableStateOf<Fb.Highlight?>(null) }
 
     fun reload(done: () -> Unit = {}) {
         scope.launch {
@@ -121,6 +123,7 @@ fun ProfileScreen(
                 user = u
                 if (isOwn) onAvatarChanged(u)
                 posts = Fb.userPosts(u.username)
+                highlights = try { Fb.highlightsOf(u.id) } catch (_: Exception) { emptyList() }
                 if (!isOwn) {
                     following = Fb.isFollowing(u.id)
                     Fb.amRequesting(u.id)
@@ -214,6 +217,17 @@ fun ProfileScreen(
                         androidx.compose.material3.DropdownMenuItem(
                             text = { Text("Archived", color = Color.White) },
                             onClick = { ownMenu = false; archivedOpen = true }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Share profile", color = Color.White) },
+                            onClick = {
+                                ownMenu = false
+                                val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(android.content.Intent.EXTRA_TEXT, "https://instagram2.app/@" + u.username)
+                                }
+                                ctx.startActivity(android.content.Intent.createChooser(send, "Share profile"))
+                            }
                         )
                         androidx.compose.material3.DropdownMenuItem(
                             text = { Text("Settings and privacy", color = Color.White) },
@@ -462,6 +476,32 @@ fun ProfileScreen(
                     }
                 }
 
+                // ---- v7.2: story highlights row ----
+                val hl = highlights
+                if (hl != null && hl.isNotEmpty()) {
+                    androidx.compose.foundation.lazy.LazyRow(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp),
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(14.dp)
+                    ) {
+                        items(hl) { h ->
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.clickable { hlView = h }.width(66.dp)
+                            ) {
+                                Box(
+                                    Modifier.size(62.dp)
+                                        .background(Color(0xFF262626), CircleShape)
+                                        .padding(3.dp)
+                                ) {
+                                    DataImage(url = h.media, circle = true, modifier = Modifier.fillMaxSize())
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                Text(h.title, color = Color.White, fontSize = 11.sp, maxLines = 1)
+                            }
+                        }
+                    }
+                }
+
                 Spacer(Modifier.height(10.dp))
 
                 // ---- IG profile tabs (grid / reels / reposted / tagged) ----
@@ -578,13 +618,44 @@ fun ProfileScreen(
                         }
                     }
                 } else if (ptab == "tagged") {
-                    Spacer(Modifier.height(60.dp))
-                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("👤", fontSize = 36.sp)
-                        Spacer(Modifier.height(10.dp))
-                        Text("Photos of you", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        Spacer(Modifier.height(4.dp))
-                        Text("When people tag you in photos, they will appear here", color = Color(0xFF8E8E8E), fontSize = 12.sp)
+                    var tagged by remember { mutableStateOf<List<Post>?>(null) }
+                    LaunchedEffect(u.username) {
+                        tagged = try { Fb.taggedPostsOf(u.username) } catch (_: Exception) { emptyList() }
+                    }
+                    val tl = tagged
+                    if (tl == null) {
+                        Box(Modifier.fillMaxWidth().padding(40.dp), Alignment.Center) {
+                            CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp)
+                        }
+                    } else if (tl.isEmpty()) {
+                        Spacer(Modifier.height(60.dp))
+                        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("👤", fontSize = 36.sp)
+                            Spacer(Modifier.height(10.dp))
+                            Text("No tags yet", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Spacer(Modifier.height(4.dp))
+                            Text("Posts that @mention " + u.username + " appear here", color = Color(0xFF8E8E8E), fontSize = 12.sp)
+                        }
+                    } else {
+                        val trows = tl.chunked(3)
+                        Column {
+                            for (row in trows) {
+                                Row(Modifier.fillMaxWidth()) {
+                                    for (p in row) {
+                                        Box(
+                                            Modifier.weight(1f).aspectRatio(1f).padding(0.5.dp)
+                                                .background(Color(0xFF101010))
+                                                .clickable { onOpenPost(p) }
+                                        ) {
+                                            DataImage(url = p.media, fallbackLetter = "@", circle = false, modifier = Modifier.fillMaxSize())
+                                        }
+                                    }
+                                    repeat(3 - row.size) {
+                                        Box(Modifier.weight(1f).aspectRatio(1f).background(Color.Black))
+                                    }
+                                }
+                            }
+                        }
                     }
                 } else if (ps.isEmpty()) {
                     Spacer(Modifier.height(60.dp))
@@ -814,6 +885,33 @@ fun ProfileScreen(
                 Spacer(Modifier.height(30.dp))
             }
         }
+    }
+
+    // ---- v7.2: highlight viewer ----
+    hlView?.let { h ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { hlView = null },
+            title = { Text(h.title, color = Color.White) },
+            text = {
+                Box(Modifier.fillMaxWidth().aspectRatio(0.8f).background(Color(0xFF101010))) {
+                    DataImage(url = h.media, circle = false, modifier = Modifier.fillMaxSize())
+                }
+            },
+            confirmButton = {
+                Text("Close", color = Color(0xFF0095F6), fontWeight = FontWeight.Bold, modifier = Modifier.clickable { hlView = null }.padding(6.dp))
+            },
+            dismissButton = if (isOwn) {
+                {
+                    Text("Delete", color = Color(0xFFED4956), modifier = Modifier.clickable {
+                        hlView = null
+                        scope.launch {
+                            try { Fb.deleteHighlight(h.id); reload() } catch (_: Exception) { }
+                        }
+                    }.padding(6.dp))
+                }
+            } else null,
+            containerColor = Color(0xFF1C1C1E)
+        )
     }
 
     // ---- v7.1: archived posts (hidden from grid, restorable) ----

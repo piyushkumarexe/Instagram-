@@ -61,14 +61,27 @@ data class VNotif(
     val id: String,
     val type: String,
     val postId: String?,
-    val createdAt: Long
+    val createdAt: Long,
+    val thumb: String? = null,
+    val actorId: String? = null
 )
 
 data class NotifRow(val notif: VNotif, val actor: VUser?)
 
 data class ThreadInfo(val user: VUser, val lastText: String, val lastAt: Long, val unread: Int = 0)
 
-data class VMsg(val id: String, val text: String, val fromMe: Boolean, val at: Long, val fromId: String = "", val reaction: String? = null, val read: Boolean = false)
+data class VMsg(
+    val id: String,
+    val text: String,
+    val fromMe: Boolean,
+    val at: Long,
+    val fromId: String = "",
+    val reaction: String? = null,
+    val read: Boolean = false,
+    val image: String? = null,
+    val replyTo: String? = null,
+    val replyName: String? = null
+)
 
 data class Story(
     val id: String,

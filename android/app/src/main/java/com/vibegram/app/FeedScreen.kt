@@ -54,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.layout.ContentScale
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.font.FontWeight
@@ -78,6 +79,7 @@ fun FeedScreen(
     onOpenCreate: () -> Unit,
     onStoryPicked: (Uri) -> Unit,
     onDelete: (Post) -> Unit,
+    onHashtag: (String) -> Unit = {},
     onLoadMore: () -> Unit = {},
     loadingMore: Boolean = false,
     scrollTick: Int = 0,
@@ -99,6 +101,16 @@ fun FeedScreen(
     }
     var refreshing by remember { mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(posts) { refreshing = false }
+    var feedMode by remember { mutableStateOf("foryou") }
+    var followingIds by remember { mutableStateOf<Set<String>?>(null) }
+    androidx.compose.runtime.LaunchedEffect(feedMode) {
+        if (feedMode == "following" && followingIds == null) {
+            followingIds = try { Fb.followingOf(me.id).map { it.id }.toSet() } catch (_: Exception) { setOf() }
+        }
+    }
+    val visiblePosts = posts?.let { pl ->
+        if (feedMode == "following") pl.filter { it.userId == me.id || (followingIds?.contains(it.userId) == true) } else pl
+    }
     val storyPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) onStoryPicked(uri)
     }
@@ -114,14 +126,14 @@ fun FeedScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onOpenCreate) {
-                Icon(Icons.Filled.AddBox, null, tint = Color.White, modifier = Modifier.size(27.dp))
+                Icon(painterResource(R.drawable.ic_create), null, tint = Color.White, modifier = Modifier.size(26.dp))
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 Text("Instagram 2.0", color = Color.White, fontSize = 26.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive)
             }
             IconButton(onClick = onOpenNotifications) {
                 Box {
-                    Icon(Icons.Filled.FavoriteBorder, null, tint = Color.White, modifier = Modifier.size(25.dp))
+                    Icon(painterResource(R.drawable.ic_heart), null, tint = Color.White, modifier = Modifier.size(25.dp))
                     if (unreadNotifs > 0) {
                         Box(
                             Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-1).dp)
@@ -132,12 +144,30 @@ fun FeedScreen(
             }
         }
 
-        if (posts == null) {
+        // v7.2: IG-style feed switcher
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
+        ) {
+            listOf("foryou" to "For you", "following" to "Following").forEach { (k, label) ->
+                Text(
+                    label,
+                    color = if (feedMode == k) Color.White else Color(0xFF8E8E8E),
+                    fontWeight = FontWeight.Bold, fontSize = 13.sp,
+                    modifier = Modifier
+                        .background(if (feedMode == k) Color(0xFF262626) else Color.Transparent, RoundedCornerShape(16.dp))
+                        .clickable { feedMode = k }
+                        .padding(horizontal = 12.dp, vertical = 5.dp)
+                )
+            }
+        }
+
+        if (visiblePosts == null) {
             LoadingBox()
-        } else if (err != null && posts.isEmpty()) {
+        } else if (err != null && visiblePosts.isEmpty()) {
             ErrorBox(err)
-        } else if (posts.isEmpty()) {
-            EmptyBox("No posts yet — follow people or share your first photo!", "📸")
+        } else if (visiblePosts.isEmpty()) {
+            EmptyBox(if (feedMode == "following") "Follow people to see their posts here" else "No posts yet — follow people or share your first photo!", "📸")
         } else {
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                 // stories bar
@@ -149,14 +179,15 @@ fun FeedScreen(
                         onOpenStory = onOpenStory
                     )
                 }
-                items(posts, key = { it.id }) { post ->
+                items(visiblePosts, key = { it.id }) { post ->
                     PostCard(
                         post = post,
                         onLike = onLike,
                         onComments = { onComments(post) },
                         onProfile = onProfile,
                         onAvatar = onOpenStory,
-                        onDelete = onDelete
+                        onDelete = onDelete,
+                        onHashtag = onHashtag
                     )
                 }
                 if (loadingMore) {
@@ -378,7 +409,8 @@ fun PostCard(
     onComments: () -> Unit,
     onProfile: (String) -> Unit,
     onAvatar: (VUser) -> Unit,
-    onDelete: (Post) -> Unit
+    onDelete: (Post) -> Unit,
+    onHashtag: (String) -> Unit = {}
 ) {
     var showHeart by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
@@ -741,7 +773,7 @@ fun PostCard(
                 Row {
                     Text(post.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     Spacer(Modifier.width(6.dp))
-                    HashtagText(post.caption, onMention = onProfile)
+                    HashtagText(post.caption, onMention = onProfile, onTag = onHashtag)
                 }
             }
             if (post.createdAt > 0) {
@@ -770,7 +802,7 @@ private fun Modifier.androidxClickableTap(onClick: () -> Unit): Modifier =
 // @mentions become tappable when onMention is provided (opens that profile).
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun HashtagText(text: String, fontSizeSp: Int = 13, onMention: ((String) -> Unit)? = null) {
+fun HashtagText(text: String, fontSizeSp: Int = 13, onMention: ((String) -> Unit)? = null, onTag: ((String) -> Unit)? = null) {
     val spans = androidx.compose.ui.text.buildAnnotatedString {
         append(text)
         var i = 0
@@ -786,16 +818,20 @@ fun HashtagText(text: String, fontSizeSp: Int = 13, onMention: ((String) -> Unit
                     if (w.startsWith("@") && w.length > 1) {
                         addStringAnnotation("mention", w.removePrefix("@").trimEnd(',', '.', '!', '?'), start, start + w.length)
                     }
+                    if (w.startsWith("#") && w.length > 1) {
+                        addStringAnnotation("tag", w.removePrefix("#").trimEnd(',', '.', '!', '?'), start, start + w.length)
+                    }
                 }
                 i = start + w.length
             }
         }
     }
-    if (onMention == null) {
+    if (onMention == null && onTag == null) {
         Text(spans, color = Color.White, fontSize = fontSizeSp.sp)
     } else {
         androidx.compose.foundation.text.ClickableText(spans, style = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = fontSizeSp.sp)) { off ->
-            spans.getStringAnnotations("mention", off, off).firstOrNull()?.let { onMention(it.item) }
+            spans.getStringAnnotations("mention", off, off).firstOrNull()?.let { onMention?.invoke(it.item) }
+                ?: spans.getStringAnnotations("tag", off, off).firstOrNull()?.let { onTag?.invoke(it.item) }
         }
     }
 }

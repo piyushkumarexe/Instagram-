@@ -41,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -67,11 +68,18 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
     var connIsPrivate by remember { mutableStateOf(false) }
     var connIsFollowing by remember { mutableStateOf(false) }
     var postFor by remember { mutableStateOf<Post?>(null) }
+    var tagQuery by remember { mutableStateOf("") }
     var storyUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var unreadDms by remember { mutableStateOf(0) }
     var unreadNotifs by remember { mutableStateOf(0) }
     var scrollTick by remember { mutableStateOf(0) }
     val stack = remember { mutableStateListOf<Route>() }
+
+    fun goHashtag(tag: String) {
+        stack.add(Route(tab, profileUsername))
+        tagQuery = tag.removePrefix("#")
+        tab = "hashtag"
+    }
 
     fun goProfile(username: String) {
         stack.add(Route(tab, profileUsername))
@@ -204,6 +212,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         onLike = { like(it) },
                         onComments = { commentsFor = it },
                         onProfile = { goProfile(it) },
+                        onHashtag = { goHashtag(it) },
                         onAddStory = { tab = "create" },
                         onOpenStory = { openStory = it },
                         onOpenNotifications = { tab = "notifications" },
@@ -221,6 +230,11 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         }
                     )
 "search" -> ExploreScreen(onProfile = { goProfile(it) }, onPost = { postFor = it })
+                    "hashtag" -> HashtagScreen(
+                        tag = tagQuery,
+                        onBack = { goBack() },
+                        onPost = { postFor = it }
+                    )
                     "messages" -> MessagesScreen(
                         me = me,
                         onChat = { chatWith = it },
@@ -330,7 +344,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                 NavigationBarItem(
                     selected = tab == "feed",
                     onClick = { if (tab == "feed") scrollTick++ else tab = "feed" },
-                    icon = { Icon(if (tab == "feed") Icons.Filled.Home else Icons.Outlined.Home, null) },
+                    icon = { Icon(painterResource(if (tab == "feed") R.drawable.ic_home_filled else R.drawable.ic_home), null) },
                     colors = navColors()
                 )
                 NavigationBarItem(
@@ -339,7 +353,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         scope.launch { try { Fb.touchPresence() } catch (_: Exception) { } }
                         tab = "reels"
                     },
-                    icon = { Icon(Icons.Filled.SmartDisplay, null) },
+                    icon = { Icon(painterResource(if (tab == "reels") R.drawable.ic_reels_filled else R.drawable.ic_reels), null) },
                     colors = navColors()
                 )
                 NavigationBarItem(
@@ -347,7 +361,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                     onClick = { tab = "messages" },
                     icon = {
                         Box {
-                            Icon(if (tab == "messages") Icons.Filled.Send else Icons.Outlined.Send, null)
+                            Icon(painterResource(if (tab == "messages") R.drawable.ic_dm_filled else R.drawable.ic_dm), null)
                             if (unreadDms > 0) {
                                 Box(
                                     Modifier.align(Alignment.TopEnd).offset(x = 3.dp, y = (-2).dp)
@@ -363,7 +377,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                 )
                 NavigationBarItem(
                     selected = tab == "search", onClick = { tab = "search" },
-                    icon = { Icon(Icons.Filled.Search, null) },
+                    icon = { Icon(painterResource(if (tab == "search") R.drawable.ic_search_filled else R.drawable.ic_search), null) },
                     colors = navColors()
                 )
                 NavigationBarItem(
@@ -385,7 +399,8 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                 post = post,
                 onDismiss = { commentsFor = null },
                 onProfile = { commentsFor = null; goProfile(it) },
-                onAvatar = { bigAvatar = it }
+                onAvatar = { bigAvatar = it },
+                onHashtag = { commentsFor = null; goHashtag(it) }
             )
         }
         chatWith?.let { user ->

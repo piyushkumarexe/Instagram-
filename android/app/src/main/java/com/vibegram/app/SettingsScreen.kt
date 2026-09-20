@@ -67,6 +67,7 @@ fun SettingsScreen(
 ) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var priv by remember { mutableStateOf(me.isPrivate) }
+    var dataSaver by remember { mutableStateOf(ctx.getSharedPreferences("vibegram", 0).getBoolean("data_saver", false)) }
     var boosting by remember { mutableStateOf(false) }
     var q by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
@@ -250,6 +251,34 @@ fun SettingsScreen(
                         )
                     )
                 }
+            }
+
+            SectionLabel("Data and storage")
+            Row(
+                Modifier.fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("📉", fontSize = 19.sp)
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Data saver", color = Color.White, fontSize = 15.sp)
+                    Text("Reels won't autoplay; tap to play", color = Color(0xFF8E8E8E), fontSize = 12.sp)
+                }
+                Spacer(Modifier.width(8.dp))
+                Switch(
+                    checked = dataSaver,
+                    onCheckedChange = {
+                        dataSaver = it
+                        ctx.getSharedPreferences("vibegram", 0).edit().putBoolean("data_saver", it).apply()
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedTrackColor = Color(0xFF0095F6),
+                        uncheckedTrackColor = Color(0xFF3A3A3C),
+                        checkedThumbColor = Color.White,
+                        uncheckedThumbColor = Color.White
+                    )
+                )
             }
 
             Spacer(Modifier.height(16.dp))

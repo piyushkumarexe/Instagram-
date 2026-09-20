@@ -131,39 +131,44 @@ fun ExploreScreen(onProfile: (String) -> Unit, onPost: (Post) -> Unit) {
             } else if (pl.isEmpty()) {
                 EmptyBox("Nothing to explore yet", "🔍")
             } else {
-                val rows = pl.chunked(3)
-                Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                // v7.2: IG explore pattern — every 10th tile spans the full row
+                androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                    columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(3),
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    for ((ri, row) in rows.withIndex()) {
-                        Row(Modifier.fillMaxWidth()) {
-                            for ((ci, p) in row.withIndex()) {
-                                val pad = if (ri % 2 == 1 && ci == 0) 0.dp else 1.dp
-                                Box(
-                                    Modifier.weight(1f).aspectRatio(1f).padding(0.5.dp)
-                                        .background(Color(0xFF101010))
-                                        .clickable { onPost(p) }
-                                ) {
-                                    DataImage(
-                                        url = p.media,
-                                        fallbackLetter = p.username.take(1).uppercase(),
-                                        circle = false,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                    if (p.likesCount > 0) {
-                                        Row(
-                                            Modifier.align(Alignment.BottomStart).padding(6.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text("❤", color = Color.White, fontSize = 11.sp)
-                                            Spacer(Modifier.width(3.dp))
-                                            Text(p.likesCount.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                        }
-                                    }
-                                }
+                    items(
+                        pl.size,
+                        span = { i ->
+                            if (i % 10 == 0) androidx.compose.foundation.lazy.grid.GridItemSpan(3)
+                            else androidx.compose.foundation.lazy.grid.GridItemSpan(1)
+                        }
+                    ) { i ->
+                        val p = pl[i]
+                        Box(
+                            Modifier.fillMaxWidth()
+                                .aspectRatio(if (i % 10 == 0) 16f / 9f else 1f)
+                                .padding(0.5.dp)
+                                .background(Color(0xFF101010))
+                                .clickable { onPost(p) }
+                        ) {
+                            DataImage(
+                                url = p.media,
+                                fallbackLetter = p.username.take(1).uppercase(),
+                                circle = false,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            if (p.isVideo) {
+                                Text("▶", color = Color.White, fontSize = 13.sp, modifier = Modifier.align(Alignment.TopEnd).padding(6.dp))
                             }
-                            repeat(3 - row.size) {
-                                Box(Modifier.weight(1f).aspectRatio(1f).background(Color.Black))
+                            if (p.likesCount > 0) {
+                                Row(
+                                    Modifier.align(Alignment.BottomStart).padding(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("❤", color = Color.White, fontSize = 11.sp)
+                                    Spacer(Modifier.width(3.dp))
+                                    Text(p.likesCount.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
@@ -173,3 +178,38 @@ fun ExploreScreen(onProfile: (String) -> Unit, onPost: (Post) -> Unit) {
     }
 }
 
+
+
+// v7.2: hashtag page — every post that used #tag
+@Composable
+fun HashtagScreen(tag: String, onBack: () -> Unit, onPost: (Post) -> Unit) {
+    var posts by remember { mutableStateOf<List<Post>?>(null) }
+    LaunchedEffect(tag) {
+        posts = try { Fb.hashtagPosts(tag) } catch (_: Exception) { emptyList() }
+    }
+    Column(Modifier.fillMaxSize().background(Color.Black).statusBarsPadding()) {
+        Header("#" + tag, onBack = onBack)
+        val pl = posts
+        if (pl == null) {
+            LoadingBox()
+        } else if (pl.isEmpty()) {
+            EmptyBox("No posts for #" + tag + " yet", "#️⃣")
+        } else {
+            androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(3),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(pl.size) { i ->
+                    val p = pl[i]
+                    Box(
+                        Modifier.fillMaxWidth().aspectRatio(1f).padding(0.5.dp)
+                            .background(Color(0xFF101010))
+                            .clickable { onPost(p) }
+                    ) {
+                        DataImage(url = p.media, fallbackLetter = "#", circle = false, modifier = Modifier.fillMaxSize())
+                    }
+                }
+            }
+        }
+    }
+}
