@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "861201865526",
+    "project_id": "vibegram-ff651",
+    "storage_bucket": "vibegram-ff651.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:861201865526:android:120213654556dd6ed6f197",
+        "android_client_info": {
+          "package_name": "com.vibegram.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "861201865526-n5dctfcuppbs9pqs0fmbdt2oclajkvoo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vibegram.app",
+            "certificate_hash": "82bc41d07c7e6ed1f8d0ae9582fcb43beaa360a3"
+          }
+        },
+        {
+          "client_id": "861201865526-kqnu0docnn7sd6co04j29fo0rotnaroc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAPRcFgYWdb2c8JEnaMng1OBznotu5Bf2g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "861201865526-kqnu0docnn7sd6co04j29fo0rotnaroc.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

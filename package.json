@@ -1,35 +1,40 @@
 {
-  "name": "pixogram",
-  "private": true,
+  "name": "vibegram",
   "version": "1.0.0",
-  "type": "module",
-  "description": "Pixogram \u2014 an Instagram-style photo, stories and reels app built with React + Vite.",
+  "private": true,
+  "description": "VibeGram - an Instagram-style social app (full stack demo)",
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 5173",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host 0.0.0.0 --port 4173",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "media": "node scripts/build-media.mjs",
-    "analyze": "vite build --mode analyze"
+    "dev": "concurrently -k -n server,client -c blue,magenta \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "node server/index.js",
+    "dev:client": "vite --host 0.0.0.0 --port 5173 --strictPort",
+    "seed": "node server/seed.js",
+    "build": "vite build",
+    "android:sync": "npm run build && npx cap sync android",
+    "android:build": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "react-router-dom": "^7.18.4"
+    "@capacitor-firebase/authentication": "^8.5.2",
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/share": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
+    "@capawesome/capacitor-badge": "^8.0.3",
+    "bcryptjs": "^2.4.3",
+    "concurrently": "^9.1.2",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "firebase": "^12.19.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1"
   },
   "devDependencies": {
-    "@testing-library/dom": "^10.4.2",
-    "@testing-library/jest-dom": "^7.0.1",
-    "@testing-library/react": "^16.3.3",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
-    "@vitejs/plugin-react": "^6.1.1",
-    "jsdom": "^30.1.0",
-    "sharp": "^0.35.4",
-    "typescript": "^5.9.3",
-    "vite": "^8.3.0",
-    "vitest": "^5.0.1"
+    "@capacitor/cli": "^8.5.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.1",
+    "vite": "^5.4.11"
   }
 }
