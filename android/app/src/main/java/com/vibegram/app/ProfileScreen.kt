@@ -199,7 +199,7 @@ fun ProfileScreen(
             Box(Modifier.weight(1f))
             IconButton(onClick = { listView = !listView }) {
                 Icon(
-                    if (listView) Icons.Filled.Apps else androidx.compose.material.icons.filled.ViewList,
+                    if (listView) Icons.Filled.Apps else Icons.Filled.List,
                     null, tint = Color.White, modifier = Modifier.size(22.dp)
                 )
             }

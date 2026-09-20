@@ -293,7 +293,7 @@ fun AvatarView(
 }
 
 // IG "send to" sheet: pick a person, the post lands in your DM thread as a tappable card
-@androidx.compose.runtime.OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun ShareSheet(post: Post, onDismiss: () -> Unit) {
     var targets by remember { mutableStateOf<List<VUser>?>(null) }
@@ -766,7 +766,6 @@ private fun Modifier.androidxClickableTap(onClick: () -> Unit): Modifier =
     this.then(Modifier.clickable { onClick() })
 
 // IG caption style: hashtags/mentions blue
-@Composable
 // BUGFIX: indexOf(w) coloured the FIRST occurrence of a repeated word; now we scan forward.
 // @mentions become tappable when onMention is provided (opens that profile).
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
