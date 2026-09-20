@@ -207,7 +207,7 @@ fun LoginScreen(onDone: () -> Unit) {
                 Text("Welcome Back", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 23.sp)
                 Spacer(Modifier.height(7.dp))
                 Row {
-                    Text("New to VibeGram?  ", color = Color(0xFF8E8E8E), fontSize = 13.sp)
+                    Text("New to Instagram 2.0?  ", color = Color(0xFF8E8E8E), fontSize = 13.sp)
                     Text(
                         "Sign up",
                         color = Color(0xFF3B82F6),

@@ -36,9 +36,9 @@ export default function Sidebar() {
   return (
     <nav className="sidebar" data-open-more={moreOpen}>
       <div className="sidebar-top">
-        <Link to="/" className="sidebar-logo" title="VibeGram">
-          <img src="/logo.png" alt="VibeGram" className="sidebar-logo-img" />
-          <span className="sidebar-logo-text">VibeGram</span>
+        <Link to="/" className="sidebar-logo" title="Instagram 2.0">
+          <img src="/logo.png" alt="Instagram 2.0" className="sidebar-logo-img" />
+          <span className="sidebar-logo-text">Instagram 2.0</span>
         </Link>
         <div className="sidebar-items">
           {items.map((item) => {

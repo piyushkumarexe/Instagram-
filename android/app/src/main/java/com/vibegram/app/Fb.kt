@@ -498,6 +498,15 @@ object Fb {
         } catch (_: Exception) { }
     }
 
+    /**
+     * Who liked a post — resolves the stored uid list to profiles.
+     * Capped and failure-tolerant: one bad doc must not blank the whole sheet.
+     */
+    suspend fun likersOf(p: Post, limit: Int = 50): List<VUser> =
+        p.likes.take(limit).mapNotNull { id ->
+            try { db.collection("users").document(id).get().await().toVUser() } catch (_: Exception) { null }
+        }
+
     suspend fun storyViewers(storyId: String): List<VUser> {
         val views = db.collection("stories").document(storyId).get().await().get("views") as? List<String> ?: emptyList()
         return views.take(50).mapNotNull { id ->
@@ -803,7 +812,7 @@ object Fb {
             val conn = u.openConnection() as java.net.HttpURLConnection
             conn.connectTimeout = 8000
             conn.readTimeout = 8000
-            conn.setRequestProperty("User-Agent", "VibeGram/1.0")
+            conn.setRequestProperty("User-Agent", "Instagram2.0/1.0")
             val body = conn.inputStream.bufferedReader().readText()
             val arr = org.json.JSONObject(body).getJSONArray("results")
             val out = mutableListOf<Song>()

@@ -40,7 +40,7 @@ function Protected({ children }) {
     return (
       <div className="boot-screen">
         <img src="/logo.png" width="72" style={{ borderRadius: 16 }} alt="" />
-        <p>Loading VibeGram…</p>
+        <p>Loading Instagram 2.0…</p>
         <span className="made-by">Made by Piyush</span>
       </div>
     )

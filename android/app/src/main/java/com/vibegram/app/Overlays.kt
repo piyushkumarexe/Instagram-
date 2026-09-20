@@ -159,6 +159,7 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
     var viewersSheet by remember { mutableStateOf(false) }
     var viewers by remember { mutableStateOf<List<VUser>>(emptyList()) }
     var gone by remember { mutableStateOf(false) }
+    var held by remember { mutableStateOf(false) }
 
     suspend fun openViewers() {
         viewers = try { Fb.storyViewers(stories.getOrNull(idx)?.id ?: "") } catch (_: Exception) { emptyList() }
@@ -186,13 +187,18 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
         onDispose { try { player?.stop(); player?.release() } catch (_: Exception) { } }
     }
 
+    val seenPrefs = androidx.compose.ui.platform.LocalContext.current.getSharedPreferences("vibegram", 0)
     LaunchedEffect(user.id, idx) {
         val st0 = stories.getOrNull(idx)
         if (st0 != null && !isOwn) {
+            // StoryBar reads this flag to grey the ring out — it was never written before,
+            // so seen stories kept their coloured ring forever.
+            seenPrefs.edit().putBoolean("seen_" + st0.id, true).apply()
             try { Fb.viewStory(st0.id) } catch (_: Exception) { }
         }
     }
-    LaunchedEffect(user.id) {
+    LaunchedEffect(user.id, held) {
+        if (held) return@LaunchedEffect          // long-press pauses playback
         while (idx < stories.size - 1) {
             for (i in 1..50) {
                 delay(100)
@@ -286,14 +292,41 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
             }
         }
 
-        // tap zones
+        // tap zones (long-press anywhere = pause, exactly like Instagram)
         Row(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(1f).fillMaxSize().clickable {
-                if (idx > 0) { idx--; progress = 0f } else onClose()
-            })
-            Box(Modifier.weight(1f).fillMaxSize().clickable {
-                if (idx < stories.size - 1) { idx++; progress = 0f } else onClose()
-            })
+            Box(
+                Modifier.weight(1f).fillMaxSize().pointerInput(idx) {
+                    detectTapGestures(
+                        onPress = {
+                            val released = tryAwaitRelease()
+                            if (!released) held = false
+                        },
+                        onTap = { if (idx > 0) { idx--; progress = 0f } else onClose() },
+                        onLongPress = { held = true }
+                    )
+                }
+            )
+            Box(
+                Modifier.weight(1f).fillMaxSize().pointerInput(idx) {
+                    detectTapGestures(
+                        onPress = {
+                            val released = tryAwaitRelease()
+                            if (!released) held = false
+                        },
+                        onTap = { if (idx < stories.size - 1) { idx++; progress = 0f } else onClose() },
+                        onLongPress = { held = true }
+                    )
+                }
+            )
+        }
+        if (held) {
+            Text(
+                "Paused",
+                color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 34.dp)
+                    .background(Color(0x66000000), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            )
         }
 
         // own story: viewers count + delete

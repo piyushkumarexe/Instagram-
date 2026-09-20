@@ -58,7 +58,7 @@ export default function Settings() {
   }
 
   async function logout() {
-    if (!window.confirm('Log out of VibeGram?')) return
+    if (!window.confirm('Log out of Instagram 2.0?')) return
     await app.logout()
   }
 
@@ -135,7 +135,7 @@ export default function Settings() {
         <button className="settings-item" onClick={logout}><span className="danger-text">Log out</span></button>
       </div>
 
-      <div className="settings-foot muted">VibeGram · Made by Piyush</div>
+      <div className="settings-foot muted">Instagram 2.0 · Made by Piyush</div>
     </div>
   )
 }

@@ -45,14 +45,14 @@ jobs:
         run: |
           SHA1=$(openssl pkcs12 -in android/keystore/vibegram-debug.keystore -passin pass:vibegram123 -nokeys 2>/dev/null | openssl x509 -fingerprint -sha1 -noout | sed 's/.*=//')
           {
-            echo "### 🔑 VibeGram native (Kotlin) build"
+            echo "### 🔑 Instagram 2.0 native (Kotlin) build"
             echo "Signing SHA-1: ${SHA1}"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VibeGram-APK
+          name: Instagram2-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
@@ -65,7 +65,7 @@ jobs:
           APK=android/app/build/outputs/apk/debug/app-debug.apk
           NOTES=/tmp/notes.md
           {
-            echo "VibeGram ${TAG} — native Kotlin app."
+            echo "Instagram 2.0 ${TAG} — native Kotlin app."
             echo ""
             echo "## 📥 Download"
             echo "- 🤖 **Android APK:** app-debug.apk (below)"
@@ -77,4 +77,4 @@ jobs:
             fi
             sleep 15
           done
-          gh release create "$TAG" "$APK" -t "VibeGram $TAG" --notes-file "$NOTES" || gh release upload "$TAG" "$APK" --clobber
+          gh release create "$TAG" "$APK" -t "Instagram 2.0 $TAG" --notes-file "$NOTES" || gh release upload "$TAG" "$APK" --clobber

@@ -1,4 +1,4 @@
-// Firebase bootstrap — VibeGram talks directly to Firebase (no backend server).
+// Firebase bootstrap — Instagram 2.0 talks directly to Firebase (no backend server).
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore'

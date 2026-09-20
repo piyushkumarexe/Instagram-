@@ -30,7 +30,7 @@ const DAY = 24 * HOUR
 
 // users: [username, name, avatarFile, bio]
 const USERS = [
-  ['demo', 'Demo User', 'avatars/demo.jpg', '✨ Just exploring VibeGram | Demo account'],
+  ['demo', 'Demo User', 'avatars/demo.jpg', '✨ Just exploring Instagram 2.0 | Demo account'],
   ['aarav_sharma', 'Aarav Sharma', 'avatars/aarav.jpg', 'Travel photographer 📸 | Chasing light & mountains | India 🇮🇳'],
   ['priya.verma', 'Priya Verma', 'avatars/priya.jpg', 'Foodie for life 🍜 | Recipe experiments | DM for collabs'],
   ['rohan_mehta', 'Rohan Mehta', 'avatars/rohan.jpg', 'Fitness coach 💪 | No shortcuts, just reps | Online coaching'],
@@ -112,7 +112,7 @@ const POSTS = [
   ['karan.art', 'posts/palace3.jpg', 'Neon dreams loading… new series dropping soon ⚡ #neon #artoftheday', 4,
     ['demo', 'ishani_captures', 'aarav_sharma'],
     [['demo', 'Can not wait 🔥', 3]]],
-  ['demo', 'posts/trek2.jpg', 'First post on VibeGram! 🎉 Hi everyone 👋 #newbie', 1,
+  ['demo', 'posts/trek2.jpg', 'First post on Instagram 2.0! 🎉 Hi everyone 👋 #newbie', 1,
     ['aarav_sharma', 'priya.verma', 'ishani_captures'],
     [['aarav_sharma', 'Welcome to the app! 🚀', 0.5], ['priya.verma', 'Nice shot! 😄', 0.4]]],
 ]

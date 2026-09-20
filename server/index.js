@@ -553,4 +553,4 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message || 'Server error' })
 })
 
-app.listen(PORT, '0.0.0.0', () => console.log(`VibeGram API listening on http://0.0.0.0:${PORT}`))
+app.listen(PORT, '0.0.0.0', () => console.log(`Instagram 2.0 API listening on http://0.0.0.0:${PORT}`))

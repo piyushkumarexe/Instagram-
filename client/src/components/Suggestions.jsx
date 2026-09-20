@@ -50,7 +50,7 @@ export default function Suggestions() {
       <div className="rail-footer">
         <p>About · Help · Press · API · Jobs · Privacy · Terms</p>
         <p>Locations · Language</p>
-        <p className="muted">© 2026 VibeGram — powered by Firebase</p>
+        <p className="muted">© 2026 Instagram 2.0 — powered by Firebase</p>
       </div>
     </aside>
   )

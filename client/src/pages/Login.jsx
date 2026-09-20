@@ -80,10 +80,10 @@ export default function Login() {
       <div className="auth-left">
         <div className="phone-mockup">
           <div className="phone-screen">
-            <img src={SHOWCASE[slide]} alt="VibeGram" className="phone-shot" />
+            <img src={SHOWCASE[slide]} alt="Instagram 2.0" className="phone-shot" />
             <div className="phone-chrome">
               <img src="/logo.png" alt="" width="26" height="26" style={{ borderRadius: 6 }} />
-              <span>VibeGram</span>
+              <span>Instagram 2.0</span>
             </div>
           </div>
         </div>
@@ -93,8 +93,8 @@ export default function Login() {
       <div className="auth-right">
         <div className="auth-card">
           <div className="auth-logo">
-            <img src="/logo.png" alt="VibeGram" width="72" height="72" style={{ borderRadius: 16 }} />
-            <span className="auth-wordmark">VibeGram</span>
+            <img src="/logo.png" alt="Instagram 2.0" width="72" height="72" style={{ borderRadius: 16 }} />
+            <span className="auth-wordmark">Instagram 2.0</span>
             <span className="made-by" style={{ marginTop: 8 }}>Made by Piyush</span>
           </div>
           <h2 className="auth-tag">Sign in to see photos and videos from your friends.</h2>

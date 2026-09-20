@@ -32,6 +32,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -165,20 +166,23 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
     var commentsFor by remember { mutableStateOf<Post?>(null) }
     var chatWith by remember { mutableStateOf<VUser?>(null) }
     var bigAvatar by remember { mutableStateOf<String?>(null) }
+    var zoomTarget by remember { mutableStateOf<ZoomTarget?>(null) }
 
-    val overlayActive = commentsFor != null || chatWith != null || openStory != null || bigAvatar != null || postFor != null
     BackHandler(enabled = true) {
         when {
+            zoomTarget != null -> zoomTarget = null
             bigAvatar != null -> bigAvatar = null
             openStory != null -> openStory = null
             commentsFor != null -> commentsFor = null
             chatWith != null -> chatWith = null
             postFor != null -> postFor = null
             stack.isNotEmpty() -> goBack()
-            tab != "home" -> tab = "home"
+            // BUGFIX: there is no "home" tab — this used to leave a blank screen on back
+            tab != "feed" -> tab = "feed"
         }
     }
 
+    CompositionLocalProvider(LocalZoomProfilePhoto provides { t -> zoomTarget = t }) {
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.weight(1f)) {
@@ -355,7 +359,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                 NavigationBarItem(
                     selected = tab == "profile", onClick = { tab = "profile" },
                     icon = {
-                        AvatarView(url = me.avatar, size = 26, border = false, name = me.username)
+                        ZoomableAvatar(url = me.avatar, size = 26, name = me.username)
                     },
                     colors = navColors()
                 )
@@ -389,6 +393,9 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
         bigAvatar?.let { url ->
             BigAvatar(url = url, onDismiss = { bigAvatar = null })
         }
+        zoomTarget?.let { t ->
+            ProfilePhotoZoom(target = t, onDismiss = { zoomTarget = null })
+        }
         postFor?.let { p ->
             PostModal(
                 post = p,
@@ -398,6 +405,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                 onClose = { postFor = null }
             )
         }
+    }
     }
 }
 

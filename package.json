@@ -2,7 +2,7 @@
   "name": "vibegram",
   "version": "1.0.0",
   "private": true,
-  "description": "VibeGram - an Instagram-style social app (full stack demo)",
+  "description": "Instagram 2.0 - an Instagram-style social app (full stack demo)",
   "scripts": {
     "dev": "concurrently -k -n server,client -c blue,magenta \"npm:dev:server\" \"npm:dev:client\"",
     "dev:server": "node server/index.js",

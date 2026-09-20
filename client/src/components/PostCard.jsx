@@ -261,7 +261,7 @@ function ShareSheet({ post, onClose }) {
           <button className="btn btn-blue" style={{ flex: 1 }} onClick={async () => {
             try {
               const { Share } = await import('@capacitor/share')
-              await Share.share({ title: 'VibeGram post', url: `${location.origin}/p/${post.id}`, dialogTitle: 'Share post' })
+              await Share.share({ title: 'Instagram 2.0 post', url: `${location.origin}/p/${post.id}`, dialogTitle: 'Share post' })
             } catch {
               try { await navigator.clipboard.writeText(`${location.origin}/p/${post.id}`); app.toast('Link copied 🔗') } catch {}
             }

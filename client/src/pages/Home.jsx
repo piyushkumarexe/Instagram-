@@ -129,7 +129,7 @@ export default function Home() {
           {!loading && posts.length === 0 && (
             <div className="feed-empty card">
               <span className="big-emoji">📸</span>
-              <h3>Welcome to VibeGram!</h3>
+              <h3>Welcome to Instagram 2.0!</h3>
               <p>Follow people to see their photos and videos here — or tap + to create your first post.</p>
               <button className="btn btn-blue" onClick={() => nav('/explore')}>Find people</button>
             </div>

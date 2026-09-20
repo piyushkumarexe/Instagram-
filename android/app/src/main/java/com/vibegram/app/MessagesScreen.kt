@@ -354,7 +354,7 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
                     AvatarView(url = other.avatar, size = 72, border = false, name = other.username)
                     Spacer(Modifier.height(10.dp))
                     Text(other.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Text(other.username + " · VibeGram", color = Color(0xFF8E8E8E), fontSize = 13.sp)
+                    Text(other.username + " · Instagram 2.0", color = Color(0xFF8E8E8E), fontSize = 13.sp)
                 }
             } else {
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp)) {

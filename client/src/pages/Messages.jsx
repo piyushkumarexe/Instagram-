@@ -407,7 +407,7 @@ function Chat({ username }) {
           <div className="chat-intro">
             <Avatar user={user} size={72} />
             <strong>{user.name}</strong>
-            <span className="muted">{user.username} · VibeGram</span>
+            <span className="muted">{user.username} · Instagram 2.0</span>
             <Link to={'/' + user.username} className="btn btn-grey btn-sm">View profile</Link>
           </div>
         )}

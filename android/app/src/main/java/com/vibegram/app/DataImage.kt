@@ -28,8 +28,25 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import android.util.LruCache
 
-private val bmpCache = object : LruCache<String, Bitmap>(60) { }
-private val failedCache = HashSet<String>()
+/**
+ * Decoded-image cache sized by BYTES, not by entry count.
+ * The old `LruCache(60)` counted entries, so 60 full-screen bitmaps could pin hundreds of
+ * MB and get the process killed; this caps the cache at 1/6 of the app's heap and reports
+ * the real cost of each bitmap so big images evict first.
+ */
+private val bmpCache = object : LruCache<String, Bitmap>(
+    ((Runtime.getRuntime().maxMemory() / 1024) / 6).toInt().coerceAtLeast(2048)
+) {
+    override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount / 1024
+}
+
+/** Permanent-failure list, bounded so it cannot grow without limit. */
+private val failedCache = java.util.LinkedHashSet<String>()
+
+private fun rememberFailure(url: String) {
+    if (failedCache.size > 200) failedCache.clear()
+    failedCache.add(url)
+}
 
 /**
  * Renders media/avatars reliably:
@@ -99,7 +116,7 @@ fun DataImage(
                 bmp = decoded
             } else {
                 failed = true
-                failedCache.add(url)
+                rememberFailure(url)
             }
         }
         val b = bmp
@@ -126,9 +143,12 @@ fun DataImage(
         return
     }
 
-    // http(s)
+    // http(s) — crossfade so remote images fade in instead of popping
     AsyncImage(
-        model = url,
+        model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+            .data(url)
+            .crossfade(180)
+            .build(),
         contentDescription = null,
         contentScale = contentScale,
         modifier = modifier

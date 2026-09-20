@@ -167,13 +167,13 @@ fun SettingsScreen(
             SectionLabel("More")
             SettingsRow(
                 icon = { Text("📤", fontSize = 19.sp) },
-                title = "Share VibeGram"
+                title = "Share Instagram 2.0"
             ) {
                 val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                     type = "text/plain"
-                    putExtra(android.content.Intent.EXTRA_TEXT, "VibeGram — a native Instagram-style app. Made by Piyush!")
+                    putExtra(android.content.Intent.EXTRA_TEXT, "Instagram 2.0 — a native Instagram-style app. Made by Piyush!")
                 }
-                ctx.startActivity(android.content.Intent.createChooser(send, "Share VibeGram"))
+                ctx.startActivity(android.content.Intent.createChooser(send, "Share Instagram 2.0"))
             }
             SettingsRow(
                 icon = { Text("🔗", fontSize = 19.sp) },
@@ -269,7 +269,7 @@ fun SettingsScreen(
                 ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName
             } catch (_: Exception) { "?" }
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("VibeGram v$vname", color = Color(0xFF6E6E6E), fontSize = 12.sp)
+                Text("Instagram 2.0 v$vname", color = Color(0xFF6E6E6E), fontSize = 12.sp)
                 Spacer(Modifier.height(3.dp))
                 Text("Made by Piyush", color = Color(0xFF555555), fontSize = 11.sp)
             }

@@ -1,4 +1,4 @@
-// VibeGram data layer — Firebase Auth + Firestore + Storage.
+// Instagram 2.0 data layer — Firebase Auth + Firestore + Storage.
 // Designed to avoid ALL composite indexes (client-side sorting/filtering,
 // denormalized counts) so it works on any Firebase project out of the box.
 import {
@@ -214,7 +214,7 @@ async function onboardNewUser(uid) {
     await loadFollowing(uid)
     const aarav = await cachedUser('bot-aarav')
     if (aarav) {
-      await sendMessage('bot-aarav', uid, 'Welcome to VibeGram! 🎉 Exploring the app? Try sharing your first post — tap the + button!')
+      await sendMessage('bot-aarav', uid, 'Welcome to Instagram 2.0! 🎉 Exploring the app? Try sharing your first post — tap the + button!')
       await addNotification(uid, 'bot-priya', 'follow', null, null)
     }
   } catch (e) {

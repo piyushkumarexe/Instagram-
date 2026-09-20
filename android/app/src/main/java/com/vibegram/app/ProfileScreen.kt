@@ -157,6 +157,14 @@ fun ProfileScreen(
         return
     }
 
+    // own profile: a tap still opens your story / the photo picker; HOLD zooms the photo
+    val onAvatarTap: (() -> Unit)? = if (isOwn) {
+        {
+            if (hasStory) onOpenOwnStory()
+            else picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }
+    } else null
+
     Column(Modifier.fillMaxSize().background(Color.Black).navigationBarsPadding()) {
         // ---- top bar (IG: username left, menu right) ----
         Row(
@@ -205,23 +213,15 @@ fun ProfileScreen(
                                 CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp)
                             }
                         } else {
-                            AvatarView(
+                            // IG behaviour: HOLD the photo to zoom it; on your own profile a
+                            // tap still opens your story / the photo picker.
+                            ZoomableAvatar(
                                 url = u.avatar,
                                 size = 84,
-                                border = false,
                                 name = u.username,
-                                showRing = isOwn && hasStory
+                                showRing = isOwn && hasStory,
+                                onTap = onAvatarTap
                             )
-                            if (isOwn) {
-                                Box(
-                                    Modifier
-                                        .matchParentSize()
-                                        .clickable {
-                                            if (hasStory) onOpenOwnStory()
-                                            else picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                                        }
-                                ) { }
-                            }
                         }
                         if (isOwn) {
                             Box(
@@ -309,7 +309,7 @@ fun ProfileScreen(
                             onClick = {
                                 val i = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, "Follow me on VibeGram! My username is ${u.username}")
+                                    putExtra(Intent.EXTRA_TEXT, "Follow me on Instagram 2.0! My username is ${u.username}")
                                 }
                                 ctx.startActivity(Intent.createChooser(i, "Share profile"))
                             },

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive-icon foreground: a camera glyph in the adaptive-icon safe zone.
+  Drawn from scratch (rounded viewfinder + lens + flash dot) rather than lifting
+  Meta's trademarked Instagram mark.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- viewfinder body -->
+    <path
+        android:pathData="M44,30 H64 A14,14 0 0 1 78,44 V64 A14,14 0 0 1 64,78 H44 A14,14 0 0 1 30,64 V44 A14,14 0 0 1 44,30 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineJoin="round" />
+
+    <!-- lens -->
+    <path
+        android:pathData="M54,42 A12,12 0 1 0 54,66 A12,12 0 1 0 54,42 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5" />
+
+    <!-- flash dot -->
+    <path
+        android:pathData="M68,40 m-3.3,0 a3.3,3.3 0 1,0 6.6,0 a3.3,3.3 0 1,0 -6.6,0"
+        android:fillColor="#FFFFFFFF" />
+</vector>

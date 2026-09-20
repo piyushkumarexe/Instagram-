@@ -34,8 +34,8 @@ export function MobileTopBar({ title }) {
     <header className="mobile-topbar">
       {title ? <strong className="mtb-title">{title}</strong> : (
         <div to="/" className="mtb-logo">
-          <img src="/logo.png" alt="VibeGram" width="30" height="30" style={{ borderRadius: 8, flexShrink: 0 }} />
-          <span>VibeGram</span>
+          <img src="/logo.png" alt="Instagram 2.0" width="30" height="30" style={{ borderRadius: 8, flexShrink: 0 }} />
+          <span>Instagram 2.0</span>
         </div>
       )}
       <div className="mtb-actions">

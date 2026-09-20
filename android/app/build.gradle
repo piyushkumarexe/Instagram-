@@ -13,8 +13,8 @@ android {
         applicationId 'com.vibegram.app'
         minSdk 26
         targetSdk 34
-        versionCode 51
-        versionName '6.9'
+        versionCode 52
+        versionName '7.0'
     }
 
     signingConfigs {

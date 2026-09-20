@@ -34,7 +34,7 @@ export default class ErrorBoundary extends React.Component {
       <div style={{ minHeight: '100vh', background: '#fff', padding: '40px 22px', fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" }}>
         <div style={{ maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
           <img src="/logo.png" alt="" style={{ width: 64, height: 64, borderRadius: 14 }} />
-          <h2 style={{ margin: '14px 0 4px', fontSize: 18, color: '#262626' }}>VibeGram ek error se ruk gaya</h2>
+          <h2 style={{ margin: '14px 0 4px', fontSize: 18, color: '#262626' }}>Instagram 2.0 ek error se ruk gaya</h2>
           <p style={{ color: '#ed4956', fontSize: 13, wordBreak: 'break-word', margin: '0 0 14px' }}>{msg}</p>
 
           {isPerm && (

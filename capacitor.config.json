@@ -1,6 +1,6 @@
 {
   "appId": "com.vibegram.app",
-  "appName": "VibeGram",
+  "appName": "Instagram 2.0",
   "webDir": "client/dist",
   "server": {
     "androidScheme": "https",

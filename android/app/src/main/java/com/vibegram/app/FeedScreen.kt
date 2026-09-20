@@ -117,7 +117,7 @@ fun FeedScreen(
                 Icon(Icons.Filled.AddBox, null, tint = Color.White, modifier = Modifier.size(27.dp))
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                Text("VibeGram", color = Color.White, fontSize = 27.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive)
+                Text("Instagram 2.0", color = Color.White, fontSize = 26.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive)
             }
             IconButton(onClick = onOpenNotifications) {
                 Box {
@@ -179,8 +179,9 @@ fun StoryBar(
     onAddStory: () -> Unit,
     onOpenStory: (VUser) -> Unit
 ) {
-    val prefs = androidx.compose.ui.platform.LocalContext.current.getSharedPreferences("vibegram", 0)
-    val seenTick = remember { mutableStateOf(0) }
+    val prefs = remember {
+        androidx.compose.ui.platform.LocalContext.current.getSharedPreferences("vibegram", 0)
+    }
     fun isSeen(u: VUser, sts: List<Story>): Boolean =
         sts.isNotEmpty() && sts.all { prefs.getBoolean("seen_" + it.id, false) }
     val ownGroup = groups.firstOrNull { it.first.id == me.id }
@@ -188,17 +189,25 @@ fun StoryBar(
         Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.clickable {
-                if (ownGroup != null) onOpenStory(me) else onAddStory()
-            }
-        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(contentAlignment = Alignment.BottomEnd) {
                 if (ownGroup != null) {
-                    AvatarView(url = me.avatar, size = 60, border = true, gradientRing = true, name = me.username)
+                    ZoomableAvatar(
+                        url = me.avatar,
+                        size = 60,
+                        border = true,
+                        gradientRing = true,
+                        name = me.username,
+                        onTap = { onOpenStory(me) }
+                    )
                 } else {
-                    AvatarView(url = me.avatar, size = 60, border = false, name = me.username)
+                    AvatarView(
+                        url = me.avatar,
+                        size = 60,
+                        border = false,
+                        name = me.username,
+                        modifier = Modifier.clickable { onAddStory() }
+                    )
                     Box(
                         Modifier.size(22.dp).background(Color(0xFF0095F6), CircleShape).padding(2.dp),
                         contentAlignment = Alignment.Center
@@ -210,16 +219,22 @@ fun StoryBar(
         }
         groups.filter { it.first.id != me.id }.take(8).forEach { (user, stories) ->
             val seen = isSeen(user, stories)
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.clickable { onOpenStory(user) }
-            ) {
-                AvatarView(url = user.avatar, size = 60, border = true, gradientRing = !seen, showRing = !seen, name = user.username)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                ZoomableAvatar(
+                    url = user.avatar,
+                    size = 60,
+                    border = true,
+                    gradientRing = !seen,
+                    showRing = !seen,
+                    name = user.username,
+                    onTap = { onOpenStory(user) }
+                )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     user.username.take(9),
                     color = Color.White,
-                    fontSize = 11.sp
+                    fontSize = 11.sp,
+                    modifier = Modifier.clickable { onOpenStory(user) }
                 )
             }
         }
@@ -227,7 +242,15 @@ fun StoryBar(
 }
 
 @Composable
-fun AvatarView(url: String?, size: Int, border: Boolean, gradientRing: Boolean = false, name: String = "", showRing: Boolean = false) {
+fun AvatarView(
+    url: String?,
+    size: Int,
+    border: Boolean,
+    gradientRing: Boolean = false,
+    name: String = "",
+    showRing: Boolean = false,
+    modifier: Modifier = Modifier
+) {
     @Composable
     fun inner(sz: Int) {
         if (url.isNullOrBlank()) {
@@ -251,19 +274,21 @@ fun AvatarView(url: String?, size: Int, border: Boolean, gradientRing: Boolean =
             )
         }
     }
-    if (gradientRing || showRing) {
-        Box(
-            Modifier.size((size + 6).dp).background(
-                androidx.compose.ui.graphics.Brush.linearGradient(
-                    listOf(Color(0xFFF09433), Color(0xFFDC2743), Color(0xFFBC1888))
-                ),
-                CircleShape
-            ).padding(2.dp)
-        ) { inner(size) }
-    } else if (border) {
-        Box(Modifier.size((size + 4).dp).background(Color(0xFF444444), CircleShape).padding(2.dp)) { inner(size) }
-    } else {
-        inner(size)
+    Box(modifier) {
+        if (gradientRing || showRing) {
+            Box(
+                Modifier.size((size + 6).dp).background(
+                    androidx.compose.ui.graphics.Brush.linearGradient(
+                        listOf(Color(0xFFF09433), Color(0xFFDC2743), Color(0xFFBC1888))
+                    ),
+                    CircleShape
+                ).padding(2.dp)
+            ) { inner(size) }
+        } else if (border) {
+            Box(Modifier.size((size + 4).dp).background(Color(0xFF444444), CircleShape).padding(2.dp)) { inner(size) }
+        } else {
+            inner(size)
+        }
     }
 }
 
@@ -304,13 +329,22 @@ fun PostCard(
             Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(Modifier.clickable { onAvatar(VUser(post.userId, post.username, post.name, post.avatar, "", 0, 0, 0, post.verified, false)) }) {
-                AvatarView(url = post.avatar, size = 36, border = false)
-            }
+            ZoomableAvatar(
+                url = post.avatar,
+                size = 36,
+                name = post.username,
+                onTap = { onProfile(post.username) }
+            )
             Spacer(Modifier.width(9.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(post.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(
+                        post.username,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.clickable { onProfile(post.username) }
+                    )
                     if (post.verified) {
                         Spacer(Modifier.width(4.dp))
                         VerifiedBadge(15)
@@ -352,9 +386,9 @@ fun PostCard(
                                         val bmpSave = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                                         if (bmpSave != null) {
                                             val vals = android.content.ContentValues().apply {
-                                                put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, "vibegram_" + post.id + ".jpg")
+                                                put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, "instagram2_" + post.id + ".jpg")
                                                 put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-                                                put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/VibeGram")
+                                                put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Instagram2")
                                             }
                                             val uri = cardCtx.contentResolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, vals)
                                             if (uri != null) cardCtx.contentResolver.openOutputStream(uri)?.use { bmpSave.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) }
@@ -556,10 +590,16 @@ fun PostCard(
         // likes + caption
         Column(Modifier.padding(horizontal = 12.dp)) {
             Text(
-                "${post.likesCount} like" + if (post.likesCount == 1L) "" else "s",
+                fmtCount(post.likesCount) + " like" + if (post.likesCount == 1L) "" else "s",
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
-                fontSize = 13.sp
+                fontSize = 13.sp,
+                modifier = Modifier.clickable {
+                    likedByOpen = true
+                    cardScope.launch {
+                        likedByList = try { Fb.likersOf(post) } catch (_: Exception) { emptyList() }
+                    }
+                }
             )
             if (post.caption.isNotBlank()) {
                 Spacer(Modifier.height(3.dp))
