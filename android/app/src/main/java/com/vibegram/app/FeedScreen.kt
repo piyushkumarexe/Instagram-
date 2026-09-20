@@ -292,6 +292,77 @@ fun AvatarView(
     }
 }
 
+// IG "send to" sheet: pick a person, the post lands in your DM thread as a tappable card
+@androidx.compose.runtime.OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun ShareSheet(post: Post, onDismiss: () -> Unit) {
+    var targets by remember { mutableStateOf<List<VUser>?>(null) }
+    var q by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(Unit) { targets = try { Fb.shareTargets() } catch (_: Exception) { emptyList() } }
+    LaunchedEffect(q) {
+        if (q.isBlank()) return@LaunchedEffect
+        kotlinx.coroutines.delay(250)
+        targets = try { Fb.searchUsers(q) } catch (_: Exception) { emptyList() }
+    }
+    androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color(0xFF1C1C1E)) {
+        Column(Modifier.padding(horizontal = 16.dp).height(440.dp)) {
+            Text("Send post to…", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Spacer(Modifier.height(10.dp))
+            androidx.compose.material3.OutlinedTextField(
+                value = q,
+                onValueChange = { q = it },
+                placeholder = { Text("Search people", color = Color(0xFF8E8E8E)) },
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White, unfocusedTextColor = Color.White, cursorColor = Color(0xFF0095F6),
+                    focusedBorderColor = Color(0xFF3A3A3C), unfocusedBorderColor = Color(0xFF3A3A3C)
+                ),
+                singleLine = true,
+                shape = RoundedCornerShape(11.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(6.dp))
+            val list = targets
+            if (list == null) {
+                Box(Modifier.fillMaxWidth().padding(20.dp), Alignment.Center) {
+                    CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                }
+            } else {
+                androidx.compose.foundation.lazy.LazyColumn(Modifier.weight(1f)) {
+                    items(list.take(40)) { u ->
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AvatarView(url = u.avatar, size = 44, border = false, name = u.username)
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(u.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text(u.name, color = Color(0xFF8E8E8E), fontSize = 12.sp)
+                            }
+                            Text(
+                                "Send",
+                                color = Color(0xFF0095F6), fontWeight = FontWeight.Bold, fontSize = 13.sp,
+                                modifier = Modifier.clickable {
+                                    scope.launch {
+                                        try {
+                                            Fb.sendDm(u.id, "post:" + post.id)
+                                            android.widget.Toast.makeText(ctx, "Sent to @" + u.username, android.widget.Toast.LENGTH_SHORT).show()
+                                            onDismiss()
+                                        } catch (_: Exception) { }
+                                    }
+                                }.padding(8.dp)
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
 // IG-style compact count: 43.6K / 1.6M
 fun fmtCount(n: Long): String = when {
     n >= 1_000_000L -> String.format(java.util.Locale.US, "%.1fM", n / 1_000_000.0)
@@ -317,6 +388,7 @@ fun PostCard(
     var editTxt by remember { mutableStateOf(post.caption) }
     var likedByOpen by remember { mutableStateOf(false) }
     var likedByList by remember { mutableStateOf<List<VUser>>(emptyList()) }
+    var shareOpen by remember { mutableStateOf(false) }
     val cardScope = rememberCoroutineScope()
     val cardCtx = androidx.compose.ui.platform.LocalContext.current
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
@@ -416,6 +488,65 @@ fun PostCard(
                             }
                         }
                     )
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text("Copy link", color = Color.White) },
+                        onClick = {
+                            menu = false
+                            val cm = cardCtx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            cm.setPrimaryClip(android.content.ClipData.newPlainText("link", "https://instagram2.app/p/" + post.id))
+                            android.widget.Toast.makeText(cardCtx, "Link copied", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                    if (post.userId == Fb.uid) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(if (post.pinnedAt > 0) "Unpin from profile" else "Pin to profile", color = Color.White) },
+                            onClick = {
+                                menu = false
+                                cardScope.launch {
+                                    try {
+                                        if (post.pinnedAt == 0L) {
+                                            val pinned = Fb.userPosts(post.username).count { it.pinnedAt > 0 }
+                                            if (pinned >= 3) {
+                                                android.widget.Toast.makeText(cardCtx, "You can pin up to 3 posts", android.widget.Toast.LENGTH_SHORT).show()
+                                                return@launch
+                                            }
+                                            Fb.setPostField(post.id, "pinnedAt", System.currentTimeMillis())
+                                            android.widget.Toast.makeText(cardCtx, "Pinned to your profile", android.widget.Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Fb.setPostField(post.id, "pinnedAt", 0L)
+                                            android.widget.Toast.makeText(cardCtx, "Unpinned", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (_: Exception) { }
+                                }
+                            }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(if (post.commentsOff) "Turn on commenting" else "Turn off commenting", color = Color.White) },
+                            onClick = {
+                                menu = false
+                                cardScope.launch { try { Fb.setPostField(post.id, "commentsOff", !post.commentsOff) } catch (_: Exception) { } }
+                            }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(if (post.hideLikes) "Show like count" else "Hide like count", color = Color.White) },
+                            onClick = {
+                                menu = false
+                                cardScope.launch { try { Fb.setPostField(post.id, "hideLikes", !post.hideLikes) } catch (_: Exception) { } }
+                            }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(if (post.archived) "Unarchive" else "Archive", color = Color.White) },
+                            onClick = {
+                                menu = false
+                                cardScope.launch {
+                                    try {
+                                        Fb.setPostField(post.id, "archived", !post.archived)
+                                        android.widget.Toast.makeText(cardCtx, if (post.archived) "Restored to profile" else "Archived — find it in ⋮ → Archived", android.widget.Toast.LENGTH_SHORT).show()
+                                    } catch (_: Exception) { }
+                                }
+                            }
+                        )
+                    }
                     if (post.userId == Fb.uid) {
                         androidx.compose.material3.DropdownMenuItem(
                             text = { Text("Delete", color = Color(0xFFED4956)) },
@@ -500,11 +631,7 @@ fun PostCard(
             IconButton(onClick = onComments) {
                 Icon(Icons.Outlined.ChatBubbleOutline, null, tint = Color.White, modifier = Modifier.size(24.dp))
             }
-            IconButton(onClick = {
-                cardScope.launch {
-                    try { Fb.addStoryUrl(post.media); sharedNote = true } catch (_: Exception) { }
-                }
-            }) {
+            IconButton(onClick = { shareOpen = true }) {
                 Icon(Icons.Filled.Send, null, tint = Color.White, modifier = Modifier.size(22.dp))
             }
             IconButton(onClick = {
@@ -587,26 +714,34 @@ fun PostCard(
             )
         }
 
+        if (shareOpen) {
+            ShareSheet(post = post, onDismiss = { shareOpen = false })
+        }
+
         // likes + caption
         Column(Modifier.padding(horizontal = 12.dp)) {
-            Text(
-                fmtCount(post.likesCount) + " like" + if (post.likesCount == 1L) "" else "s",
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
-                modifier = Modifier.clickable {
-                    likedByOpen = true
-                    cardScope.launch {
-                        likedByList = try { Fb.likersOf(post) } catch (_: Exception) { emptyList() }
+            if (post.hideLikes && post.userId != myId) {
+                Text("Likes hidden", color = Color(0xFF8E8E8E), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            } else {
+                Text(
+                    fmtCount(post.likesCount) + " like" + if (post.likesCount == 1L) "" else "s",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    modifier = Modifier.clickable {
+                        likedByOpen = true
+                        cardScope.launch {
+                            likedByList = try { Fb.likersOf(post) } catch (_: Exception) { emptyList() }
+                        }
                     }
-                }
-            )
+                )
+            }
             if (post.caption.isNotBlank()) {
                 Spacer(Modifier.height(3.dp))
                 Row {
                     Text(post.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     Spacer(Modifier.width(6.dp))
-                    HashtagText(post.caption)
+                    HashtagText(post.caption, onMention = onProfile)
                 }
             }
             if (post.createdAt > 0) {
@@ -632,21 +767,38 @@ private fun Modifier.androidxClickableTap(onClick: () -> Unit): Modifier =
 
 // IG caption style: hashtags/mentions blue
 @Composable
-fun HashtagText(text: String, fontSizeSp: Int = 13) {
+// BUGFIX: indexOf(w) coloured the FIRST occurrence of a repeated word; now we scan forward.
+// @mentions become tappable when onMention is provided (opens that profile).
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun HashtagText(text: String, fontSizeSp: Int = 13, onMention: ((String) -> Unit)? = null) {
     val spans = androidx.compose.ui.text.buildAnnotatedString {
         append(text)
-        text.split(" ").forEach { w ->
-            val start = text.indexOf(w)
-            if (w.startsWith("#") || w.startsWith("@")) {
-                addStyle(
-                    androidx.compose.ui.text.SpanStyle(color = Color(0xFF5B9BD5), fontWeight = FontWeight.Bold),
-                    start,
-                    start + w.length
-                )
+        var i = 0
+        for (w in text.split(" ")) {
+            val start = text.indexOf(w, i)
+            if (start >= 0) {
+                if (w.startsWith("#") || w.startsWith("@")) {
+                    addStyle(
+                        androidx.compose.ui.text.SpanStyle(color = Color(0xFF5B9BD5), fontWeight = FontWeight.Bold),
+                        start,
+                        start + w.length
+                    )
+                    if (w.startsWith("@") && w.length > 1) {
+                        addStringAnnotation("mention", w.removePrefix("@").trimEnd(',', '.', '!', '?'), start, start + w.length)
+                    }
+                }
+                i = start + w.length
             }
         }
     }
-    Text(spans, color = Color.White, fontSize = fontSizeSp.sp)
+    if (onMention == null) {
+        Text(spans, color = Color.White, fontSize = fontSizeSp.sp)
+    } else {
+        androidx.compose.foundation.text.ClickableText(spans, style = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = fontSizeSp.sp)) { off ->
+            spans.getStringAnnotations("mention", off, off).firstOrNull()?.let { onMention(it.item) }
+        }
+    }
 }
 
 fun postTimeAgo(ms: Long): String {

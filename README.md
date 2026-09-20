@@ -4,6 +4,24 @@
 > package id (kept so Google sign-in and the existing Firestore data keep working) —
 > only the display name, wordmark and launcher icon changed.
 
+## What's new in v7.1
+
+- **Bottom-nav profile avatar opens your profile again** (the hold-to-zoom gesture
+  was swallowing the tap).
+- **Share a post in DM** — the send button now opens a "Send post to…" sheet; the post
+  lands in the chat as a tappable card.
+- **Pin posts** (up to 3, float to the top of your grid with a 📌), **Archive** posts
+  (⋮ → Archived on your profile), **Turn off commenting**, **Hide like count**,
+  **Copy link**.
+- **Block / Mute posts / Mute stories** from anyone's profile ⋮ menu — blocked people
+  vanish from feed, stories, inbox and comments.
+- **Notes** in the DM inbox (your status bubble + everyone else's).
+- **Typing indicator** ("typing…") in chats.
+- **Story quick reactions** (❤️ 😂 🔥 ) straight into the DM thread.
+- **@mentions are tappable** in captions and comments; repeated-word colouring fixed.
+- Profile **Reels tab** now shows that user's videos; **grid ↔ list** layout switcher;
+  **"Joined <month year>"** row.
+
 ## What's new in v7.0
 
 - **Hold the profile photo to zoom it** (Instagram's signature gesture) — new

@@ -502,6 +502,57 @@ object Fb {
      * Who liked a post — resolves the stored uid list to profiles.
      * Capped and failure-tolerant: one bad doc must not blank the whole sheet.
      */
+    // ---- v7.1 feature APIs (pin/archive/flags/block/mute/note/typing/share) ----
+    suspend fun setPostField(postId: String, field: String, value: Any) {
+        db.collection("posts").document(postId).update(field, value).await()
+    }
+
+    suspend fun toggleBlock(target: String, on: Boolean) {
+        val idv = uid ?: return
+        db.collection("users").document(idv).update(
+            "blocked", if (on) FieldValue.arrayUnion(target) else FieldValue.arrayRemove(target)
+        ).await()
+    }
+
+    suspend fun toggleMute(target: String, field: String, on: Boolean) {
+        val idv = uid ?: return
+        db.collection("users").document(idv).update(
+            field, if (on) FieldValue.arrayUnion(target) else FieldValue.arrayRemove(target)
+        ).await()
+    }
+
+    suspend fun setNote(text: String) {
+        val idv = uid ?: return
+        db.collection("users").document(idv).update("note", text.take(60)).await()
+    }
+
+    suspend fun setTyping(otherId: String, on: Boolean) {
+        val idv = uid ?: return
+        val pid = pairId(idv, otherId)
+        val myField = if (pid.split("__")[0] == idv) "typingA" else "typingB"
+        db.collection("dms").document(pid)
+            .update(myField, if (on) System.currentTimeMillis() else 0L).await()
+    }
+
+    suspend fun typingOf(otherId: String): Long {
+        val idv = uid ?: return 0L
+        val pid = pairId(idv, otherId)
+        val d = try {
+            db.collection("dms").document(pid).get(com.google.firebase.firestore.Source.SERVER).await()
+        } catch (_: Exception) { return 0L }
+        val f = if (pid.split("__")[0] == idv) "typingB" else "typingA"
+        return d.getLong(f) ?: 0L
+    }
+
+    /** people I can share a post with: following + followers, deduped */
+    suspend fun shareTargets(): List<VUser> {
+        val idv = uid ?: return emptyList()
+        val out = LinkedHashMap<String, VUser>()
+        try { followingOf(idv).forEach { out[it.id] = it } } catch (_: Exception) { }
+        try { followersOf(idv).forEach { if (!out.containsKey(it.id)) out[it.id] = it } } catch (_: Exception) { }
+        return out.values.toList()
+    }
+
     suspend fun likersOf(p: Post, limit: Int = 50): List<VUser> =
         p.likes.take(limit).mapNotNull { id ->
             try { db.collection("users").document(id).get().await().toVUser() } catch (_: Exception) { null }

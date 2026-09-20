@@ -61,6 +61,9 @@ fun PostModal(
     onClose: () -> Unit
 ) {
     var showHeart by remember { mutableStateOf(false) }
+    var pmMenu by remember { mutableStateOf(false) }
+    val pmScope = rememberCoroutineScope()
+    val pmCtx = androidx.compose.ui.platform.LocalContext.current
     val myId = Fb.uid
     var liked by remember(post.id) { mutableStateOf(myId != null && post.likes.contains(myId)) }
 
@@ -78,6 +81,51 @@ fun PostModal(
             if (post.verified) {
                 Spacer(Modifier.width(4.dp))
                 VerifiedBadge(15)
+            }
+            Box(Modifier.weight(1f))
+            if (post.userId == Fb.uid) {
+                Box {
+                    IconButton(onClick = { pmMenu = true }) {
+                        Text("⋮", color = Color.White, fontSize = 18.sp)
+                    }
+                    androidx.compose.material3.DropdownMenu(expanded = pmMenu, onDismissRequest = { pmMenu = false }) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(if (post.pinnedAt > 0) "Unpin" else "Pin to profile", color = Color.White) },
+                            onClick = {
+                                pmMenu = false
+                                pmScope.launch {
+                                    try {
+                                        if (post.pinnedAt == 0L) {
+                                            if (Fb.userPosts(post.username).count { it.pinnedAt > 0 } >= 3) {
+                                                android.widget.Toast.makeText(pmCtx, "You can pin up to 3 posts", android.widget.Toast.LENGTH_SHORT).show()
+                                            } else Fb.setPostField(post.id, "pinnedAt", System.currentTimeMillis())
+                                        } else Fb.setPostField(post.id, "pinnedAt", 0L)
+                                    } catch (_: Exception) { }
+                                }
+                            }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(if (post.commentsOff) "Turn on commenting" else "Turn off commenting", color = Color.White) },
+                            onClick = { pmMenu = false; pmScope.launch { try { Fb.setPostField(post.id, "commentsOff", !post.commentsOff) } catch (_: Exception) { } } }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(if (post.hideLikes) "Show like count" else "Hide like count", color = Color.White) },
+                            onClick = { pmMenu = false; pmScope.launch { try { Fb.setPostField(post.id, "hideLikes", !post.hideLikes) } catch (_: Exception) { } } }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(if (post.archived) "Unarchive" else "Archive", color = Color.White) },
+                            onClick = { pmMenu = false; pmScope.launch { try { Fb.setPostField(post.id, "archived", !post.archived) } catch (_: Exception) { } } }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Copy link", color = Color.White) },
+                            onClick = {
+                                pmMenu = false
+                                val cm = pmCtx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                cm.setPrimaryClip(android.content.ClipData.newPlainText("link", "https://instagram2.app/p/" + post.id))
+                            }
+                        )
+                    }
+                }
             }
         }
 
@@ -365,6 +413,23 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
 
         // reply bar (not on own story)
         if (!isOwn && !gone) {
+            // v7.1: IG-style quick reactions, straight into the DM thread
+            Row(
+                Modifier.align(Alignment.BottomCenter).padding(bottom = 74.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                listOf("❤️", "😂", "🔥", "😮").forEach { e ->
+                    Text(
+                        e, fontSize = 22.sp,
+                        modifier = Modifier
+                            .background(Color(0x33000000), RoundedCornerShape(20.dp))
+                            .clickable {
+                                replyScope.launch { try { Fb.sendDm(user.id, e) } catch (_: Exception) { } }
+                            }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                }
+            }
             Row(
                 Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 16.dp),
@@ -523,7 +588,7 @@ fun CommentsPanel(
                                 Spacer(Modifier.width(10.dp))
                                 Column(Modifier.weight(1f).clickable { onProfile(c.username) }) {
                                     Text(c.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                    Text(c.text, color = Color.White, fontSize = 13.sp)
+                                    HashtagText(c.text, onMention = onProfile)
                                     Row {
                                         Text(
                                             postTimeAgo(c.createdAt),
@@ -568,6 +633,13 @@ fun CommentsPanel(
                 }
             }
 
+            if (post.commentsOff && post.userId != Fb.uid) {
+                Text(
+                    "Comments are off.",
+                    color = Color(0xFF8E8E8E), fontSize = 13.sp,
+                    modifier = Modifier.padding(16.dp)
+                )
+            } else {
             Row(
                 Modifier.fillMaxWidth().padding(10.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -615,6 +687,7 @@ fun CommentsPanel(
                         }
                         .padding(10.dp)
                 )
+            }
             }
         }
     }

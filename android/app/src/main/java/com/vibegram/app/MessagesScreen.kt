@@ -65,11 +65,14 @@ fun timeAgo(ms: Long): String {
 
 // IG DM inbox: username + compose header, search pill, thread rows with time
 @Composable
-fun MessagesScreen(me: VUser, onChat: (VUser) -> Unit, onProfile: (String) -> Unit) {
+fun MessagesScreen(me: VUser, onChat: (VUser) -> Unit, onProfile: (String) -> Unit, onMeChanged: (VUser) -> Unit = {}) {
     var threads by remember { mutableStateOf<List<ThreadInfo>?>(null) }
     var q by remember { mutableStateOf("") }
     var composeOpen by remember { mutableStateOf(false) }
+    var noteOpen by remember { mutableStateOf(false) }
+    var noteTxt by remember { mutableStateOf(me.note) }
     var found by remember { mutableStateOf<List<VUser>>(emptyList()) }
+    val msScope = rememberCoroutineScope()
     LaunchedEffect(q) {
         if (q.isBlank()) { found = emptyList(); return@LaunchedEffect }
         val query = q
@@ -124,11 +127,41 @@ fun MessagesScreen(me: VUser, onChat: (VUser) -> Unit, onProfile: (String) -> Un
 
         Spacer(Modifier.height(6.dp))
 
+        // v7.1: Instagram Notes — your status bubble, tap to set
+        Row(
+            Modifier.fillMaxWidth().clickable { noteTxt = me.note; noteOpen = true }
+                .padding(horizontal = 14.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box {
+                AvatarView(url = me.avatar, size = 56, border = false, name = me.username)
+                if (me.note.isNotBlank()) {
+                    Box(
+                        Modifier.align(Alignment.TopCenter).offset(y = (-14).dp)
+                            .background(Color(0xFF262626), RoundedCornerShape(12.dp)),
+                        Alignment.Center
+                    ) {
+                        Text(me.note, color = Color.White, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp))
+                    }
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text("Your note", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(
+                    if (me.note.isBlank()) "Share a note" else "Tap to change",
+                    color = Color(0xFF8E8E8E), fontSize = 12.sp
+                )
+            }
+        }
+
         val list = threads
         if (list == null) {
             LoadingBox()
         } else {
-            val filtered = if (q.isBlank()) list else list.filter {
+            // v7.1: blocked people disappear from your inbox
+            val visible = list.filter { it.user.id !in me.blocked }
+            val filtered = if (q.isBlank()) visible else visible.filter {
                 it.user.username.contains(q, true) || it.user.name.contains(q, true)
             }
             if (filtered.isEmpty() && found.isEmpty()) {
@@ -157,12 +190,19 @@ fun MessagesScreen(me: VUser, onChat: (VUser) -> Unit, onProfile: (String) -> Un
                                     }
                                 }
                                 Text(
-                                    t.lastText.ifBlank { "Say hi 👋" } + (if (t.lastAt > 0) " · " + timeAgo(t.lastAt) else ""),
+                                    (if (t.lastText.startsWith("post:")) "📷 Shared a post" else t.lastText.ifBlank { "Say hi 👋" }) +
+                                        (if (t.lastAt > 0) " · " + timeAgo(t.lastAt) else ""),
                                     color = if (t.unread > 0) Color.White else Color(0xFF8E8E8E),
                                     fontWeight = if (t.unread > 0) FontWeight.Bold else FontWeight.Normal,
                                     fontSize = 13.sp,
                                     maxLines = 1
                                 )
+                                if (t.user.note.isNotBlank()) {
+                                    Text(
+                                        "💭 " + t.user.note,
+                                        color = Color(0xFFB0B0B0), fontSize = 11.sp, maxLines = 1
+                                    )
+                                }
                             }
                             if (t.unread > 0) {
                                 Box(
@@ -207,6 +247,42 @@ fun MessagesScreen(me: VUser, onChat: (VUser) -> Unit, onProfile: (String) -> Un
                 }
             }
         }
+    }
+
+    if (noteOpen) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { noteOpen = false },
+            title = { Text("Your note", color = Color.White) },
+            text = {
+                androidx.compose.material3.OutlinedTextField(
+                    value = noteTxt,
+                    onValueChange = { if (it.length <= 60) noteTxt = it },
+                    placeholder = { Text("What's on your mind?", color = Color(0xFF8E8E8E)) },
+                    colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White, unfocusedTextColor = Color.White, cursorColor = Color(0xFF0095F6)
+                    ),
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                Text("Share", color = Color(0xFF0095F6), fontWeight = FontWeight.Bold, modifier = Modifier.clickable {
+                    noteOpen = false
+                    msScope.launch {
+                        try { Fb.setNote(noteTxt.trim()); onMeChanged(me.copy(note = noteTxt.trim())) } catch (_: Exception) { }
+                    }
+                }.padding(6.dp))
+            },
+            dismissButton = {
+                Text("Delete note", color = Color(0xFFED4956), modifier = Modifier.clickable {
+                    noteTxt = ""
+                    noteOpen = false
+                    msScope.launch {
+                        try { Fb.setNote(""); onMeChanged(me.copy(note = "")) } catch (_: Exception) { }
+                    }
+                }.padding(6.dp))
+            },
+            containerColor = Color(0xFF1C1C1E)
+        )
     }
 
     if (composeOpen) {
@@ -294,15 +370,63 @@ private fun Modifier.androidxCombinedClickable(onLongClick: () -> Unit, onClick:
         Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
     )
 
+// v7.1: a post shared inside a DM — thumbnail + caption, tap opens the full post
+@Composable
+private fun SharedPostCard(postId: String, onOpen: (Post) -> Unit) {
+    var p by remember(postId) { mutableStateOf<Post?>(null) }
+    LaunchedEffect(postId) { p = try { Fb.getPostById(postId) } catch (_: Exception) { null } }
+    val post = p
+    if (post == null) {
+        Text("📷 Post", color = Color.White, fontSize = 14.sp)
+    } else {
+        Row(
+            Modifier.widthIn(max = 250.dp).clickable { onOpen(post) },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(Modifier.size(56.dp).background(Color(0xFF111111))) {
+                DataImage(url = post.media, fallbackLetter = "📷", circle = false, modifier = Modifier.fillMaxSize())
+            }
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text("@" + post.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Text(post.caption.ifBlank { "View post" }, color = Color(0xFFDDDDDD), fontSize = 12.sp, maxLines = 2)
+            }
+        }
+    }
+}
+
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () -> Unit) {
+fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () -> Unit, onOpenPost: (Post) -> Unit = {}) {
     var msgs by remember { mutableStateOf<List<VMsg>?>(null) }
     var text by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
     var emojiOpen by remember { mutableStateOf(false) }
+    var otherTyping by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+
+    // v7.1: typing indicator — poll the thread doc's typing stamp
+    LaunchedEffect(other.id) {
+        while (true) {
+            otherTyping = try { System.currentTimeMillis() - Fb.typingOf(other.id) in 1..5000 } catch (_: Exception) { false }
+            kotlinx.coroutines.delay(2500)
+        }
+    }
+    // broadcast our own typing while the field has text
+    LaunchedEffect(text) {
+        if (text.isNotBlank()) {
+            try { Fb.setTyping(other.id, true) } catch (_: Exception) { }
+            kotlinx.coroutines.delay(2500)
+            try { Fb.setTyping(other.id, false) } catch (_: Exception) { }
+        } else {
+            try { Fb.setTyping(other.id, false) } catch (_: Exception) { }
+        }
+    }
+    LaunchedEffect(other.id) {
+        // clear our typing flag when leaving the chat
+        kotlinx.coroutines.awaitCancellation()
+    }
 
     LaunchedEffect(other.id) {
         msgs = try { Fb.messages(other.id) } catch (_: Exception) { emptyList() }
@@ -335,8 +459,8 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
                     }
                 }
                 Text(
-                    if (System.currentTimeMillis() - other.lastActive < 300_000) "Active now" else "",
-                    color = Color(0xFF31D158), fontSize = 11.sp
+                    if (otherTyping) "typing…" else if (System.currentTimeMillis() - other.lastActive < 300_000) "Active now" else "",
+                    color = if (otherTyping) Color(0xFF0095F6) else Color(0xFF31D158), fontSize = 11.sp
                 )
             }
         }
@@ -378,7 +502,11 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
                                     )
                                     .padding(horizontal = 14.dp, vertical = 10.dp)
                             ) {
-                                Text(m.text, color = Color.White, fontSize = 15.sp, lineHeight = 20.sp)
+                                if (m.text.startsWith("post:")) {
+                                    SharedPostCard(postId = m.text.removePrefix("post:"), onOpen = onOpenPost)
+                                } else {
+                                    Text(m.text, color = Color.White, fontSize = 15.sp, lineHeight = 20.sp)
+                                }
                             }
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
                                 if (m.fromMe) {

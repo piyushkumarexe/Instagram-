@@ -16,7 +16,12 @@ data class VUser(
     val anthem: String = "",
     val anthemArtist: String = "",
     val link: String = "",
-    val lastActive: Long = 0
+    val lastActive: Long = 0,
+    val note: String = "",
+    val createdAt: Long = 0,
+    val blocked: List<String> = emptyList(),
+    val mutedPosts: List<String> = emptyList(),
+    val mutedStories: List<String> = emptyList()
 )
 
 data class Post(
@@ -34,7 +39,11 @@ data class Post(
     val likesCount: Long,
     val commentsCount: Long,
     val savedByMe: Boolean = false,
-    val repostedByMe: Boolean = false
+    val repostedByMe: Boolean = false,
+    val pinnedAt: Long = 0,
+    val archived: Boolean = false,
+    val commentsOff: Boolean = false,
+    val hideLikes: Boolean = false
 )
 
 data class VComment(
@@ -95,7 +104,13 @@ fun DocumentSnapshot.toVUser(): VUser? {
         anthem = getString("anthem") ?: "",
         anthemArtist = getString("anthemArtist") ?: "",
         link = getString("link") ?: "",
-        lastActive = getLong("lastActive") ?: 0L
+        lastActive = getLong("lastActive") ?: 0L,
+        note = getString("note") ?: "",
+        createdAt = getTimestamp("createdAt")?.toDate()?.time
+            ?: getLong("createdAt") ?: 0L,
+        blocked = (get("blocked") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+        mutedPosts = (get("mutedPosts") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+        mutedStories = (get("mutedStories") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
     )
 }
 
@@ -119,7 +134,11 @@ fun DocumentSnapshot.toPost(): Post? {
         likesCount = getLong("likesCount") ?: 0L,
         commentsCount = getLong("commentsCount") ?: 0L,
         savedByMe = ((get("savedBy") as? List<*>)?.contains(Fb.uid) == true),
-        repostedByMe = ((get("repostedBy") as? List<*>)?.contains(Fb.uid) == true)
+        repostedByMe = ((get("repostedBy") as? List<*>)?.contains(Fb.uid) == true),
+        pinnedAt = getLong("pinnedAt") ?: 0L,
+        archived = getBoolean("archived") ?: false,
+        commentsOff = getBoolean("commentsOff") ?: false,
+        hideLikes = getBoolean("hideLikes") ?: false
     )
 }
 

@@ -83,6 +83,7 @@ fun ProfileScreen(
     onDiscover: () -> Unit = {},
     onOpenOwnStory: () -> Unit = {},
     onOpenPost: (Post) -> Unit = {},
+    onMeChanged: (VUser) -> Unit = {},
     hasStory: Boolean = false
 ) {
     val ctx = LocalContext.current
@@ -98,6 +99,10 @@ fun ProfileScreen(
     var menuSheet by remember { mutableStateOf(false) }
     var editSheet by remember { mutableStateOf(false) }
     var ptab by remember { mutableStateOf("grid") }
+    var listView by remember { mutableStateOf(false) }
+    var ownMenu by remember { mutableStateOf(false) }
+    var otherMenu by remember { mutableStateOf(false) }
+    var archivedOpen by remember { mutableStateOf(false) }
     var songSheet by remember { mutableStateOf(false) }
     var followerSample by remember { mutableStateOf<List<VUser>>(emptyList()) }
 
@@ -151,7 +156,10 @@ fun ProfileScreen(
     }
 
     val u = user
-    val ps = posts
+    // archived posts disappear from the grid; pinned posts float to the top (IG order)
+    val psAll = posts
+    val ps = psAll?.filter { !it.archived }
+        ?.sortedWith(compareByDescending<Post> { it.pinnedAt }.thenByDescending { it.createdAt })
     if (u == null || ps == null) {
         LoadingBox()
         return
@@ -189,9 +197,76 @@ fun ProfileScreen(
                 )
             }
             Box(Modifier.weight(1f))
+            IconButton(onClick = { listView = !listView }) {
+                Icon(
+                    if (listView) Icons.Filled.Apps else androidx.compose.material.icons.filled.ViewList,
+                    null, tint = Color.White, modifier = Modifier.size(22.dp)
+                )
+            }
             if (isOwn) {
-                IconButton(onClick = { onSettings() }) {
-                    Icon(Icons.Filled.Menu, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                Box {
+                    IconButton(onClick = { ownMenu = true }) {
+                        Icon(Icons.Filled.Menu, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                    }
+                    androidx.compose.material3.DropdownMenu(expanded = ownMenu, onDismissRequest = { ownMenu = false }) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Archived", color = Color.White) },
+                            onClick = { ownMenu = false; archivedOpen = true }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Settings and privacy", color = Color.White) },
+                            onClick = { ownMenu = false; onSettings() }
+                        )
+                    }
+                }
+            } else {
+                Box {
+                    IconButton(onClick = { otherMenu = true }) {
+                        Icon(androidx.compose.material.icons.filled.MoreVert, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                    }
+                    androidx.compose.material3.DropdownMenu(expanded = otherMenu, onDismissRequest = { otherMenu = false }) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(if (me.blocked.contains(u.id)) "Unblock" else "Block", color = if (me.blocked.contains(u.id)) Color.White else Color(0xFFED4956)) },
+                            onClick = {
+                                otherMenu = false
+                                val on = !me.blocked.contains(u.id)
+                                scope.launch {
+                                    try {
+                                        Fb.toggleBlock(u.id, on)
+                                        onMeChanged(me.copy(blocked = if (on) me.blocked + u.id else me.blocked - u.id))
+                                        android.widget.Toast.makeText(ctx, if (on) "@" + u.username + " blocked" else "Unblocked", android.widget.Toast.LENGTH_SHORT).show()
+                                        if (on) onBack()
+                                    } catch (_: Exception) { }
+                                }
+                            }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(if (me.mutedPosts.contains(u.id)) "Unmute posts" else "Mute posts", color = Color.White) },
+                            onClick = {
+                                otherMenu = false
+                                val on = !me.mutedPosts.contains(u.id)
+                                scope.launch {
+                                    try {
+                                        Fb.toggleMute(u.id, "mutedPosts", on)
+                                        onMeChanged(me.copy(mutedPosts = if (on) me.mutedPosts + u.id else me.mutedPosts - u.id))
+                                    } catch (_: Exception) { }
+                                }
+                            }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(if (me.mutedStories.contains(u.id)) "Unmute stories" else "Mute stories", color = Color.White) },
+                            onClick = {
+                                otherMenu = false
+                                val on = !me.mutedStories.contains(u.id)
+                                scope.launch {
+                                    try {
+                                        Fb.toggleMute(u.id, "mutedStories", on)
+                                        onMeChanged(me.copy(mutedStories = if (on) me.mutedStories + u.id else me.mutedStories - u.id))
+                                    } catch (_: Exception) { }
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -270,6 +345,13 @@ fun ProfileScreen(
                                     ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
                                 } catch (_: Exception) { }
                             }
+                        )
+                    }
+                    if (u.createdAt > 0) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Joined " + java.text.SimpleDateFormat("MMMM yyyy", java.util.Locale.US).format(java.util.Date(u.createdAt)),
+                            color = Color(0xFF8E8E8E), fontSize = 12.sp
                         )
                     }
                     if (u.anthem.isNotBlank()) {
@@ -458,11 +540,40 @@ fun ProfileScreen(
                         }
                     }
                 } else if (ptab == "reels") {
-                    Spacer(Modifier.height(60.dp))
-                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("▶", fontSize = 36.sp)
-                        Spacer(Modifier.height(10.dp))
-                        Text("No reels yet", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    val vids = ps.filter { it.isVideo }
+                    if (vids.isEmpty()) {
+                        Spacer(Modifier.height(60.dp))
+                        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("▶", fontSize = 36.sp)
+                            Spacer(Modifier.height(10.dp))
+                            Text("No reels yet", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        }
+                    } else {
+                        val vrows = vids.chunked(3)
+                        Column {
+                            for (row in vrows) {
+                                Row(Modifier.fillMaxWidth()) {
+                                    for (p in row) {
+                                        Box(
+                                            Modifier.weight(1f).aspectRatio(0.8f).padding(0.5.dp)
+                                                .background(Color(0xFF101010))
+                                                .clickable { onOpenPost(p) }
+                                        ) {
+                                            DataImage(
+                                                url = p.media,
+                                                fallbackLetter = p.username.take(1).uppercase(),
+                                                circle = false,
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                            Text("▶", color = Color.White, fontSize = 14.sp, modifier = Modifier.align(Alignment.TopEnd).padding(6.dp))
+                                        }
+                                    }
+                                    repeat(3 - row.size) {
+                                        Box(Modifier.weight(1f).aspectRatio(0.8f).background(Color.Black))
+                                    }
+                                }
+                            }
+                        }
                     }
                 } else if (ptab == "tagged") {
                     Spacer(Modifier.height(60.dp))
@@ -492,6 +603,39 @@ fun ProfileScreen(
                             color = Color(0xFF8E8E8E), fontSize = 12.sp
                         )
                     }
+                } else if (listView) {
+                    // v7.1: list view (media + caption + counts) like IG's layout switcher
+                    Column {
+                        for (p in ps) {
+                            Row(
+                                Modifier.fillMaxWidth().clickable { onOpenPost(p) }
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(Modifier.size(84.dp).background(Color(0xFF101010))) {
+                                    DataImage(
+                                        url = p.media,
+                                        fallbackLetter = p.username.take(1).uppercase(),
+                                        circle = false,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    if (p.pinnedAt > 0) Text("📌 Pinned", color = Color(0xFF8E8E8E), fontSize = 11.sp)
+                                    Text(
+                                        p.caption.ifBlank { "(no caption)" },
+                                        color = Color.White, fontSize = 13.sp, maxLines = 2
+                                    )
+                                    Spacer(Modifier.height(3.dp))
+                                    Text(
+                                        fmtCount(p.likesCount) + " likes · " + p.commentsCount + " comments · " + postTimeAgo(p.createdAt),
+                                        color = Color(0xFF8E8E8E), fontSize = 11.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
                 } else {
                     val rows = ps.chunked(3)
                     Column {
@@ -511,6 +655,9 @@ fun ProfileScreen(
                                         )
                                         if (p.isVideo) {
                                             Text("▶", color = Color.White, fontSize = 15.sp, modifier = Modifier.align(Alignment.TopEnd).padding(6.dp))
+                                        }
+                                        if (p.pinnedAt > 0) {
+                                            Text("📌", fontSize = 13.sp, modifier = Modifier.align(Alignment.TopStart).padding(5.dp))
                                         }
                                     }
                                 }
@@ -663,6 +810,66 @@ fun ProfileScreen(
                     else Text("Save", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
                 Spacer(Modifier.height(30.dp))
+            }
+        }
+    }
+
+    // ---- v7.1: archived posts (hidden from grid, restorable) ----
+    if (archivedOpen && isOwn) {
+        var archived by remember { mutableStateOf<List<Post>?>(null) }
+        LaunchedEffect(archivedOpen) {
+            archived = try { Fb.userPosts(u.username).filter { it.archived } } catch (_: Exception) { emptyList() }
+        }
+        androidx.compose.material3.ModalBottomSheet(onDismissRequest = { archivedOpen = false }, containerColor = Color(0xFF1C1C1E)) {
+            Column(Modifier.padding(horizontal = 16.dp).height(430.dp)) {
+                Text("Archived", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Spacer(Modifier.height(10.dp))
+                val al = archived
+                if (al == null) {
+                    Box(Modifier.fillMaxWidth().padding(20.dp), Alignment.Center) {
+                        CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                    }
+                } else if (al.isEmpty()) {
+                    Text("Nothing archived yet. Use ⋮ on a post → Archive.", color = Color(0xFF8E8E8E), fontSize = 13.sp)
+                } else {
+                    androidx.compose.foundation.lazy.LazyColumn(Modifier.weight(1f)) {
+                        items(al.size) { i ->
+                            val ap = al[i]
+                            Row(
+                                Modifier.fillMaxWidth().padding(vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(Modifier.size(52.dp).background(Color(0xFF101010))) {
+                                    DataImage(url = ap.media, fallbackLetter = "A", circle = false, modifier = Modifier.fillMaxSize())
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(ap.caption.ifBlank { "(no caption)" }, color = Color.White, fontSize = 13.sp, maxLines = 1)
+                                    Text(postTimeAgo(ap.createdAt), color = Color(0xFF8E8E8E), fontSize = 11.sp)
+                                }
+                                Text(
+                                    "Unarchive", color = Color(0xFF0095F6), fontWeight = FontWeight.Bold, fontSize = 12.sp,
+                                    modifier = Modifier.clickable {
+                                        scope.launch {
+                                            try { Fb.setPostField(ap.id, "archived", false); reload() } catch (_: Exception) { }
+                                            archived = try { Fb.userPosts(u.username).filter { it.archived } } catch (_: Exception) { emptyList() }
+                                        }
+                                    }.padding(6.dp)
+                                )
+                                Text(
+                                    "Delete", color = Color(0xFFED4956), fontWeight = FontWeight.Bold, fontSize = 12.sp,
+                                    modifier = Modifier.clickable {
+                                        scope.launch {
+                                            try { Fb.deletePost(ap.id); reload() } catch (_: Exception) { }
+                                            archived = try { Fb.userPosts(u.username).filter { it.archived } } catch (_: Exception) { emptyList() }
+                                        }
+                                    }.padding(6.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(20.dp))
             }
         }
     }

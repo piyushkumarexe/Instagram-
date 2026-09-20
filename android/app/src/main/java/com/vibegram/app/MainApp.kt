@@ -51,6 +51,10 @@ import kotlinx.coroutines.launch
 
 data class Route(val tab: String, val username: String? = null)
 
+// v7.1: hide blocked / muted / archived-own posts from the feed
+private fun List<Post>.visibleInFeed(me: VUser): List<Post> =
+    filter { it.userId !in me.blocked && it.userId !in me.mutedPosts && !(it.archived && it.userId == me.id) }
+
 @Composable
 fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
     var me by remember { mutableStateOf(initialMe) }
@@ -110,7 +114,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                     val cur = posts ?: return@launch
                     val last = cur.lastOrNull()?.createdAt
                     if (last != null) {
-                        val more = Fb.feed(before = last)
+                        val more = Fb.feed(before = last).visibleInFeed(me)
                         if (more.isEmpty()) feedEnd = true else posts = cur + more
                     }
                 } catch (_: Exception) {
@@ -120,7 +124,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
     }
     val loadFeed: () -> Unit = {
         scope.launch {
-            try { posts = Fb.feed(); feedErr = null } catch (e: Exception) { feedErr = e.message }
+            try { posts = Fb.feed().visibleInFeed(me); feedErr = null } catch (e: Exception) { feedErr = e.message }
         }
     }
     LaunchedEffect(Unit) {
@@ -158,7 +162,11 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
     var storyGroups by remember { mutableStateOf<Map<VUser, List<Story>>>(emptyMap()) }
     var openStory by remember { mutableStateOf<VUser?>(null) }
     val loadStories: () -> Unit = {
-        scope.launch { storyGroups = try { Fb.stories() } catch (_: Exception) { emptyMap() } }
+        scope.launch {
+            storyGroups = try {
+                Fb.stories().filterKeys { it.id !in me.blocked && it.id !in me.mutedStories }
+            } catch (_: Exception) { emptyMap() }
+        }
     }
     LaunchedEffect(Unit) { loadStories() }
 
@@ -216,7 +224,8 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                     "messages" -> MessagesScreen(
                         me = me,
                         onChat = { chatWith = it },
-                        onProfile = { goProfile(it) }
+                        onProfile = { goProfile(it) },
+                        onMeChanged = { me = it }
                     )
                     "create" -> CreateScreen(
                         me = me,
@@ -311,6 +320,7 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                             storyGroups.entries.firstOrNull { it.key.id == me.id }?.let { openStory = it.key }
                         },
                         onOpenPost = { postFor = it },
+                        onMeChanged = { me = it },
                         hasStory = storyGroups.keys.any { it.id == me.id }
                     )
                 }
@@ -359,7 +369,10 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                 NavigationBarItem(
                     selected = tab == "profile", onClick = { tab = "profile" },
                     icon = {
-                        ZoomableAvatar(url = me.avatar, size = 26, name = me.username)
+                        ZoomableAvatar(
+                            url = me.avatar, size = 26, name = me.username,
+                            onTap = { tab = "profile" }
+                        )
                     },
                     colors = navColors()
                 )
@@ -380,7 +393,8 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                 other = user,
                 me = me,
                 onProfile = { chatWith = null; goProfile(it) },
-                onBack = { chatWith = null }
+                onBack = { chatWith = null },
+                onOpenPost = { chatWith = null; postFor = it }
             )
         }
         openStory?.let { su ->
