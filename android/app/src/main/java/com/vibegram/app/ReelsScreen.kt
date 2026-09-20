@@ -18,6 +18,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.PageSize
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -151,7 +154,7 @@ private fun ReelPage(
             if (showHeart) {
                 Box(Modifier.fillMaxSize(), Alignment.Center) {
                     Icon(
-                        androidx.compose.material.icons.Icons.Filled.Favorite, null,
+                        Icons.Filled.Favorite, null,
                         tint = Color(0xFFFF3040), modifier = Modifier.size(110.dp)
                     )
                 }
@@ -209,7 +212,7 @@ private fun ReelPage(
                 onLike(post)
             }) {
                 Icon(
-                    if (liked) androidx.compose.material.icons.Icons.Filled.Favorite else androidx.compose.material.icons.Icons.Filled.FavoriteBorder,
+                    if (liked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                     null,
                     tint = if (liked) Color(0xFFED4956) else Color.White,
                     modifier = Modifier.size(30.dp)
@@ -219,7 +222,7 @@ private fun ReelPage(
             Spacer(Modifier.height(12.dp))
             IconButton(onClick = onComments) {
                 Icon(
-                    androidx.compose.material.icons.Icons.Outlined.ChatBubbleOutline, null,
+                    Icons.Outlined.ChatBubbleOutline, null,
                     tint = Color.White, modifier = Modifier.size(27.dp)
                 )
             }

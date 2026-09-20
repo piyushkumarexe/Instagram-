@@ -553,7 +553,8 @@ fun CommentsPanel(
     post: Post,
     onDismiss: () -> Unit,
     onProfile: (String) -> Unit,
-    onAvatar: (String) -> Unit
+    onAvatar: (String) -> Unit,
+    onHashtag: (String) -> Unit = {}
 ) {
     var list by remember { mutableStateOf<List<VComment>?>(null) }
     var text by remember { mutableStateOf("") }
@@ -606,7 +607,7 @@ fun CommentsPanel(
                                 Spacer(Modifier.width(10.dp))
                                 Column(Modifier.weight(1f).clickable { onProfile(c.username) }) {
                                     Text(c.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                    HashtagText(c.text, onMention = onProfile)
+                                    HashtagText(c.text, onMention = onProfile, onTag = onHashtag)
                                     Row {
                                         Text(
                                             postTimeAgo(c.createdAt),
