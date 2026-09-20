@@ -116,6 +116,12 @@ fun SearchScreen(onProfile: (String) -> Unit) {
             ) {
                 Text("Recent", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Box(Modifier.weight(1f))
+                if (recents.isNotEmpty()) {
+                    Text(
+                        "Clear all", color = Color(0xFF0095F6), fontWeight = FontWeight.Bold, fontSize = 13.sp,
+                        modifier = Modifier.clickable { recents.clear(); saveRecents(ctx, recents) }.padding(6.dp)
+                    )
+                }
             }
             if (recents.isEmpty()) {
                 EmptyBox("Search people by username", "🔎")

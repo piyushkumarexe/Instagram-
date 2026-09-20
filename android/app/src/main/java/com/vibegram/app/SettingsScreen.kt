@@ -255,6 +255,17 @@ fun SettingsScreen(
 
             SectionLabel("Data and storage")
             Row(
+                Modifier.fillMaxWidth().clickable {
+                    clearImageCache()
+                    android.widget.Toast.makeText(ctx, "Image cache cleared", android.widget.Toast.LENGTH_SHORT).show()
+                }.padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("🧹", fontSize = 19.sp)
+                Spacer(Modifier.width(14.dp))
+                Text("Clear image cache", color = Color.White, fontSize = 15.sp)
+            }
+            Row(
                 Modifier.fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -280,6 +291,13 @@ fun SettingsScreen(
                     )
                 )
             }
+
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "Instagram 2.0 · version 7.3",
+                color = Color(0xFF5A5A5A), fontSize = 12.sp,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
 
             Spacer(Modifier.height(16.dp))
             Text(

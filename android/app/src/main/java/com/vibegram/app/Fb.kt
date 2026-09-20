@@ -506,6 +506,18 @@ object Fb {
      * Who liked a post — resolves the stored uid list to profiles.
      * Capped and failure-tolerant: one bad doc must not blank the whole sheet.
      */
+    // ---- v7.3 APIs ----
+    suspend fun toggleFollowTag(tag: String, on: Boolean) {
+        val idv = uid ?: return
+        db.collection("users").document(idv).update(
+            "followedTags", if (on) FieldValue.arrayUnion(tag) else FieldValue.arrayRemove(tag)
+        ).await()
+    }
+
+    suspend fun incrementViews(postId: String) {
+        try { db.collection("posts").document(postId).update("views", FieldValue.increment(1)).await() } catch (_: Exception) { }
+    }
+
     // ---- v7.2 APIs ----
     /** in-memory user cache: cuts repeated Firestore doc reads (threads/notifs/likers) */
     private val userCache = object : java.util.LinkedHashMap<String, Pair<Long, VUser>>(128, 0.75f, true) {

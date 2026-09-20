@@ -21,7 +21,8 @@ data class VUser(
     val createdAt: Long = 0,
     val blocked: List<String> = emptyList(),
     val mutedPosts: List<String> = emptyList(),
-    val mutedStories: List<String> = emptyList()
+    val mutedStories: List<String> = emptyList(),
+    val followedTags: List<String> = emptyList()
 )
 
 data class Post(
@@ -43,7 +44,8 @@ data class Post(
     val pinnedAt: Long = 0,
     val archived: Boolean = false,
     val commentsOff: Boolean = false,
-    val hideLikes: Boolean = false
+    val hideLikes: Boolean = false,
+    val views: Long = 0
 )
 
 data class VComment(
@@ -123,7 +125,8 @@ fun DocumentSnapshot.toVUser(): VUser? {
             ?: getLong("createdAt") ?: 0L,
         blocked = (get("blocked") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
         mutedPosts = (get("mutedPosts") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
-        mutedStories = (get("mutedStories") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+        mutedStories = (get("mutedStories") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+        followedTags = (get("followedTags") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
     )
 }
 
@@ -151,7 +154,8 @@ fun DocumentSnapshot.toPost(): Post? {
         pinnedAt = getLong("pinnedAt") ?: 0L,
         archived = getBoolean("archived") ?: false,
         commentsOff = getBoolean("commentsOff") ?: false,
-        hideLikes = getBoolean("hideLikes") ?: false
+        hideLikes = getBoolean("hideLikes") ?: false,
+        views = getLong("views") ?: 0L
     )
 }
 

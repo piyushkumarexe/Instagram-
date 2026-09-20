@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Adaptive-icon background: the classic sunset gradient. -->
+<!-- Adaptive-icon background: Instagram's sunset gradient, compressed into the
+     adaptive safe zone so the launcher crop still shows yellow->pink->purple. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
@@ -10,14 +11,14 @@
         <aapt:attr name="android:fillColor">
             <gradient
                 android:type="linear"
-                android:startX="10"
-                android:startY="104"
-                android:endX="100"
-                android:endY="6">
+                android:startX="24"
+                android:startY="88"
+                android:endX="86"
+                android:endY="22">
                 <item android:offset="0.00" android:color="#FFFEDA75" />
-                <item android:offset="0.25" android:color="#FFFA7E1E" />
-                <item android:offset="0.50" android:color="#FFD62976" />
-                <item android:offset="0.75" android:color="#FF962FBF" />
+                <item android:offset="0.22" android:color="#FFFA7E1E" />
+                <item android:offset="0.48" android:color="#FFD62976" />
+                <item android:offset="0.74" android:color="#FF962FBF" />
                 <item android:offset="1.00" android:color="#FF4F5BD5" />
             </gradient>
         </aapt:attr>

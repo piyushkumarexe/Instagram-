@@ -20,6 +20,8 @@ import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.Icon
@@ -116,6 +118,8 @@ private fun ReelPage(
     var started by remember(post.id) { mutableStateOf(!dataSaver) }
     var showHeart by remember { mutableStateOf(false) }
     var shareOpen by remember { mutableStateOf(false) }
+    var saved by remember(post.id) { mutableStateOf(post.savedByMe) }
+    var plays by remember(post.id) { mutableStateOf(post.views) }
     var following by remember { mutableStateOf<Boolean?>(null) }
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
@@ -123,6 +127,13 @@ private fun ReelPage(
 
     LaunchedEffect(post.userId) {
         following = if (post.userId == myId) true else try { Fb.isFollowing(post.userId) } catch (_: Exception) { false }
+    }
+    // count a view when the reel becomes the active page
+    LaunchedEffect(active) {
+        if (active) {
+            plays += 1
+            try { Fb.incrementViews(post.id) } catch (_: Exception) { }
+        }
     }
 
     Box(Modifier.fillMaxSize().background(Color(0xFF0A0A0A))) {
@@ -200,6 +211,8 @@ private fun ReelPage(
                 Spacer(Modifier.height(6.dp))
                 Text(post.caption, color = Color(0xFFEDEDED), fontSize = 13.sp, maxLines = 2)
             }
+            Spacer(Modifier.height(4.dp))
+            Text(fmtCount(plays) + " plays", color = Color(0xFF9A9A9A), fontSize = 11.sp)
         }
 
         // right rail (IG)
@@ -233,6 +246,17 @@ private fun ReelPage(
                 Icon(painterResource(R.drawable.ic_dm), null, tint = Color.White, modifier = Modifier.size(26.dp))
             }
             Text("Share", color = Color.White, fontSize = 11.sp)
+            Spacer(Modifier.height(12.dp))
+            IconButton(onClick = {
+                saved = !saved
+                scope.launch { try { Fb.toggleSave(post.id) } catch (_: Exception) { } }
+            }) {
+                Icon(
+                    if (saved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                    null, tint = Color.White, modifier = Modifier.size(26.dp)
+                )
+            }
+            Text("Save", color = Color.White, fontSize = 11.sp)
             Spacer(Modifier.height(12.dp))
             IconButton(onClick = { muted = !muted }) {
                 Text(if (muted) "🔇" else "🔊", fontSize = 20.sp)

@@ -32,6 +32,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -62,6 +65,8 @@ fun PostModal(
 ) {
     var showHeart by remember { mutableStateOf(false) }
     var pmMenu by remember { mutableStateOf(false) }
+    var pmSaved by remember(post.id) { mutableStateOf(post.savedByMe) }
+    var pmShare by remember { mutableStateOf(false) }
     val pmScope = rememberCoroutineScope()
     val pmCtx = androidx.compose.ui.platform.LocalContext.current
     val myId = Fb.uid
@@ -167,7 +172,22 @@ fun PostModal(
             IconButton(onClick = { onComments(post) }) {
                 Icon(Icons.Outlined.ChatBubbleOutline, null, tint = Color.White, modifier = Modifier.size(24.dp))
             }
+            IconButton(onClick = {
+                pmSaved = !pmSaved
+                pmScope.launch { try { Fb.toggleSave(post.id) } catch (_: Exception) { } }
+            }) {
+                Icon(
+                    if (pmSaved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder, null,
+                    tint = Color.White, modifier = Modifier.size(24.dp)
+                )
+            }
+            IconButton(onClick = { pmShare = true }) {
+                Icon(Icons.Filled.Send, null, tint = Color.White, modifier = Modifier.size(22.dp))
+            }
             Box(Modifier.weight(1f))
+        }
+        if (pmShare) {
+            ShareSheet(post = post, onDismiss = { pmShare = false })
         }
 
         Column(Modifier.padding(horizontal = 12.dp)) {
@@ -260,7 +280,25 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
         onClose()
     }
 
-    Box(Modifier.fillMaxSize().background(Color.Black).statusBarsPadding()) {
+    Box(
+        Modifier.fillMaxSize().background(Color.Black).statusBarsPadding()
+            .pointerInput(Unit) {
+                // v7.3: swipe down closes the story (IG)
+                androidx.compose.ui.input.pointer.awaitPointerEventScope {
+                    while (true) {
+                        androidx.compose.ui.input.pointer.awaitFirstDown(requireUnconsumed = false)
+                        var dy = 0f
+                        while (true) {
+                            val ev = awaitPointerEvent()
+                            val ch = ev.changes.firstOrNull() ?: break
+                            dy += ch.position.y - ch.previousPosition.y
+                            if (dy > 140) { onClose(); break }
+                            if (dy < -40 || !ch.pressed) break
+                        }
+                    }
+                }
+            }
+    ) {
         val story = stories.getOrNull(idx)
         if (story == null) {
             onClose()
@@ -532,6 +570,10 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+private fun Modifier.androidxLongPress(onLongClick: () -> Unit, onClick: () -> Unit = {}): Modifier =
+    this.then(Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick))
+
 private fun Modifier.androidxClickable(onClick: () -> Unit): Modifier =
     this.then(Modifier.clickable { onClick() })
 
@@ -561,6 +603,7 @@ fun CommentsPanel(
     var sending by remember { mutableStateOf(false) }
     var replyTo by remember { mutableStateOf<VComment?>(null) }
     val scope = rememberCoroutineScope()
+    val cpCtx = androidx.compose.ui.platform.LocalContext.current
 
     fun load() {
         scope.launch { list = try { Fb.comments(post.id) } catch (_: Exception) { emptyList() } }
@@ -605,7 +648,15 @@ fun CommentsPanel(
                                     AvatarView(url = c.avatar, size = 34, border = false, name = c.username)
                                 }
                                 Spacer(Modifier.width(10.dp))
-                                Column(Modifier.weight(1f).clickable { onProfile(c.username) }) {
+                                Column(
+                                    Modifier.weight(1f)
+                                        .clickable { onProfile(c.username) }
+                                        .androidxLongPress {
+                                            val cm = cpCtx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                            cm.setPrimaryClip(android.content.ClipData.newPlainText("comment", c.text))
+                                            android.widget.Toast.makeText(cpCtx, "Comment copied", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                ) {
                                     Text(c.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                     HashtagText(c.text, onMention = onProfile, onTag = onHashtag)
                                     Row {

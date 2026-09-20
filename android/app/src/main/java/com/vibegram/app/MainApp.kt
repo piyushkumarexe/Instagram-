@@ -42,6 +42,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.border
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -60,6 +61,7 @@ private fun List<Post>.visibleInFeed(me: VUser): List<Post> =
 fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
     var me by remember { mutableStateOf(initialMe) }
     val scope = rememberCoroutineScope()
+    val mainCtx = androidx.compose.ui.platform.LocalContext.current
 
     var tab by remember { mutableStateOf("feed") }
     var profileUsername by remember { mutableStateOf(initialMe.username) }
@@ -132,7 +134,24 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
     }
     val loadFeed: () -> Unit = {
         scope.launch {
-            try { posts = Fb.feed().visibleInFeed(me); feedErr = null } catch (e: Exception) { feedErr = e.message }
+            try {
+                val base = Fb.feed().visibleInFeed(me)
+                // v7.3: followed hashtags surface in For-you even from unfollowed authors
+                val tagged = if (me.followedTags.isNotEmpty()) {
+                    try {
+                        Fb.explorePosts().filter { p ->
+                            me.followedTags.any { t -> p.caption.contains("#" + t, true) } &&
+                                p.userId !in me.blocked && !(p.archived && p.userId == me.id)
+                        }
+                    } catch (_: Exception) { emptyList() }
+                } else emptyList()
+                val hidden = (mainCtx.getSharedPreferences("vibegram", 0).getString("hidden_posts", "") ?: "")
+                    .split(',').filter { it.isNotBlank() }.toSet()
+                posts = (base + tagged.filter { t -> base.none { it.id == t.id } })
+                    .filter { it.id !in hidden }
+                    .sortedByDescending { it.createdAt }
+                feedErr = null
+            } catch (e: Exception) { feedErr = e.message }
         }
     }
     LaunchedEffect(Unit) {
@@ -227,11 +246,13 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                                 try { Fb.deletePost(p.id) } catch (_: Exception) { }
                                 loadFeed()
                             }
-                        }
+                        },
+                        onHidden = { p -> posts = posts?.filter { it.id != p.id } }
                     )
 "search" -> ExploreScreen(onProfile = { goProfile(it) }, onPost = { postFor = it })
                     "hashtag" -> HashtagScreen(
                         tag = tagQuery,
+                        me = me,
                         onBack = { goBack() },
                         onPost = { postFor = it }
                     )
@@ -383,10 +404,19 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                 NavigationBarItem(
                     selected = tab == "profile", onClick = { tab = "profile" },
                     icon = {
-                        ZoomableAvatar(
-                            url = me.avatar, size = 26, name = me.username,
-                            onTap = { tab = "profile" }
-                        )
+                        if (tab == "profile") {
+                            Box(
+                                Modifier.size(30.dp).border(1.7.dp, Color.White, androidx.compose.foundation.shape.CircleShape),
+                                Alignment.Center
+                            ) {
+                                ZoomableAvatar(url = me.avatar, size = 24, name = me.username, onTap = { })
+                            }
+                        } else {
+                            ZoomableAvatar(
+                                url = me.avatar, size = 26, name = me.username,
+                                onTap = { tab = "profile" }
+                            )
+                        }
                     },
                     colors = navColors()
                 )

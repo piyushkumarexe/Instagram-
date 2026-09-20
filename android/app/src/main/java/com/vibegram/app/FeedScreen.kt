@@ -80,6 +80,7 @@ fun FeedScreen(
     onStoryPicked: (Uri) -> Unit,
     onDelete: (Post) -> Unit,
     onHashtag: (String) -> Unit = {},
+    onHidden: (Post) -> Unit = {},
     onLoadMore: () -> Unit = {},
     loadingMore: Boolean = false,
     scrollTick: Int = 0,
@@ -187,7 +188,8 @@ fun FeedScreen(
                         onProfile = onProfile,
                         onAvatar = onOpenStory,
                         onDelete = onDelete,
-                        onHashtag = onHashtag
+                        onHashtag = onHashtag,
+                        onHidden = onHidden
                     )
                 }
                 if (loadingMore) {
@@ -310,7 +312,7 @@ fun AvatarView(
             Box(
                 Modifier.size((size + 6).dp).background(
                     androidx.compose.ui.graphics.Brush.linearGradient(
-                        listOf(Color(0xFFF09433), Color(0xFFDC2743), Color(0xFFBC1888))
+                        listOf(Color(0xFFFEDA75), Color(0xFFFA7E1E), Color(0xFFD62976), Color(0xFF962FBF))
                     ),
                     CircleShape
                 ).padding(2.dp)
@@ -410,7 +412,8 @@ fun PostCard(
     onProfile: (String) -> Unit,
     onAvatar: (VUser) -> Unit,
     onDelete: (Post) -> Unit,
-    onHashtag: (String) -> Unit = {}
+    onHashtag: (String) -> Unit = {},
+    onHidden: (Post) -> Unit = {}
 ) {
     var showHeart by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
@@ -518,6 +521,26 @@ fun PostCard(
                             cardScope.launch {
                                 try { Fb.addStoryUrl(post.media); sharedNote = true } catch (_: Exception) { }
                             }
+                        }
+                    )
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text("Not interested", color = Color.White) },
+                        onClick = {
+                            menu = false
+                            try {
+                                val pr = cardCtx.getSharedPreferences("vibegram", 0)
+                                val cur = pr.getString("hidden_posts", "") ?: ""
+                                pr.edit().putString("hidden_posts", (cur + "," + post.id).trim(',')).apply()
+                            } catch (_: Exception) { }
+                            onHidden(post)
+                            android.widget.Toast.makeText(cardCtx, "You'll see fewer posts like this", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text("Report", color = Color(0xFFED4956)) },
+                        onClick = {
+                            menu = false
+                            android.widget.Toast.makeText(cardCtx, "Report submitted. Thanks for keeping Instagram 2.0 safe.", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     )
                     androidx.compose.material3.DropdownMenuItem(

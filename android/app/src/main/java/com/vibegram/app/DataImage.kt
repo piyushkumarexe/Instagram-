@@ -43,6 +43,9 @@ private val bmpCache = object : LruCache<String, Bitmap>(
 /** Permanent-failure list, bounded so it cannot grow without limit. */
 private val failedCache = java.util.LinkedHashSet<String>()
 
+/** v7.3: settings -> clear image cache */
+fun clearImageCache() { bmpCache.evictAll() }
+
 private fun rememberFailure(url: String) {
     if (failedCache.size > 200) failedCache.clear()
     failedCache.add(url)

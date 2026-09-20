@@ -64,6 +64,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -370,6 +371,19 @@ fun ProfileScreen(
                             color = Color(0xFF8E8E8E), fontSize = 12.sp
                         )
                     }
+                    if (isOwn && u.anthem.isBlank()) {
+                        Spacer(Modifier.height(6.dp))
+                        Row(
+                            Modifier.background(Color(0xFF1C1C1E), RoundedCornerShape(16.dp))
+                                .clickable { songSheet = true }
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("+", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.width(6.dp))
+                            Text("Add music to profile", color = Color(0xFFDDDDDD), fontSize = 12.sp)
+                        }
+                    }
                     if (u.anthem.isNotBlank()) {
                         Spacer(Modifier.height(6.dp))
                         Row(
@@ -476,6 +490,57 @@ fun ProfileScreen(
                     }
                 }
 
+                // ---- v7.3: discover people cards on own profile (IG style) ----
+                if (isOwn) {
+                    var sugg by remember { mutableStateOf<List<VUser>?>(null) }
+                    var dismissed by remember { mutableStateOf(setOf<String>()) }
+                    LaunchedEffect(Unit) { sugg = try { Fb.suggestions() } catch (_: Exception) { emptyList() } }
+                    val sl = sugg?.filter { !dismissed.contains(it.id) }?.take(6)
+                    if (sl != null && sl.isNotEmpty()) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Discover people", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                            Text("See all", color = Color(0xFF0095F6), fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clickable { onDiscover() })
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        androidx.compose.foundation.lazy.LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp)
+                        ) {
+                            items(sl) { su ->
+                                Box(
+                                    Modifier.width(150.dp).background(Color(0xFF161616), RoundedCornerShape(12.dp))
+                                        .padding(12.dp)
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("✕", color = Color(0xFFB0B0B0), fontSize = 13.sp, modifier = Modifier.align(Alignment.End).clickable { dismissed = dismissed + su.id })
+                                        AvatarView(url = su.avatar, size = 72, border = false, name = su.username)
+                                        Spacer(Modifier.height(8.dp))
+                                        Text(su.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
+                                        Spacer(Modifier.height(2.dp))
+                                        Text("Suggested for you", color = Color(0xFF8E8E8E), fontSize = 11.sp)
+                                        Spacer(Modifier.height(8.dp))
+                                        var fol by remember(su.id) { mutableStateOf(false) }
+                                        Button(
+                                            onClick = {
+                                                fol = true
+                                                scope.launch { try { Fb.follow(su, true) } catch (_: Exception) { } }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = if (fol) Color(0xFF262626) else Color(0xFF3D5AF1)),
+                                            modifier = Modifier.fillMaxWidth().height(34.dp),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) { Text(if (fol) "Following" else "Follow", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp) }
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(6.dp))
+                    }
+                }
+
                 // ---- v7.2: story highlights row ----
                 val hl = highlights
                 if (hl != null && hl.isNotEmpty()) {
@@ -507,17 +572,17 @@ fun ProfileScreen(
                 // ---- IG profile tabs (grid / reels / reposted / tagged) ----
                 Row(Modifier.fillMaxWidth()) {
                     listOf(
-                        Triple("grid", Icons.Filled.Apps, "Grid"),
-                        Triple("reels", Icons.Filled.SmartDisplay, "Reels"),
-                        Triple("reposted", Icons.Outlined.Repeat, "Reposts"),
-                        Triple("tagged", Icons.Outlined.PersonPin, "Tagged")
-                    ).forEach { (key, ic, _) ->
+                        "grid" to R.drawable.ic_grid,
+                        "reels" to R.drawable.ic_reels,
+                        "reposted" to R.drawable.ic_repost,
+                        "tagged" to R.drawable.ic_tagged
+                    ).forEach { (key, ic) ->
                         Column(
                             Modifier.weight(1f).clickable { ptab = key },
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Spacer(Modifier.height(8.dp))
-                            Icon(ic, null, tint = if (ptab == key) Color.White else Color(0xFF5A5A5A), modifier = Modifier.size(24.dp))
+                            Icon(painterResource(ic), null, tint = if (ptab == key) Color.White else Color(0xFF5A5A5A), modifier = Modifier.size(24.dp))
                             Spacer(Modifier.height(7.dp))
                             Box(
                                 Modifier.fillMaxWidth(0.6f).height(1.5.dp)

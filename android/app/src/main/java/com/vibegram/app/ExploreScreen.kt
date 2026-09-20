@@ -28,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -182,13 +183,29 @@ fun ExploreScreen(onProfile: (String) -> Unit, onPost: (Post) -> Unit) {
 
 // v7.2: hashtag page — every post that used #tag
 @Composable
-fun HashtagScreen(tag: String, onBack: () -> Unit, onPost: (Post) -> Unit) {
+fun HashtagScreen(tag: String, me: VUser, onBack: () -> Unit, onPost: (Post) -> Unit) {
     var posts by remember { mutableStateOf<List<Post>?>(null) }
+    var followingTag by remember { mutableStateOf(me.followedTags.contains(tag)) }
+    val tagScope = rememberCoroutineScope()
     LaunchedEffect(tag) {
         posts = try { Fb.hashtagPosts(tag) } catch (_: Exception) { emptyList() }
     }
     Column(Modifier.fillMaxSize().background(Color.Black).statusBarsPadding()) {
-        Header("#" + tag, onBack = onBack)
+        Header("#" + tag, onBack = onBack, actions = {
+            Text(
+                if (followingTag) "Following ▾" else "Follow",
+                color = if (followingTag) Color.White else Color(0xFF0095F6),
+                fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                modifier = Modifier
+                    .background(Color(0xFF262626), RoundedCornerShape(8.dp))
+                    .clickable {
+                        val on = !followingTag
+                        followingTag = on
+                        tagScope.launch { try { Fb.toggleFollowTag(tag, on) } catch (_: Exception) { } }
+                    }
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+            )
+        })
         val pl = posts
         if (pl == null) {
             LoadingBox()

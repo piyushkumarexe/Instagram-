@@ -205,7 +205,7 @@ fun MessagesScreen(me: VUser, onChat: (VUser) -> Unit, onProfile: (String) -> Un
                             }
                             if (t.unread > 0) {
                                 Box(
-                                    Modifier.size(22.dp).background(Color(0xFF0095F6), CircleShape),
+                                    Modifier.size(22.dp).background(Color(0xFFED4956), CircleShape),
                                     Alignment.Center
                                 ) {
                                     Text(t.unread.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -601,13 +601,17 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
                                     text = { Text("Reply") },
                                     onClick = { menuFor = false; replyToMsg = m }
                                 )
-                                androidx.compose.material3.DropdownMenuItem(
-                                    text = { Text("React ❤️") },
-                                    onClick = {
-                                        menuFor = false
-                                        scope.launch { try { Fb.reactToMessage(other.id, m.id, "❤️") ; msgs = Fb.messages(other.id) } catch (_: Exception) { } }
+                                Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                                    listOf("❤️", "😂", "😮", "😢", "👍").forEach { e ->
+                                        Text(
+                                            e, fontSize = 20.sp,
+                                            modifier = Modifier.clickable {
+                                                menuFor = false
+                                                scope.launch { try { Fb.reactToMessage(other.id, m.id, e); msgs = Fb.messages(other.id) } catch (_: Exception) { } }
+                                            }.padding(horizontal = 6.dp)
+                                        )
                                     }
-                                )
+                                }
                                 if (m.fromMe) {
                                     androidx.compose.material3.DropdownMenuItem(
                                         text = { Text("Unsend", color = Color(0xFFED4956)) },
