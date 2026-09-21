@@ -190,18 +190,21 @@ fun ProfileScreen(
                     .clickable { onBack() }
                     .padding(end = 12.dp))
             }
-            Text(u.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-            if (u.verified) {
-                Spacer(Modifier.width(5.dp))
-                VerifiedBadge(18)
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(u.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    if (u.verified) {
+                        Spacer(Modifier.width(5.dp))
+                        VerifiedBadge(18)
+                    }
+                    if (u.isPrivate) {
+                        Spacer(Modifier.width(4.dp))
+                        Text("🔒", fontSize = 13.sp)
+                    }
+                    Text(" ▾", color = Color(0xFF8E8E8E), fontSize = 13.sp)
+                }
             }
-            if (u.isPrivate) {
-                Spacer(Modifier.width(4.dp))
-                Icon(
-                    Icons.Outlined.Lock, null,
-                    tint = Color(0xFFC7C7C7), modifier = Modifier.size(15.dp)
-                )
-            }
+
             Box(Modifier.weight(1f))
             IconButton(onClick = { listView = !listView }) {
                 Icon(

@@ -2,6 +2,9 @@ package com.vibegram.app
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.HealthAndSafety
+import androidx.compose.material.icons.outlined.Block
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -429,7 +432,14 @@ private fun SharedPostCard(postId: String, onOpen: (Post) -> Unit) {
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () -> Unit, onOpenPost: (Post) -> Unit = {}) {
+fun ChatScreen(
+    other: VUser,
+    me: VUser,
+    onProfile: (String) -> Unit,
+    onBack: () -> Unit,
+    onOpenPost: (Post) -> Unit = {},
+    onMeChanged: (VUser) -> Unit = {}
+) {
     var msgs by remember { mutableStateOf<List<VMsg>?>(null) }
     var text by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
@@ -437,8 +447,12 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
     var otherTyping by remember { mutableStateOf(false) }
     var replyToMsg by remember { mutableStateOf<VMsg?>(null) }
     var pendingImage by remember { mutableStateOf<String?>(null) }
+    var following by remember { mutableStateOf<Boolean?>(null) }
+    var mutual by remember { mutableStateOf<String?>(null) }
+    var tipsOpen by remember { mutableStateOf(false) }
     val chatCtx = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
     val imgPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch(kotlinx.coroutines.Dispatchers.IO) {
@@ -451,16 +465,26 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
             } catch (_: Exception) { }
         }
     }
-    val listState = rememberLazyListState()
 
-    // v7.1: typing indicator — poll the thread doc's typing stamp
+    LaunchedEffect(other.id) {
+        msgs = try { Fb.messages(other.id) } catch (_: Exception) { emptyList() }
+        try { Fb.markThreadRead(other.id) } catch (_: Exception) { }
+        following = try { Fb.isFollowing(other.id) } catch (_: Exception) { false }
+        try {
+            val mine = Fb.followingOf(me.id).map { it.id }.toSet()
+            mutual = Fb.followingOf(other.id).firstOrNull { it.id in mine && it.id != me.id }?.username
+        } catch (_: Exception) { mutual = null }
+    }
+    LaunchedEffect(msgs?.size) {
+        val n = msgs?.size ?: 0
+        if (n > 0) listState.animateScrollToItem(n - 1)
+    }
     LaunchedEffect(other.id) {
         while (true) {
             otherTyping = try { System.currentTimeMillis() - Fb.typingOf(other.id) in 1..5000 } catch (_: Exception) { false }
             kotlinx.coroutines.delay(2500)
         }
     }
-    // broadcast our own typing while the field has text
     LaunchedEffect(text) {
         if (text.isNotBlank()) {
             try { Fb.setTyping(other.id, true) } catch (_: Exception) { }
@@ -470,24 +494,19 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
             try { Fb.setTyping(other.id, false) } catch (_: Exception) { }
         }
     }
-    LaunchedEffect(other.id) {
-        // clear our typing flag when leaving the chat
-        kotlinx.coroutines.awaitCancellation()
-    }
 
-    LaunchedEffect(other.id) {
-        msgs = try { Fb.messages(other.id) } catch (_: Exception) { emptyList() }
-        try { Fb.markThreadRead(other.id) } catch (_: Exception) { }
+    fun sepLabel(at: Long): String {
+        val f = java.text.SimpleDateFormat("d MMM, h:mm a", java.util.Locale.US).format(java.util.Date(at))
+        val parts = f.split(" ")
+        return if (parts.size > 2) parts[0] + " " + parts[1].uppercase() + ", " + parts.drop(2).joinToString(" ") else f
     }
-    LaunchedEffect(msgs?.size) {
-        val n = msgs?.size ?: 0
-        if (n > 0) listState.animateScrollToItem(n - 1)
-    }
+    fun sameDay(a: Long, b: Long) = a / 86_400_000L == b / 86_400_000L
 
     Column(
         Modifier.fillMaxSize().background(Color.Black)
             .navigationBarsPadding().imePadding().statusBarsPadding()
     ) {
+        // ---- header: back | avatar | name + username/typing ----
         Row(
             Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -495,19 +514,19 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White, modifier = Modifier.size(24.dp))
             }
-            AvatarView(url = other.avatar, size = 32, border = false, name = other.username)
+            AvatarView(url = other.avatar, size = 34, border = false, name = other.username)
             Spacer(Modifier.width(10.dp))
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { onProfile(other.username) }) {
-                    Text(other.username, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(other.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     if (other.verified) {
                         Spacer(Modifier.width(4.dp))
                         VerifiedBadge(15)
                     }
                 }
                 Text(
-                    if (otherTyping) "typing…" else if (System.currentTimeMillis() - other.lastActive < 300_000) "Active now" else "",
-                    color = if (otherTyping) Color(0xFF0095F6) else Color(0xFF31D158), fontSize = 11.sp
+                    if (otherTyping) "typing…" else other.username,
+                    color = if (otherTyping) Color(0xFF0095F6) else Color(0xFF8E8E8E), fontSize = 11.sp
                 )
             }
         }
@@ -516,38 +535,104 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
             val list = msgs
             if (list == null) {
                 LoadingBox()
-            } else if (list.isEmpty()) {
-                Column(
-                    Modifier.fillMaxSize().padding(30.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    AvatarView(url = other.avatar, size = 72, border = false, name = other.username)
-                    Spacer(Modifier.height(10.dp))
-                    Text(other.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Text(other.username + " · Instagram 2.0", color = Color(0xFF8E8E8E), fontSize = 13.sp)
-                }
             } else {
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp)) {
-                    items(list) { m ->
-                        var menuFor by remember(m.id) { mutableStateOf(false) }
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
+                    // ---- IG chat profile header ----
+                    item {
                         Column(
-                            Modifier.fillMaxWidth().padding(vertical = 3.dp)
+                            Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            AvatarView(url = other.avatar, size = 92, border = false, name = other.username)
+                            Spacer(Modifier.height(12.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(other.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                                if (other.verified) {
+                                    Spacer(Modifier.width(5.dp))
+                                    VerifiedBadge(16)
+                                }
+                            }
+                            Spacer(Modifier.height(3.dp))
+                            Text(
+                                other.username +
+                                    (if (other.createdAt > 0) " · Joined " + java.text.SimpleDateFormat("MMM yyyy", java.util.Locale.US).format(java.util.Date(other.createdAt)) else ""),
+                                color = Color(0xFF8E8E8E), fontSize = 13.sp
+                            )
+                            Spacer(Modifier.height(3.dp))
+                            Text(
+                                fmtCount(other.followersCount) + " followers · " + other.postsCount + " posts",
+                                color = Color(0xFF8E8E8E), fontSize = 13.sp
+                            )
+                            if (following == true) {
+                                Spacer(Modifier.height(3.dp))
+                                Text("You follow this account", color = Color(0xFF8E8E8E), fontSize = 13.sp)
+                            }
+                            mutual?.let { m ->
+                                Spacer(Modifier.height(3.dp))
+                                Text("You both follow " + m, color = Color(0xFF8E8E8E), fontSize = 13.sp)
+                            }
+                            Spacer(Modifier.height(18.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(40.dp)) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.clickable { onProfile(other.username) }
+                                ) {
+                                    Icon(androidx.compose.material.icons.Icons.Outlined.Person, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                                    Spacer(Modifier.height(4.dp))
+                                    Text("Profile", color = Color.White, fontSize = 12.sp)
+                                }
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.clickable { tipsOpen = true }
+                                ) {
+                                    Icon(androidx.compose.material.icons.Icons.Outlined.HealthAndSafety, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                                    Spacer(Modifier.height(4.dp))
+                                    Text("Safety tips", color = Color.White, fontSize = 12.sp)
+                                }
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.clickable {
+                                        scope.launch {
+                                            try {
+                                                Fb.toggleBlock(other.id, true)
+                                                onMeChanged(me.copy(blocked = me.blocked + other.id))
+                                                android.widget.Toast.makeText(chatCtx, "@" + other.username + " blocked", android.widget.Toast.LENGTH_SHORT).show()
+                                                onBack()
+                                            } catch (_: Exception) { }
+                                        }
+                                    }
+                                ) {
+                                    Icon(androidx.compose.material.icons.Icons.Outlined.Block, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                                    Spacer(Modifier.height(4.dp))
+                                    Text("Block", color = Color.White, fontSize = 12.sp)
+                                }
+                            }
+                            Spacer(Modifier.height(10.dp))
+                        }
+                    }
+
+                    items(list.size) { i ->
+                        val m = list[i]
+                        val prev = if (i > 0) list[i - 1] else null
+                        var menuFor by remember(m.id) { mutableStateOf(false) }
+                        if (prev == null || !sameDay(prev.at, m.at)) {
+                            Text(
+                                sepLabel(m.at),
+                                color = Color(0xFF7A7A7A), fontSize = 11.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
+                            )
+                        }
+                        Column(
+                            Modifier.fillMaxWidth().padding(vertical = 2.dp)
                                 .androidxCombinedClickable(onLongClick = { menuFor = true }, onClick = { }),
                             horizontalAlignment = if (m.fromMe) Alignment.End else Alignment.Start
                         ) {
                             Box(
                                 Modifier
                                     .widthIn(max = 290.dp)
-                                    .then(
-                                        if (m.fromMe) Modifier.background(
-                                            androidx.compose.ui.graphics.Brush.horizontalGradient(
-                                                listOf(Color(0xFF0095F6), Color(0xFF3797F0))
-                                            ),
-                                            RoundedCornerShape(20.dp)
-                                        ) else Modifier.background(Color(0xFF262626), RoundedCornerShape(20.dp))
-                                    )
-                                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                                    .background(Color(0xFF262626), RoundedCornerShape(18.dp))
+                                    .padding(horizontal = 14.dp, vertical = 9.dp)
                             ) {
                                 Column {
                                     if (m.replyTo != null) {
@@ -572,23 +657,28 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
                                 }
                             }
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
-                                if (m.fromMe) {
-                                    Text(
-                                        if (m.read) "✓✓ " else "✓ ",
-                                        color = if (m.read) Color(0xFF31D158) else Color(0xFF8E8E8E),
-                                        fontSize = 10.sp
-                                    )
+                                if (m.reaction != null) {
+                                    Text(m.reaction!!, fontSize = 12.sp, modifier = Modifier.padding(end = 4.dp))
                                 }
+                            }
+                            if (m.fromMe && m.read && (i == list.lastIndex || !list[i + 1].fromMe)) {
                                 Text(
-                                    java.text.SimpleDateFormat("h:mm a", java.util.Locale.US).format(java.util.Date(m.at)),
-                                    color = Color(0xFF7A7A7A), fontSize = 10.sp,
-                                    modifier = Modifier.padding(top = 2.dp, end = 2.dp)
+                                    "Seen", color = Color(0xFF7A7A7A), fontSize = 10.sp,
+                                    modifier = Modifier.padding(top = 1.dp, end = 4.dp)
                                 )
                             }
-                            if (m.reaction != null) {
-                                Text(m.reaction!!, fontSize = 12.sp, modifier = Modifier.padding(top = 1.dp))
-                            }
                             androidx.compose.material3.DropdownMenu(expanded = menuFor, onDismissRequest = { menuFor = false }) {
+                                Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                                    listOf("❤️", "😂", "😮", "😢", "👍").forEach { e ->
+                                        Text(
+                                            e, fontSize = 20.sp,
+                                            modifier = Modifier.clickable {
+                                                menuFor = false
+                                                scope.launch { try { Fb.reactToMessage(other.id, m.id, e); msgs = Fb.messages(other.id) } catch (_: Exception) { } }
+                                            }.padding(horizontal = 6.dp)
+                                        )
+                                    }
+                                }
                                 androidx.compose.material3.DropdownMenuItem(
                                     text = { Text("Copy") },
                                     onClick = {
@@ -601,17 +691,6 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
                                     text = { Text("Reply") },
                                     onClick = { menuFor = false; replyToMsg = m }
                                 )
-                                Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                                    listOf("❤️", "😂", "😮", "😢", "👍").forEach { e ->
-                                        Text(
-                                            e, fontSize = 20.sp,
-                                            modifier = Modifier.clickable {
-                                                menuFor = false
-                                                scope.launch { try { Fb.reactToMessage(other.id, m.id, e); msgs = Fb.messages(other.id) } catch (_: Exception) { } }
-                                            }.padding(horizontal = 6.dp)
-                                        )
-                                    }
-                                }
                                 if (m.fromMe) {
                                     androidx.compose.material3.DropdownMenuItem(
                                         text = { Text("Unsend", color = Color(0xFFED4956)) },
@@ -628,15 +707,32 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
             }
         }
 
+        if (tipsOpen) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { tipsOpen = false },
+                title = { Text("Safety tips", color = Color.White) },
+                text = {
+                    Text(
+                        "• Only accept messages from people you know.\n• Never share your password or OTP.\n• Report and block accounts that harass you.\n• Think before you share photos.",
+                        color = Color(0xFFDDDDDD), fontSize = 13.sp
+                    )
+                },
+                confirmButton = {
+                    Text("OK", color = Color(0xFF0095F6), fontWeight = FontWeight.Bold, modifier = Modifier.clickable { tipsOpen = false }.padding(6.dp))
+                },
+                containerColor = Color(0xFF1C1C1E)
+            )
+        }
+
         if (emojiOpen) {
             val emojis = listOf(
-                "😀","😃","😄","😁","😆","🤣","😊","😇","😉","😍","🥰","😘","😋","😜","🤪","🤨","🤓","😎","🥳","😏","😔","😭","🥺","😤","😱","🤯","😳","🥵","😡","🤬",
-                "👍","👎","👌","✌️","🤞","🤟","🤘","👏","🙌","🤝","🙏","💪","👋","🤙","👀","🔥","✨","⭐","💔","❤️","🧡","💛","💚","💙","💜","🖤","🎉","🎁","🏆","🎯",
-                "🍕","🍔","🍟","🌮","🍜","🍣","🍩","🍪","🎂","🍰","☕","🍵","🧋","🍺","🍷","🥂","🎮","🎸","🎤","🎧","📸","⚽","🏏","🚗","✈️","🌈","☀️","🌙","🌊","🐶"
+                "😀","😃","😄","😁","😆","","😊","😇","😉","😍","🥰","","😋","😜","🤪","","🤓","😎","🥳","","😔","😭","🥺","😤","😱","","😳","🥵","😡","🤬",
+                "👍","","👌","️","🤞","🤟","🤘","","🙌","","🙏","","👋","","👀","","✨","⭐","","❤️","🧡","💛","💚","💙","💜","🖤","","🎁","","🎯",
+                "🍕","🍔","🍟","🌮","","🍣","","🍪","","🍰","☕","🍵","🧋","🍺","🍷","","🎮","","🎤","","📸","","🏏","","✈️","🌈","☀️","🌙","🌊","🐶"
             )
             Column(Modifier.fillMaxWidth().background(Color(0xFF111111)).padding(horizontal = 8.dp, vertical = 6.dp)) {
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    emojis.forEach { e ->
+                    emojis.filter { it.isNotBlank() }.forEach { e ->
                         Text(e, fontSize = 25.sp, modifier = Modifier.clickable { text += e }.padding(3.dp))
                     }
                 }
@@ -663,48 +759,69 @@ fun ChatScreen(other: VUser, me: VUser, onProfile: (String) -> Unit, onBack: () 
                 Text("✕", color = Color(0xFF8E8E8E), modifier = Modifier.clickable { replyToMsg = null; pendingImage = null }.padding(8.dp))
             }
         }
+
+        // ---- IG input pill: camera | field | emoji/gallery or send ----
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp)
+                .background(Color(0xFF1C1C1E), RoundedCornerShape(26.dp))
+                .padding(start = 5.dp, end = 5.dp, top = 5.dp, bottom = 5.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("😊", fontSize = 24.sp, modifier = Modifier.clickable { emojiOpen = !emojiOpen }.padding(6.dp))
-            Text("🖼", fontSize = 20.sp, modifier = Modifier.clickable { imgPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }.padding(6.dp))
-            OutlinedTextField(
+            Box(
+                Modifier.size(36.dp).background(Color(0xFF3D5AF1), CircleShape)
+                    .clickable { imgPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                Alignment.Center
+            ) {
+                Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_camera), null, tint = Color.White, modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.width(8.dp))
+            androidx.compose.foundation.text.BasicTextField(
                 value = text,
                 onValueChange = { text = it },
-                placeholder = { Text("Message…", color = Color(0xFF8E8E8E)) },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = Color(0xFF0095F6)
-                ),
-                maxLines = 4,
-                shape = RoundedCornerShape(22.dp),
-                modifier = Modifier.weight(1f)
-            )
-            Spacer(Modifier.width(8.dp))
-            IconButton(onClick = {
-                val t = text.trim()
-                if ((t.isEmpty() && pendingImage == null) || sending) return@IconButton
-                sending = true
-                text = ""
-                val img = pendingImage
-                val rt = replyToMsg
-                pendingImage = null
-                replyToMsg = null
-                scope.launch {
-                    try {
-                        Fb.sendDmRich(
-                            other.id, t, img,
-                            rt?.text, if (rt != null) (if (rt.fromMe) "You" else other.username) else null
-                        )
-                        msgs = Fb.messages(other.id)
-                    } catch (_: Exception) {
-                    } finally { sending = false }
+                textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 15.sp),
+                cursorBrush = androidx.compose.ui.graphics.SolidColor(Color(0xFF0095F6)),
+                modifier = Modifier.weight(1f).padding(vertical = 9.dp),
+                decorationBox = { inner ->
+                    if (text.isEmpty()) Text("Message…", color = Color(0xFF8E8E8E), fontSize = 15.sp)
+                    inner()
                 }
-            }) {
-                Icon(Icons.Filled.Send, null, tint = Color(0xFF0095F6), modifier = Modifier.size(26.dp))
+            )
+            if (text.isBlank() && pendingImage == null) {
+                Text("😊", fontSize = 21.sp, modifier = Modifier.clickable { emojiOpen = !emojiOpen }.padding(horizontal = 6.dp))
+                Icon(
+                    androidx.compose.ui.res.painterResource(R.drawable.ic_gallery), null,
+                    tint = Color.White, modifier = Modifier.size(24.dp).clickable {
+                        imgPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    }
+                )
+            } else {
+                Box(
+                    Modifier.size(36.dp).background(Color(0xFF3D5AF1), CircleShape).clickable {
+                        val t = text.trim()
+                        if ((t.isEmpty() && pendingImage == null) || sending) return@clickable
+                        sending = true
+                        val img = pendingImage
+                        val rt = replyToMsg
+                        text = ""
+                        pendingImage = null
+                        replyToMsg = null
+                        scope.launch {
+                            try {
+                                Fb.sendDmRich(
+                                    other.id, t, img,
+                                    rt?.text, if (rt != null) (if (rt.fromMe) "You" else other.username) else null
+                                )
+                                msgs = Fb.messages(other.id)
+                            } catch (_: Exception) {
+                            } finally { sending = false }
+                        }
+                    },
+                    Alignment.Center
+                ) {
+                    Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_dm_filled), null, tint = Color.White, modifier = Modifier.size(18.dp))
+                }
             }
         }
     }
 }
+

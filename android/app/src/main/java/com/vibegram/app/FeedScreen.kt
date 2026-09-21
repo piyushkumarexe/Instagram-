@@ -130,7 +130,13 @@ fun FeedScreen(
                 Icon(painterResource(R.drawable.ic_create), null, tint = Color.White, modifier = Modifier.size(26.dp))
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                Text("Instagram 2.0", color = Color.White, fontSize = 26.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive)
+                Text(
+                    "Instagram 2.0",
+                    color = Color.White, fontSize = 30.sp,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily(
+                        androidx.compose.ui.text.font.Font(R.font.grand_hotel)
+                    )
+                )
             }
             IconButton(onClick = onOpenNotifications) {
                 Box {
@@ -455,6 +461,25 @@ fun PostCard(
                     if (post.verified) {
                         Spacer(Modifier.width(4.dp))
                         VerifiedBadge(15)
+                    }
+                    if (post.userId != myId) {
+                        var headFollow by remember(post.id) { mutableStateOf<Boolean?>(null) }
+                        LaunchedEffect(post.id) {
+                            headFollow = try { Fb.isFollowing(post.userId) } catch (_: Exception) { false }
+                        }
+                        if (headFollow == false) {
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Follow",
+                                color = Color(0xFF0095F6), fontWeight = FontWeight.Bold, fontSize = 13.sp,
+                                modifier = Modifier.clickable {
+                                    headFollow = true
+                                    cardScope.launch {
+                                        try { Fb.follow(VUser(post.userId, post.username, post.name, post.avatar, "", 0, 0, 0, post.verified, false), true) } catch (_: Exception) { }
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }

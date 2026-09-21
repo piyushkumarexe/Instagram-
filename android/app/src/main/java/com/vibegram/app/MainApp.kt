@@ -439,7 +439,8 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                 me = me,
                 onProfile = { chatWith = null; goProfile(it) },
                 onBack = { chatWith = null },
-                onOpenPost = { chatWith = null; postFor = it }
+                onOpenPost = { chatWith = null; postFor = it },
+                onMeChanged = { me = it }
             )
         }
         openStory?.let { su ->
