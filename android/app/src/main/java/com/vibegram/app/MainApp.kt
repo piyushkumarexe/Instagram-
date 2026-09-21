@@ -1,6 +1,9 @@
 package com.vibegram.app
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -361,65 +364,67 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                 }
             }
 
-            NavigationBar(containerColor = Color.Black, contentColor = Color.White, tonalElevation = 0.dp) {
-                NavigationBarItem(
-                    selected = tab == "feed",
-                    onClick = { if (tab == "feed") scrollTick++ else tab = "feed" },
-                    icon = { Icon(painterResource(if (tab == "feed") R.drawable.ic_home_filled else R.drawable.ic_home), null) },
-                    colors = navColors()
-                )
-                NavigationBarItem(
-                    selected = tab == "reels",
-                    onClick = {
-                        scope.launch { try { Fb.touchPresence() } catch (_: Exception) { } }
-                        tab = "reels"
-                    },
-                    icon = { Icon(painterResource(if (tab == "reels") R.drawable.ic_reels_filled else R.drawable.ic_reels), null) },
-                    colors = navColors()
-                )
-                NavigationBarItem(
-                    selected = tab == "messages",
-                    onClick = { tab = "messages" },
-                    icon = {
-                        Box {
-                            Icon(painterResource(if (tab == "messages") R.drawable.ic_dm_filled else R.drawable.ic_dm), null)
-                            if (unreadDms > 0) {
-                                Box(
-                                    Modifier.align(Alignment.TopEnd).offset(x = 3.dp, y = (-2).dp)
-                                        .size(17.dp).background(Color(0xFFED4956), androidx.compose.foundation.shape.CircleShape),
-                                    Alignment.Center
-                                ) {
-                                    Text(unreadDms.toString(), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                    },
-                    colors = navColors()
-                )
-                NavigationBarItem(
-                    selected = tab == "search", onClick = { tab = "search" },
-                    icon = { Icon(painterResource(if (tab == "search") R.drawable.ic_search_filled else R.drawable.ic_search), null) },
-                    colors = navColors()
-                )
-                NavigationBarItem(
-                    selected = tab == "profile", onClick = { tab = "profile" },
-                    icon = {
-                        if (tab == "profile") {
+            // ---- v7.5: custom IG bottom nav — 52dp bar, 5 equal cells, no M3 pill ----
+            Row(
+                Modifier.fillMaxWidth().background(Color.Black)
+                    .navigationBarsPadding().height(52.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    Modifier.weight(1f).fillMaxHeight()
+                        .clickable { if (tab == "feed") scrollTick++ else tab = "feed" },
+                    Alignment.Center
+                ) {
+                    Icon(painterResource(if (tab == "feed") R.drawable.ic_home_filled else R.drawable.ic_home), null, tint = Color.White, modifier = Modifier.size(27.dp))
+                }
+                Box(
+                    Modifier.weight(1f).fillMaxHeight()
+                        .clickable {
+                            scope.launch { try { Fb.touchPresence() } catch (_: Exception) { } }
+                            tab = "reels"
+                        },
+                    Alignment.Center
+                ) {
+                    Icon(painterResource(if (tab == "reels") R.drawable.ic_reels_filled else R.drawable.ic_reels), null, tint = Color.White, modifier = Modifier.size(27.dp))
+                }
+                Box(
+                    Modifier.weight(1f).fillMaxHeight().clickable { tab = "messages" },
+                    Alignment.Center
+                ) {
+                    Box {
+                        Icon(painterResource(if (tab == "messages") R.drawable.ic_dm_filled else R.drawable.ic_dm), null, tint = Color.White, modifier = Modifier.size(26.dp))
+                        if (unreadDms > 0) {
                             Box(
-                                Modifier.size(30.dp).border(1.7.dp, Color.White, androidx.compose.foundation.shape.CircleShape),
+                                Modifier.align(Alignment.TopEnd).offset(x = 9.dp, y = (-3).dp)
+                                    .size(17.dp).background(Color(0xFFED4956), androidx.compose.foundation.shape.CircleShape),
                                 Alignment.Center
                             ) {
-                                ZoomableAvatar(url = me.avatar, size = 24, name = me.username, onTap = { })
+                                Text(unreadDms.toString(), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                             }
-                        } else {
-                            ZoomableAvatar(
-                                url = me.avatar, size = 26, name = me.username,
-                                onTap = { tab = "profile" }
-                            )
                         }
-                    },
-                    colors = navColors()
-                )
+                    }
+                }
+                Box(
+                    Modifier.weight(1f).fillMaxHeight().clickable { tab = "search" },
+                    Alignment.Center
+                ) {
+                    Icon(painterResource(if (tab == "search") R.drawable.ic_search_filled else R.drawable.ic_search), null, tint = Color.White, modifier = Modifier.size(27.dp))
+                }
+                Box(
+                    Modifier.weight(1f).fillMaxHeight().clickable { tab = "profile" },
+                    Alignment.Center
+                ) {
+                    if (tab == "profile") {
+                        Box(
+                            Modifier.size(30.dp).border(1.7.dp, Color.White, androidx.compose.foundation.shape.CircleShape),
+                            Alignment.Center
+                        ) {
+                            ZoomableAvatar(url = me.avatar, size = 24, name = me.username, onTap = { })
+                        }
+                    } else {
+                        ZoomableAvatar(url = me.avatar, size = 27, name = me.username, onTap = { tab = "profile" })
+                    }
+                }
             }
         }
 
@@ -478,14 +483,6 @@ fun VerifiedBadge(sizeDp: Int = 14) {
     )
 }
 
-@Composable
-private fun navColors() = NavigationBarItemDefaults.colors(
-    selectedIconColor = Color.White,
-    selectedTextColor = Color.White,
-    unselectedIconColor = Color.White,
-    unselectedTextColor = Color.White,
-    indicatorColor = Color.Transparent
-)
 
 @Composable
 fun Header(title: String, onBack: (() -> Unit)? = null, actions: @Composable (() -> Unit)? = null) {
