@@ -464,7 +464,7 @@ fun PostCard(
                     }
                     if (post.userId != myId) {
                         var headFollow by remember(post.id) { mutableStateOf<Boolean?>(null) }
-                        LaunchedEffect(post.id) {
+                        androidx.compose.runtime.LaunchedEffect(post.id) {
                             headFollow = try { Fb.isFollowing(post.userId) } catch (_: Exception) { false }
                         }
                         if (headFollow == false) {
