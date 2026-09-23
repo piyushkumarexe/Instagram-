@@ -105,6 +105,7 @@ fun AboutSheet(u: VUser, onDismiss: () -> Unit) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 30.dp)) {
             Text("About this account", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
             Spacer(Modifier.height(14.dp))
+            @Composable
             fun aboutRow(k: String, v: String) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 7.dp)) {
                     Text(k, color = Color(0xFF8E8E8E), fontSize = 14.sp, modifier = Modifier.width(140.dp))

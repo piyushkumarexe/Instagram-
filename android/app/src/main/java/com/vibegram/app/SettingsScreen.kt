@@ -306,7 +306,7 @@ fun SettingsScreen(
                             OutlinedTextField(
                                 value = hwEdit,
                                 onValueChange = { hwEdit = it },
-                                colors = OutlinedTextFieldDefaults.colors(
+                                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
                                     focusedTextColor = Color.White,
                                     unfocusedTextColor = Color.White,
                                     cursorColor = Color(0xFF0095F6)
