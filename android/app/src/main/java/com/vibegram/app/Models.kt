@@ -56,7 +56,8 @@ data class VComment(
     val text: String,
     val createdAt: Long,
     val likes: List<String> = emptyList(),
-    val likesCount: Long = 0
+    val likesCount: Long = 0,
+    val pinned: Boolean = false
 )
 
 data class VNotif(
@@ -99,7 +100,11 @@ data class Story(
     val musicUrl: String? = null,
     val closeOnly: Boolean = false,
     val likes: List<String> = emptyList(),
-    val viewsCount: Long = 0
+    val viewsCount: Long = 0,
+    val pollQ: String? = null,
+    val pollA: String? = null,
+    val pollB: String? = null,
+    val pollVotes: Map<String, Int> = emptyMap()
 )
 
 fun DocumentSnapshot.toVUser(): VUser? {
@@ -169,7 +174,8 @@ fun DocumentSnapshot.toComment(): VComment? {
         text = getString("text") ?: "",
         createdAt = getTimestamp("createdAt")?.toDate()?.time ?: 0L,
         likes = get("likes") as? List<String> ?: emptyList(),
-        likesCount = getLong("likesCount") ?: 0L
+        likesCount = getLong("likesCount") ?: 0L,
+        pinned = (getLong("pinnedAt") ?: 0L) > 0L
     )
 }
 

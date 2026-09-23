@@ -102,6 +102,10 @@ fun StoryComposer(
     var song by remember { mutableStateOf<Song?>(null) }
     var songSheet by remember { mutableStateOf(false) }
     var closeOnly by remember { mutableStateOf(false) }
+    var pollOn by remember { mutableStateOf(false) }
+    var pollQ by remember { mutableStateOf("") }
+    var pollA by remember { mutableStateOf("") }
+    var pollB by remember { mutableStateOf("") }
 
     fun publish() {
         val b = bmp ?: return
@@ -126,7 +130,10 @@ fun StoryComposer(
                     overlayY = textOffset.y,
                     musicTitle = song?.let { it.title + " · " + it.artist },
                     musicUrl = song?.previewUrl,
-                    closeOnly = closeOnly
+                    closeOnly = closeOnly,
+                    pollQ = pollQ.trim().takeIf { pollOn && it.isNotBlank() },
+                    pollA = pollA.trim().takeIf { pollOn && it.isNotBlank() },
+                    pollB = pollB.trim().takeIf { pollOn && it.isNotBlank() }
                 )
                 onPublished()
             } catch (e: Exception) {
@@ -186,7 +193,7 @@ fun StoryComposer(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onCancel) {
-                Icon(Icons.Filled.Close, null, tint = Color.White)
+                Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_x), null, tint = Color.White, modifier = Modifier.size(22.dp))
             }
             Spacer(Modifier.width(6.dp))
             // audience chip
@@ -231,6 +238,14 @@ fun StoryComposer(
                 ) {
                     Text("🎵", fontSize = 19.sp, modifier = Modifier.clickable { songSheet = true })
                 }
+                Spacer(Modifier.width(12.dp))
+                // v7.6: poll sticker tool
+                Box(
+                    Modifier.size(46.dp).background(if (pollOn) Color(0xFF1B3A5E) else Color(0xFF262626), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("📊", fontSize = 18.sp, modifier = Modifier.clickable { pollOn = !pollOn })
+                }
                 if (song != null) {
                     Spacer(Modifier.width(8.dp))
                     Text(song!!.title, color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f), maxLines = 1)
@@ -250,6 +265,51 @@ fun StoryComposer(
                         .clickable { publish() }
                         .padding(10.dp)
                 )
+            }
+            if (pollOn) {
+                Spacer(Modifier.height(8.dp))
+                androidx.compose.material3.OutlinedTextField(
+                    value = pollQ,
+                    onValueChange = { pollQ = it.take(90) },
+                    placeholder = { Text("Ask a question…", color = Color(0xFF8E8E8E), fontSize = 13.sp) },
+                    singleLine = true,
+                    colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                        cursorColor = Color(0xFF0095F6),
+                        focusedBorderColor = Color(0x66FFFFFF), unfocusedBorderColor = Color(0x66FFFFFF)
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.material3.OutlinedTextField(
+                        value = pollA,
+                        onValueChange = { pollA = it.take(30) },
+                        placeholder = { Text("Option 1", color = Color(0xFF8E8E8E), fontSize = 13.sp) },
+                        singleLine = true,
+                        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                            cursorColor = Color(0xFF0095F6),
+                            focusedBorderColor = Color(0x66FFFFFF), unfocusedBorderColor = Color(0x66FFFFFF)
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    )
+                    androidx.compose.material3.OutlinedTextField(
+                        value = pollB,
+                        onValueChange = { pollB = it.take(30) },
+                        placeholder = { Text("Option 2", color = Color(0xFF8E8E8E), fontSize = 13.sp) },
+                        singleLine = true,
+                        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                            cursorColor = Color(0xFF0095F6),
+                            focusedBorderColor = Color(0x66FFFFFF), unfocusedBorderColor = Color(0x66FFFFFF)
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
             if (!textOpen && text.isNotBlank()) {
                 Spacer(Modifier.height(4.dp))

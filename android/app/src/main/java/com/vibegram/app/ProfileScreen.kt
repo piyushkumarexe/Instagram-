@@ -106,6 +106,7 @@ fun ProfileScreen(
     var ownMenu by remember { mutableStateOf(false) }
     var otherMenu by remember { mutableStateOf(false) }
     var archivedOpen by remember { mutableStateOf(false) }
+    var aboutOpen by remember { mutableStateOf(false) }
     var songSheet by remember { mutableStateOf(false) }
     var followerSample by remember { mutableStateOf<List<VUser>>(emptyList()) }
     var highlights by remember { mutableStateOf<List<Fb.Highlight>?>(null) }
@@ -208,19 +209,23 @@ fun ProfileScreen(
             Box(Modifier.weight(1f))
             IconButton(onClick = { listView = !listView }) {
                 Icon(
-                    if (listView) Icons.Filled.Apps else Icons.Filled.ViewList,
+                    if (listView) painterResource(R.drawable.ic_grid) else painterResource(R.drawable.ic_menu),
                     null, tint = Color.White, modifier = Modifier.size(22.dp)
                 )
             }
             if (isOwn) {
                 Box {
                     IconButton(onClick = { ownMenu = true }) {
-                        Icon(Icons.Filled.Menu, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                        Icon(painterResource(R.drawable.ic_menu), null, tint = Color.White, modifier = Modifier.size(24.dp))
                     }
                     androidx.compose.material3.DropdownMenu(expanded = ownMenu, onDismissRequest = { ownMenu = false }) {
                         androidx.compose.material3.DropdownMenuItem(
                             text = { Text("Archived", color = Color.White) },
                             onClick = { ownMenu = false; archivedOpen = true }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("About this account", color = Color.White) },
+                            onClick = { ownMenu = false; aboutOpen = true }
                         )
                         androidx.compose.material3.DropdownMenuItem(
                             text = { Text("Share profile", color = Color.White) },
@@ -242,9 +247,13 @@ fun ProfileScreen(
             } else {
                 Box {
                     IconButton(onClick = { otherMenu = true }) {
-                        Icon(Icons.Filled.MoreVert, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                        Icon(painterResource(R.drawable.ic_dots), null, tint = Color.White, modifier = Modifier.size(22.dp))
                     }
                     androidx.compose.material3.DropdownMenu(expanded = otherMenu, onDismissRequest = { otherMenu = false }) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("About this account", color = Color.White) },
+                            onClick = { otherMenu = false; aboutOpen = true }
+                        )
                         androidx.compose.material3.DropdownMenuItem(
                             text = { Text(if (me.blocked.contains(u.id)) "Unblock" else "Block", color = if (me.blocked.contains(u.id)) Color.White else Color(0xFFED4956)) },
                             onClick = {
@@ -983,6 +992,10 @@ fun ProfileScreen(
     }
 
     // ---- v7.1: archived posts (hidden from grid, restorable) ----
+    if (aboutOpen) {
+        AboutSheet(u, onDismiss = { aboutOpen = false })
+    }
+
     if (archivedOpen && isOwn) {
         var archived by remember { mutableStateOf<List<Post>?>(null) }
         LaunchedEffect(archivedOpen) {

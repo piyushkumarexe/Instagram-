@@ -51,7 +51,8 @@ fun CreateScreen(
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var postUri by remember { mutableStateOf<Uri?>(null) }
-    var caption by remember { mutableStateOf("") }
+    val draftPrefs = remember { ctx.getSharedPreferences("vibegram", 0) }
+    var caption by remember { mutableStateOf(draftPrefs.getString("draft_caption", "") ?: "") }
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf<String?>(null) }
 
@@ -122,7 +123,10 @@ fun CreateScreen(
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
                 value = caption,
-                onValueChange = { caption = it.take(2200) },
+                onValueChange = {
+                    caption = it.take(2200)
+                    draftPrefs.edit().putString("draft_caption", caption).apply()
+                },
                 placeholder = { Text("Write a caption…", color = Color(0xFF8E8E8E)) },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = Color.White,
@@ -154,6 +158,7 @@ fun CreateScreen(
                                 status = "Posted ✅"
                                 postUri = null
                                 caption = ""
+                                draftPrefs.edit().remove("draft_caption").apply()
                                 onPosted()
                             } catch (e: Exception) {
                                 status = e.message
@@ -163,7 +168,7 @@ fun CreateScreen(
                         }
                     },
                     enabled = !busy,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0095F6)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(Prefs.accentLong)),
                     modifier = Modifier.weight(1f).height(48.dp),
                     shape = RoundedCornerShape(10.dp)
                 ) {

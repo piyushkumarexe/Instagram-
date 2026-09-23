@@ -8,6 +8,7 @@ import java.io.File
 class VibeGramApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        Prefs.load(this)
         val default = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { t, e ->
             try {

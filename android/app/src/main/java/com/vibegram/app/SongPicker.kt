@@ -200,7 +200,7 @@ fun DiscoverScreen(
         ) {
             androidx.compose.material3.IconButton(onClick = onBack) {
                 androidx.compose.material3.Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack, null,
+                    androidx.compose.ui.res.painterResource(R.drawable.ic_chevron_left), null,
                     tint = Color.White, modifier = Modifier.size(24.dp)
                 )
             }

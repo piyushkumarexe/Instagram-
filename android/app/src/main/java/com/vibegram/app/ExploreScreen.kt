@@ -2,6 +2,8 @@ package com.vibegram.app
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -48,6 +50,8 @@ fun ExploreScreen(onProfile: (String) -> Unit, onPost: (Post) -> Unit) {
     var posts by remember { mutableStateOf<List<Post>?>(null) }
     var searching by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<String?>(null) }
+    var notInterested by remember { mutableStateOf<Set<String>>(emptySet()) }
+    val exCtx = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(Unit) {
         posts = try { Fb.explorePosts() } catch (_: Exception) { emptyList() }
@@ -126,7 +130,7 @@ fun ExploreScreen(onProfile: (String) -> Unit, onPost: (Post) -> Unit) {
             }
         } else {
             // discovery grid
-            val pl = posts
+            val pl = posts?.filter { it.id !in notInterested }
             if (pl == null) {
                 LoadingBox()
             } else if (pl.isEmpty()) {
@@ -151,6 +155,14 @@ fun ExploreScreen(onProfile: (String) -> Unit, onPost: (Post) -> Unit) {
                                 .padding(0.5.dp)
                                 .background(Color(0xFF101010))
                                 .clickable { onPost(p) }
+                                .pointerInput(p.id) {
+                                    detectTapGestures(
+                                        onLongPress = {
+                                            notInterested = notInterested + p.id
+                                            android.widget.Toast.makeText(exCtx, "Post hidden — you'll see fewer like this", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    )
+                                }
                         ) {
                             DataImage(
                                 url = p.media,

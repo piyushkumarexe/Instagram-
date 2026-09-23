@@ -1,6 +1,7 @@
 package com.vibegram.app
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,6 +63,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onOpenSaved: () -> Unit,
     onOpenNotifications: () -> Unit,
+    onOpenLiked: () -> Unit = {},
     onLogout: () -> Unit,
     onPrivacyChanged: (VUser) -> Unit
 ) {
@@ -72,6 +74,9 @@ fun SettingsScreen(
     var q by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val isOwner = Fb.auth.currentUser?.email == "piyushpk811@gmail.com"
+    var hwOpen by remember { mutableStateOf(false) }
+    var hwEdit by remember { mutableStateOf("") }
+    var accentOpen by remember { mutableStateOf(false) }
     var vq by remember { mutableStateOf("") }
     var vresults by remember { mutableStateOf<List<VUser>>(emptyList()) }
     var vsearching by remember { mutableStateOf(false) }
@@ -91,7 +96,7 @@ fun SettingsScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_chevron_left), null, tint = Color.White, modifier = Modifier.size(24.dp))
             }
             Text("Settings and activity", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 19.sp)
         }
@@ -187,7 +192,7 @@ fun SettingsScreen(
 
             SectionLabel("How you use Instagram")
             if (q.isBlank() || "saved".contains(q, true)) {
-                SettingsRow(icon = { Icon(Icons.Filled.BookmarkBorder, null, tint = Color.White, modifier = Modifier.size(24.dp)) }, title = "Saved") { onOpenSaved() }
+                SettingsRow(icon = { Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_bookmark), null, tint = Color.White, modifier = Modifier.size(24.dp)) }, title = "Saved") { onOpenSaved() }
             }
             if (q.isBlank() || "notifications".startsWith(q, true)) {
                 SettingsRow(icon = { Icon(Icons.Outlined.Notifications, null, tint = Color.White, modifier = Modifier.size(24.dp)) }, title = "Notifications") { onOpenNotifications() }
@@ -251,6 +256,97 @@ fun SettingsScreen(
                         )
                     )
                 }
+            }
+
+            SectionLabel("Your activity")
+            SettingsRow(
+                icon = { Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_heart), null, tint = Color.White, modifier = Modifier.size(24.dp)) },
+                title = "Likes"
+            ) { onOpenLiked() }
+
+            SectionLabel("Appearance")
+            SettingsRow(icon = { Text("🎨", fontSize = 19.sp) }, title = "Accent colour") { accentOpen = !accentOpen }
+            if (accentOpen) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    listOf(
+                        0xFF0095F6L, 0xFFED4956L, 0xFF31D158L, 0xFF8E44FFL, 0xFFFF8A00L
+                    ).forEach { c ->
+                        Box(
+                            Modifier.size(34.dp)
+                                .background(Color(c), CircleShape)
+                                .then(
+                                    if (Prefs.accentLong == c) Modifier.border(2.dp, Color.White, CircleShape)
+                                    else Modifier
+                                )
+                                .clickable { Prefs.setAccent(ctx, c) }
+                        )
+                    }
+                }
+            }
+
+            SectionLabel("Comments")
+            SettingsRow(icon = { Text("🙈", fontSize = 19.sp) }, title = "Hidden words") {
+                hwEdit = ctx.getSharedPreferences("vibegram", 0).getString("hidden_words", "") ?: ""
+                hwOpen = true
+            }
+            if (hwOpen) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { hwOpen = false },
+                    title = { Text("Hidden words", color = Color.White) },
+                    text = {
+                        Column {
+                            Text(
+                                "Comments containing these words stay hidden until tapped. Separate words with commas.",
+                                color = Color(0xFF8E8E8E), fontSize = 12.sp
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = hwEdit,
+                                onValueChange = { hwEdit = it },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    cursorColor = Color(0xFF0095F6)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Text("Save", color = Color(0xFF0095F6), fontWeight = FontWeight.Bold, modifier = Modifier.clickable {
+                            ctx.getSharedPreferences("vibegram", 0).edit().putString("hidden_words", hwEdit).apply()
+                            hwOpen = false
+                            android.widget.Toast.makeText(ctx, "Hidden words saved", android.widget.Toast.LENGTH_SHORT).show()
+                        }.padding(6.dp))
+                    },
+                    dismissButton = { Text("Cancel", color = Color(0xFF8E8E8E), modifier = Modifier.clickable { hwOpen = false }.padding(6.dp)) },
+                    containerColor = Color(0xFF1C1C1E)
+                )
+            }
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("📳", fontSize = 19.sp)
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Haptic feedback", color = Color.White, fontSize = 15.sp)
+                    Text("Vibrate on likes and long-presses", color = Color(0xFF8E8E8E), fontSize = 12.sp)
+                }
+                Spacer(Modifier.width(8.dp))
+                Switch(
+                    checked = Prefs.hapticsOn,
+                    onCheckedChange = { Prefs.setHaptics(ctx, it) },
+                    colors = SwitchDefaults.colors(
+                        checkedTrackColor = Color(0xFF0095F6),
+                        uncheckedTrackColor = Color(0xFF3A3A3C),
+                        checkedThumbColor = Color.White,
+                        uncheckedThumbColor = Color.White
+                    )
+                )
             }
 
             SectionLabel("Data and storage")
@@ -374,7 +470,7 @@ fun SavedScreen(onBack: () -> Unit, onOpenPost: (Post) -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_chevron_left), null, tint = Color.White, modifier = Modifier.size(24.dp))
             }
             Text("Saved", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 19.sp)
         }

@@ -195,7 +195,7 @@ fun LoginScreen(onDone: () -> Unit) {
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            Icons.Filled.PhotoCamera,
+                            androidx.compose.ui.res.painterResource(R.drawable.ic_camera),
                             contentDescription = null,
                             tint = Color.White,
                             modifier = Modifier.size(27.dp)
@@ -224,8 +224,8 @@ fun LoginScreen(onDone: () -> Unit) {
                     onClick = { signIn() },
                     enabled = !busy,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF0A5CFF),
-                        disabledContainerColor = Color(0xFF0A5CFF).copy(alpha = 0.55f)
+                        containerColor = Color(Prefs.accentLong),
+                        disabledContainerColor = Color(Prefs.accentLong).copy(alpha = 0.55f)
                     ),
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     shape = RoundedCornerShape(13.dp)

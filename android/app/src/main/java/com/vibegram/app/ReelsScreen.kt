@@ -166,7 +166,7 @@ private fun ReelPage(
             if (showHeart) {
                 Box(Modifier.fillMaxSize(), Alignment.Center) {
                     Icon(
-                        Icons.Filled.Favorite, null,
+                        painterResource(R.drawable.ic_heart_filled), null,
                         tint = Color(0xFFFF3040), modifier = Modifier.size(110.dp)
                     )
                 }
@@ -221,12 +221,12 @@ private fun ReelPage(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             IconButton(onClick = {
-                if (!liked) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (!liked && Prefs.hapticsOn) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 liked = !liked
                 onLike(post)
             }) {
                 Icon(
-                    if (liked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    if (liked) painterResource(R.drawable.ic_heart_filled) else painterResource(R.drawable.ic_heart),
                     null,
                     tint = if (liked) Color(0xFFED4956) else Color.White,
                     modifier = Modifier.size(30.dp)
@@ -236,7 +236,7 @@ private fun ReelPage(
             Spacer(Modifier.height(12.dp))
             IconButton(onClick = onComments) {
                 Icon(
-                    Icons.Outlined.ChatBubbleOutline, null,
+                    painterResource(R.drawable.ic_comment), null,
                     tint = Color.White, modifier = Modifier.size(27.dp)
                 )
             }
@@ -252,7 +252,7 @@ private fun ReelPage(
                 scope.launch { try { Fb.toggleSave(post.id) } catch (_: Exception) { } }
             }) {
                 Icon(
-                    if (saved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                    if (saved) painterResource(R.drawable.ic_bookmark_filled) else painterResource(R.drawable.ic_bookmark),
                     null, tint = Color.White, modifier = Modifier.size(26.dp)
                 )
             }

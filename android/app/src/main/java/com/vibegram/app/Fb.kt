@@ -325,7 +325,14 @@ object Fb {
                     musicUrl = d.getString("musicUrl"),
                     closeOnly = d.getBoolean("closeOnly") ?: false,
                     likes = d.get("likes") as? List<String> ?: emptyList(),
-                    viewsCount = d.getLong("viewsCount") ?: 0L
+                    viewsCount = d.getLong("viewsCount") ?: 0L,
+                    pollQ = d.getString("pollQ"),
+                    pollA = d.getString("pollA"),
+                    pollB = d.getString("pollB"),
+                    pollVotes = (d.get("pollVotes") as? Map<*, *>)?.entries?.mapNotNull { e ->
+                        val k = e.key?.toString() ?: return@mapNotNull null
+                        k to ((e.value as? Number)?.toInt() ?: 0)
+                    }?.toMap() ?: emptyMap()
                 )
             )
         }
@@ -357,7 +364,10 @@ object Fb {
         overlayY: Float = 0.5f,
         musicTitle: String? = null,
         musicUrl: String? = null,
-        closeOnly: Boolean = false
+        closeOnly: Boolean = false,
+        pollQ: String? = null,
+        pollA: String? = null,
+        pollB: String? = null
     ) {
         val idv = uid ?: return
         val meDoc = db.collection("users").document(idv).get().await()
@@ -376,6 +386,9 @@ object Fb {
                 "musicTitle" to musicTitle,
                 "musicUrl" to musicUrl,
                 "closeOnly" to closeOnly,
+                "pollQ" to pollQ,
+                "pollA" to pollA,
+                "pollB" to pollB,
                 "createdAt" to FieldValue.serverTimestamp()
             )
         ).await()
@@ -1006,6 +1019,41 @@ object Fb {
         }
     }
 
+
+    // ---------- v7.6: activity, reports, polls, pinning ----------
+    suspend fun likedPosts(): List<Post> {
+        val idv = uid ?: return emptyList()
+        val snap = db.collection("posts").whereArrayContains("likes", idv).fresh()
+        return snap.documents.mapNotNull { it.toPost() }.sortedByDescending { it.createdAt }
+    }
+
+    suspend fun archivedPosts(): List<Post> {
+        val idv = uid ?: return emptyList()
+        val snap = db.collection("posts").whereEqualTo("userId", idv).whereEqualTo("archived", true).fresh()
+        return snap.documents.mapNotNull { it.toPost() }.sortedByDescending { it.createdAt }
+    }
+
+    suspend fun reportPost(postId: String, author: String) {
+        val idv = uid ?: return
+        db.collection("reports").add(
+            hashMapOf<String, Any?>(
+                "postId" to postId,
+                "author" to author,
+                "reporterId" to idv,
+                "at" to FieldValue.serverTimestamp()
+            )
+        ).await()
+    }
+
+    suspend fun votePoll(storyId: String, option: Int) {
+        val idv = uid ?: return
+        db.collection("stories").document(storyId).update("pollVotes." + idv, option).await()
+    }
+
+    suspend fun pinComment(postId: String, commentId: String, on: Boolean) {
+        db.collection("posts").document(postId).collection("comments").document(commentId)
+            .update("pinnedAt", if (on) System.currentTimeMillis() else 0L).await()
+    }
 }
 
 fun Bitmap.toDataUrl(max: Int = 1080, quality: Int = 82): String {

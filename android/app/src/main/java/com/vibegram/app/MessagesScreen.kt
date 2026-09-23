@@ -512,7 +512,7 @@ fun ChatScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_chevron_left), null, tint = Color.White, modifier = Modifier.size(24.dp))
             }
             AvatarView(url = other.avatar, size = 34, border = false, name = other.username)
             Spacer(Modifier.width(10.dp))
@@ -768,7 +768,7 @@ fun ChatScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                Modifier.size(36.dp).background(Color(0xFF3D5AF1), CircleShape)
+                Modifier.size(36.dp).background(Color(Prefs.accentLong), CircleShape)
                     .clickable { imgPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                 Alignment.Center
             ) {
@@ -796,7 +796,7 @@ fun ChatScreen(
                 )
             } else {
                 Box(
-                    Modifier.size(36.dp).background(Color(0xFF3D5AF1), CircleShape).clickable {
+                    Modifier.size(36.dp).background(Color(Prefs.accentLong), CircleShape).clickable {
                         val t = text.trim()
                         if ((t.isEmpty() && pendingImage == null) || sending) return@clickable
                         sending = true

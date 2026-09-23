@@ -301,11 +301,17 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
                         onComments = { commentsFor = it },
                         onProfile = { goProfile(it) }
                     )
+                    "liked" -> LikedPostsScreen(
+                        onBack = { goBack() },
+                        onOpenPost = { postFor = it },
+                        onProfile = { goProfile(it) }
+                    )
                     "settings" -> SettingsScreen(
                         me = me,
                         onBack = { goBack() },
                         onOpenSaved = { pushTabRoute("saved") },
                         onOpenNotifications = { pushTabRoute("notifications") },
+                        onOpenLiked = { pushTabRoute("liked") },
                         onLogout = onLogout,
                         onPrivacyChanged = { u -> me = u }
                     )
@@ -477,8 +483,8 @@ fun MainApp(initialMe: VUser, onLogout: () -> Unit) {
 @Composable
 fun VerifiedBadge(sizeDp: Int = 14) {
     Icon(
-        Icons.Filled.Verified, null,
-        tint = Color(0xFF0095F6),
+        androidx.compose.ui.res.painterResource(R.drawable.ic_verified), null,
+        tint = Color.Unspecified,
         modifier = Modifier.size(sizeDp.dp)
     )
 }

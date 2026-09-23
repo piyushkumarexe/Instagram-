@@ -39,7 +39,9 @@ import kotlinx.coroutines.launch
 fun NotificationsScreen(me: VUser, onProfile: (String) -> Unit, onOpenPost: (String) -> Unit = { _ -> }) {
     var rows by remember { mutableStateOf<List<NotifRow>?>(null) }
     var reqs by remember { mutableStateOf<List<Pair<String, VUser>>?>(null) }
+    var filter by remember { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
+    val nCtx = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(Unit) {
         rows = try { Fb.notifications() } catch (_: Exception) { emptyList() }
@@ -56,18 +58,55 @@ fun NotificationsScreen(me: VUser, onProfile: (String) -> Unit, onOpenPost: (Str
     }
 
     Column(Modifier.fillMaxSize().background(Color.Black).statusBarsPadding()) {
-        Text(
-            "Notifications",
-            color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-        )
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Notifications", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Box(Modifier.weight(1f))
+            Text(
+                "Mark all read",
+                color = Color(0xFF0095F6), fontWeight = FontWeight.Bold, fontSize = 13.sp,
+                modifier = Modifier.clickable {
+                    scope.launch { try { Fb.markNotifsRead() } catch (_: Exception) { } }
+                    android.widget.Toast.makeText(nCtx, "All notifications marked as read", android.widget.Toast.LENGTH_SHORT).show()
+                }.padding(6.dp)
+            )
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
+        ) {
+            listOf("All", "Likes", "Comments", "Follows").forEachIndexed { fi, f ->
+                Text(
+                    f,
+                    color = if (filter == fi) Color.White else Color(0xFF8E8E8E),
+                    fontWeight = FontWeight.Bold, fontSize = 12.sp,
+                    modifier = Modifier
+                        .background(
+                            if (filter == fi) Color(0xFF262626) else Color.Transparent,
+                            androidx.compose.foundation.shape.RoundedCornerShape(14.dp)
+                        )
+                        .clickable { filter = fi }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
+        }
         val list = rows
         if (list == null) {
             LoadingBox()
         } else {
+            val flist = list.filter { r ->
+                when (filter) {
+                    1 -> r.notif.type == "like" || r.notif.type == "story_like"
+                    2 -> r.notif.type == "comment"
+                    3 -> r.notif.type.startsWith("follow")
+                    else -> true
+                }
+            }
             val grouped = mutableListOf<Pair<String?, NotifRow>>()
             var last = ""
-            for (r in list) {
+            for (r in flist) {
                 val b = bucket(r.notif.createdAt)
                 if (b != last) { grouped.add(b to r); last = b } else grouped.add(null to r)
             }
@@ -120,8 +159,8 @@ fun NotificationsScreen(me: VUser, onProfile: (String) -> Unit, onOpenPost: (Str
                     }
                 }
 
-                if (list.isEmpty() && (reqs == null || reqs!!.isEmpty())) {
-                    item { EmptyBox("No notifications yet", "🔔") }
+                if (flist.isEmpty() && (reqs == null || reqs!!.isEmpty())) {
+                    item { EmptyBox(if (filter == 0) "No notifications yet" else "Nothing here yet", "🔔") }
                 }
 
                 items(grouped) { g ->

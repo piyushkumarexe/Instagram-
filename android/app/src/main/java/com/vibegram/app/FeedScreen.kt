@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -204,6 +205,21 @@ fun FeedScreen(
                             CircularProgressIndicator(Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
                         }
                     }
+                } else {
+                    item {
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 26.dp, horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("✓", color = Color(0xFF31D158), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.width(8.dp))
+                            Column {
+                                Text("You're all caught up", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text("You've seen all new posts from the past 3 days.", color = Color(0xFF8E8E8E), fontSize = 12.sp)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -258,7 +274,24 @@ fun StoryBar(
         }
         groups.filter { it.first.id != me.id }.take(8).forEach { (user, stories) ->
             val seen = isSeen(user, stories)
+            val allClose = stories.isNotEmpty() && stories.all { it.closeOnly }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                if (allClose) {
+                    Box(
+                        Modifier.size(66.dp).border(2.5.dp, Color(0xFF58C322), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ZoomableAvatar(
+                            url = user.avatar,
+                            size = 57,
+                            border = true,
+                            gradientRing = false,
+                            showRing = false,
+                            name = user.username,
+                            onTap = { onOpenStory(user) }
+                        )
+                    }
+                } else {
                 ZoomableAvatar(
                     url = user.avatar,
                     size = 60,
@@ -268,6 +301,7 @@ fun StoryBar(
                     name = user.username,
                     onTap = { onOpenStory(user) }
                 )
+                }
                 Spacer(Modifier.height(4.dp))
                 Text(
                     user.username.take(9),
@@ -430,6 +464,9 @@ fun PostCard(
     var likedByOpen by remember { mutableStateOf(false) }
     var likedByList by remember { mutableStateOf<List<VUser>>(emptyList()) }
     var shareOpen by remember { mutableStateOf(false) }
+    var insightsOpen by remember { mutableStateOf(false) }
+    var mutedLoc by remember(post.id) { mutableStateOf(false) }
+    var blockedLoc by remember(post.id) { mutableStateOf(false) }
     val cardScope = rememberCoroutineScope()
     val cardCtx = androidx.compose.ui.platform.LocalContext.current
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
@@ -485,7 +522,7 @@ fun PostCard(
             }
             Box {
                 IconButton(onClick = { menu = true }) {
-                    Icon(Icons.Filled.MoreVert, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Icon(painterResource(R.drawable.ic_dots), null, tint = Color.White, modifier = Modifier.size(20.dp))
                 }
                 androidx.compose.material3.DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     if (post.caption.isNotBlank()) {
@@ -538,6 +575,34 @@ fun PostCard(
                             text = { Text("Edit caption", color = Color.White) },
                             onClick = { menu = false; editTxt = post.caption; editOpen = true }
                         )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Insights", color = Color.White) },
+                            onClick = { menu = false; insightsOpen = true }
+                        )
+                    }
+                    if (post.userId != Fb.uid) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(if (mutedLoc) "Unmute posts" else "Mute posts", color = Color.White) },
+                            onClick = {
+                                menu = false
+                                val on = !mutedLoc
+                                mutedLoc = on
+                                cardScope.launch { try { Fb.toggleMute(post.userId, "mutedPosts", on) } catch (_: Exception) { } }
+                                android.widget.Toast.makeText(cardCtx, if (on) "Posts from @" + post.username + " muted" else "Unmuted", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                        if (!blockedLoc) {
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text("Block @" + post.username, color = Color(0xFFED4956)) },
+                                onClick = {
+                                    menu = false
+                                    blockedLoc = true
+                                    cardScope.launch { try { Fb.toggleBlock(post.userId, true) } catch (_: Exception) { } }
+                                    android.widget.Toast.makeText(cardCtx, "@" + post.username + " blocked", android.widget.Toast.LENGTH_SHORT).show()
+                                    onHidden(post)
+                                }
+                            )
+                        }
                     }
                     androidx.compose.material3.DropdownMenuItem(
                         text = { Text("Add to story", color = Color.White) },
@@ -565,6 +630,7 @@ fun PostCard(
                         text = { Text("Report", color = Color(0xFFED4956)) },
                         onClick = {
                             menu = false
+                            cardScope.launch { try { Fb.reportPost(post.id, post.username) } catch (_: Exception) { } }
                             android.widget.Toast.makeText(cardCtx, "Report submitted. Thanks for keeping Instagram 2.0 safe.", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     )
@@ -646,7 +712,7 @@ fun PostCard(
                 .pointerInput(post.id) {
                     detectTapGestures(
                         onDoubleTap = {
-                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                            if (Prefs.hapticsOn) haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                             if (!liked) onLike(post)
                             showHeart = true
                         }
@@ -666,7 +732,7 @@ fun PostCard(
                     )
                     Box(Modifier.fillMaxSize(), Alignment.Center) {
                         Icon(
-                            Icons.Filled.PlayArrow, null,
+                            painterResource(R.drawable.ic_play), null,
                             tint = Color.White.copy(alpha = 0.9f),
                             modifier = Modifier.size(64.dp).androidxClickableTap { playVideo = true }
                         )
@@ -683,7 +749,7 @@ fun PostCard(
             if (showHeart) {
                 Box(Modifier.fillMaxSize(), Alignment.Center) {
                     Icon(
-                        Icons.Filled.Favorite, null,
+                        painterResource(R.drawable.ic_heart_filled), null,
                         tint = Color(0xFFFF3040),
                         modifier = Modifier.size(90.dp)
                     )
@@ -702,17 +768,17 @@ fun PostCard(
         ) {
             IconButton(onClick = { onLike(post) }) {
                 Icon(
-                    if (liked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    if (liked) painterResource(R.drawable.ic_heart_filled) else painterResource(R.drawable.ic_heart),
                     null,
                     tint = if (liked) Color(0xFFED4956) else Color.White,
                     modifier = Modifier.size(26.dp)
                 )
             }
             IconButton(onClick = onComments) {
-                Icon(Icons.Outlined.ChatBubbleOutline, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                Icon(painterResource(R.drawable.ic_comment), null, tint = Color.White, modifier = Modifier.size(24.dp))
             }
             IconButton(onClick = { shareOpen = true }) {
-                Icon(Icons.Filled.Send, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                Icon(painterResource(R.drawable.ic_dm), null, tint = Color.White, modifier = Modifier.size(22.dp))
             }
             IconButton(onClick = {
                 val next = !savedLoc
@@ -720,7 +786,7 @@ fun PostCard(
                 cardScope.launch { try { Fb.toggleSave(post.id) } catch (_: Exception) { } }
             }) {
                 Icon(
-                    if (savedLoc) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                    if (savedLoc) painterResource(R.drawable.ic_bookmark_filled) else painterResource(R.drawable.ic_bookmark),
                     null, tint = Color.White, modifier = Modifier.size(24.dp)
                 )
             }
@@ -796,6 +862,10 @@ fun PostCard(
 
         if (shareOpen) {
             ShareSheet(post = post, onDismiss = { shareOpen = false })
+        }
+
+        if (insightsOpen) {
+            InsightsSheet(post = post, onDismiss = { insightsOpen = false })
         }
 
         // likes + caption

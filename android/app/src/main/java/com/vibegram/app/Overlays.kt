@@ -140,7 +140,7 @@ fun PostModal(
             var pm by remember(post.id) { mutableStateOf(false) }
             if (pm) VideoPlayer(media = post.media, muted = true, modifier = Modifier.fillMaxWidth().aspectRatio(1f))
             else Box(Modifier.fillMaxWidth().aspectRatio(1f).androidxTapPlay { pm = true }, Alignment.Center) {
-                Icon(Icons.Filled.PlayArrow, null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(64.dp))
+                Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_play), null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(64.dp))
             }
         } else {
         AsyncImage(
@@ -166,25 +166,25 @@ fun PostModal(
                 onLike(post)
             }) {
                 Icon(
-                    if (liked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, null,
+                    if (liked) androidx.compose.ui.res.painterResource(R.drawable.ic_heart_filled) else androidx.compose.ui.res.painterResource(R.drawable.ic_heart), null,
                     tint = if (liked) Color(0xFFED4956) else Color.White,
                     modifier = Modifier.size(26.dp)
                 )
             }
             IconButton(onClick = { onComments(post) }) {
-                Icon(Icons.Outlined.ChatBubbleOutline, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_comment), null, tint = Color.White, modifier = Modifier.size(24.dp))
             }
             IconButton(onClick = {
                 pmSaved = !pmSaved
                 pmScope.launch { try { Fb.toggleSave(post.id) } catch (_: Exception) { } }
             }) {
                 Icon(
-                    if (pmSaved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder, null,
+                    if (pmSaved) androidx.compose.ui.res.painterResource(R.drawable.ic_bookmark_filled) else androidx.compose.ui.res.painterResource(R.drawable.ic_bookmark), null,
                     tint = Color.White, modifier = Modifier.size(24.dp)
                 )
             }
             IconButton(onClick = { pmShare = true }) {
-                Icon(Icons.Filled.Send, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_dm), null, tint = Color.White, modifier = Modifier.size(22.dp))
             }
             Box(Modifier.weight(1f))
         }
@@ -212,7 +212,7 @@ fun PostModal(
     }
     if (showHeart) {
         Box(Modifier.fillMaxSize(), Alignment.Center) {
-            Icon(Icons.Filled.Favorite, null, tint = Color(0xFFFF3040), modifier = Modifier.size(96.dp))
+            Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_heart_filled), null, tint = Color(0xFFFF3040), modifier = Modifier.size(96.dp))
         }
     }
 }
@@ -469,6 +469,62 @@ fun StoryViewer(user: VUser, stories: List<Story>, onClose: () -> Unit) {
             }
         }
 
+        // v7.6: poll sticker
+        run {
+            val stPoll = stories.getOrNull(idx)
+            if (stPoll != null && !gone && !stPoll.pollA.isNullOrBlank() && !stPoll.pollB.isNullOrBlank()) {
+                var myVote by remember(idx) { mutableStateOf(stPoll.pollVotes[Fb.uid ?: ""]) }
+                var votes by remember(idx) { mutableStateOf(stPoll.pollVotes) }
+                val nA = votes.values.count { it == 0 }
+                val nB = votes.values.count { it == 1 }
+                val tot = (nA + nB).coerceAtLeast(1)
+                Column(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                        .padding(horizontal = 34.dp)
+                        .padding(bottom = if (isOwn) 96.dp else 150.dp)
+                ) {
+                    if (!stPoll.pollQ.isNullOrBlank()) {
+                        Text(
+                            stPoll.pollQ,
+                            color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                        )
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        listOf(stPoll.pollA!!, stPoll.pollB!!).forEachIndexed { oi, opt ->
+                            val pct = if (myVote != null) ((if (oi == 0) nA else nB) * 100 / tot) else null
+                            Box(
+                                Modifier.weight(1f).height(42.dp)
+                                    .background(Color(0x33000000), RoundedCornerShape(21.dp))
+                                    .clickable {
+                                        if (myVote == null) {
+                                            myVote = oi
+                                            votes = votes + ((Fb.uid ?: "") to oi)
+                                            replyScope.launch { try { Fb.votePoll(stPoll.id, oi) } catch (_: Exception) { } }
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    if (pct == null) opt else opt + " · " + pct + "%",
+                                    color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                    if (myVote != null) {
+                        Text(
+                            (nA + nB).toString() + " votes",
+                            color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().padding(top = 5.dp)
+                        )
+                    }
+                }
+            }
+        }
+
         // reply bar (not on own story)
         if (!isOwn && !gone) {
             // v7.1: IG-style quick reactions, straight into the DM thread
@@ -604,8 +660,14 @@ fun CommentsPanel(
     var text by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
     var replyTo by remember { mutableStateOf<VComment?>(null) }
+    var topFirst by remember { mutableStateOf(true) }
+    var reveal by remember { mutableStateOf<Set<String>>(emptySet()) }
     val scope = rememberCoroutineScope()
     val cpCtx = androidx.compose.ui.platform.LocalContext.current
+    val hiddenWords = remember {
+        (cpCtx.getSharedPreferences("vibegram", 0).getString("hidden_words", "") ?: "")
+            .split(',').map { it.trim().lowercase() }.filter { it.isNotEmpty() }
+    }
 
     fun load() {
         scope.launch { list = try { Fb.comments(post.id) } catch (_: Exception) { emptyList() } }
@@ -619,11 +681,18 @@ fun CommentsPanel(
                 .clickable(enabled = false) { }
         ) {
             Row(
-                Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Box(Modifier.weight(1f))
                 Text("Comments", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                    Text(
+                        if (topFirst) "Top ▾" else "Newest ▾",
+                        color = Color(0xFF8E8E8E), fontWeight = FontWeight.Bold, fontSize = 12.sp,
+                        modifier = Modifier.clickable { topFirst = !topFirst }.padding(4.dp)
+                    )
+                }
             }
 
             Box(Modifier.weight(1f)) {
@@ -634,14 +703,28 @@ fun CommentsPanel(
                     EmptyBox("No comments yet. Say something nice!", "💬")
                 } else {
                     val cScope = rememberCoroutineScope()
+                    val shown = if (topFirst) {
+                        l.sortedWith(compareByDescending<VComment> { it.pinned }.thenByDescending { it.likesCount })
+                    } else {
+                        l.sortedWith(compareByDescending<VComment> { it.pinned }.thenByDescending { it.createdAt })
+                    }
                     LazyColumn(Modifier.fillMaxSize()) {
-                        items(l) { c ->
+                        items(shown) { c ->
                             var cliked by remember(c.id) { mutableStateOf(Fb.uid != null && c.likes.contains(Fb.uid)) }
                             var cDel by remember(c.id) { mutableStateOf(false) }
                             LaunchedEffect(cDel) {
                                 if (cDel) { try { Fb.deleteComment(post.id, c.id) } catch (_: Exception) { } }
                             }
                             if (cDel) return@items
+                            if (hiddenWords.any { c.text.lowercase().contains(it) } && c.id !in reveal) {
+                                Text(
+                                    "⚠️ Hidden comment (blocked word) — tap to view",
+                                    color = Color(0xFF8E8E8E), fontSize = 12.sp,
+                                    modifier = Modifier.fillMaxWidth()
+                                        .clickable { reveal = reveal + c.id }
+                                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                                )
+                            } else {
                             Row(
                                 Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.Top
@@ -679,6 +762,10 @@ fun CommentsPanel(
                                                 color = Color(0xFF8E8E8E), fontSize = 11.sp
                                             )
                                         }
+                                        if (c.pinned) {
+                                            Spacer(Modifier.width(10.dp))
+                                            Text("📌 Pinned", color = Color(0xFF8E8E8E), fontSize = 11.sp)
+                                        }
                                     }
                                 }
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -692,6 +779,16 @@ fun CommentsPanel(
                                             }
                                         }.padding(4.dp)
                                     )
+                                    if (post.userId == Fb.uid) {
+                                        Text(
+                                            if (c.pinned) "📌" else "📍", fontSize = 12.sp,
+                                            modifier = Modifier.clickable {
+                                                val on = !c.pinned
+                                                list = list?.map { if (it.id == c.id) it.copy(pinned = on) else it }
+                                                cScope.launch { try { Fb.pinComment(post.id, c.id, on) } catch (_: Exception) { } }
+                                            }.padding(4.dp)
+                                        )
+                                    }
                                     if (c.userId == Fb.uid) {
                                         Text(
                                             "✕", color = Color(0xFF8E8E8E), fontSize = 11.sp,
@@ -699,6 +796,7 @@ fun CommentsPanel(
                                         )
                                     }
                                 }
+                            }
                             }
                         }
                     }
@@ -712,6 +810,14 @@ fun CommentsPanel(
                     modifier = Modifier.padding(16.dp)
                 )
             } else {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf("❤️", "🔥", "👏", "😂", "😍", "😮", "😢", "👍").forEach { e ->
+                    Text(e, fontSize = 20.sp, modifier = Modifier.clickable { text += e })
+                }
+            }
             Row(
                 Modifier.fillMaxWidth().padding(10.dp),
                 verticalAlignment = Alignment.CenterVertically
